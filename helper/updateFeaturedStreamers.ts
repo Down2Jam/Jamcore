@@ -151,11 +151,20 @@ export async function updateFeaturedStreamers() {
     // Step 4: Update database with filtered streams
     await prisma.featuredStreamer.deleteMany(); // Clear existing records
 
-    const finalStreams = [
+    const finalStreams: any[] = [];
+    const addedStreamers = new Set<string>();
+
+    for (const stream of [
       ...priorityStreams,
       ...streamerStreams,
       ...nonPriorityStreams,
-    ];
+    ]) {
+      const lowerCaseName = stream.user_name.toLowerCase();
+      if (!addedStreamers.has(lowerCaseName)) {
+        addedStreamers.add(lowerCaseName);
+        finalStreams.push(stream);
+      }
+    }
 
     console.log("Inserting new featured streams into database...");
     for (const stream of finalStreams) {
