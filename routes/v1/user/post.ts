@@ -37,7 +37,7 @@ router.post(
           slug: username.toLowerCase().replace(" ", "_"),
           name: username,
           password: await hashPassword(password),
-          email,
+          email: email ? email : null,
         },
       });
 

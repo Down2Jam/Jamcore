@@ -42,7 +42,7 @@ router.put(
           id: res.locals.user.id,
         },
         data: {
-          email,
+          email: email ? email : null,
           profilePicture,
           bannerPicture,
           bio,
