@@ -264,12 +264,12 @@ router.get("/", async function (req: Request, res: Response) {
     case "newest":
       orderBy = { id: "desc" };
       break;
-    case "top":
-      orderBy = { scores: { _count: "desc" } };
-      break;
-    case "bottom":
-      orderBy = { scores: { _count: "asc" } };
-      break;
+    // case "top":
+    //   orderBy = { scores: { _count: "desc" } };
+    //   break;
+    // case "bottom":
+    //   orderBy = { scores: { _count: "asc" } };
+    //   break;
     default:
       orderBy = { id: "desc" };
       break;
