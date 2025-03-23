@@ -30,7 +30,12 @@ async function getTargetTeam(
       users: true,
       invites: true,
       applications: true,
-      game: true,
+      game: {
+        include: {
+          leaderboards: true,
+          achievements: true,
+        },
+      },
     },
   });
 
