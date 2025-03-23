@@ -82,9 +82,12 @@ model Tag {
   icon        String?
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
+  gameTag     Boolean       @default(true)
+  postTag     Boolean       @default(true)
 
   // Relations
   posts       Post[]
+  games       Game[]        @relation(name: "GamesToTags")
   category    TagCategory?  @relation(fields: [categoryId], references: [id])
   categoryId  Int?
 }
@@ -236,19 +239,7 @@ model Game {
   data                Data[]              @relation(name: "DataToGame")
   ratings             Rating[]            @relation(name: "RatingToGame")
   flags               Flag[]              @relation(name: "GamesToFlags")
-  tags                GameTag[]           @relation(name: "GamesToTags")
-}
-
-model GameTag {
-  id                  Int                 @id @default(autoincrement())
-  name                String
-  description         String?
-  icon                String
-  createdAt           DateTime            @default(now())
-  updatedAt           DateTime            @updatedAt
-
-  // Relations
-  games               Game[]              @relation(name: "GamesToTags")
+  tags                Tag[]           @relation(name: "GamesToTags")
 }
 
 model Flag {

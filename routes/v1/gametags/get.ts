@@ -12,7 +12,13 @@ router.get(
   rateLimit(),
 
   async (_req, res) => {
-    const tags = await db.gameTag.findMany({});
+    const tags = await db.tag.findMany({
+      orderBy: { name: "asc" },
+      include: { category: true },
+      where: {
+        postTag: true,
+      },
+    });
 
     res.send({
       message: "Tags fetched",
