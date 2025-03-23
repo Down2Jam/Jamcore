@@ -51,6 +51,7 @@ model User {
   teamApplications  TeamApplication[] @relation(name: "TeamApplicationsToUser")
   teamInvites       TeamInvite[]      @relation(name: "TeamInvitesToUser")
   ratings           Rating[]          @relation(name: "RatingToUser")
+  achievements      Achievement[]     @relation(name: "AchievementToUsers")
 }
 
 enum Priority {
@@ -99,22 +100,35 @@ model CustomTag {
 }
 
 model Post {
-  id          Int       @id @default(autoincrement())
-  slug        String?   @unique
+  id          Int         @id @default(autoincrement())
+  slug        String?     @unique
   title       String
   content     String
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  sticky      Boolean   @default(false)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  sticky      Boolean     @default(false)
 
   // Relations
-  author      User      @relation(fields: [authorId], references: [id], name: "PostToAuthor")
+  author      User        @relation(fields: [authorId], references: [id], name: "PostToAuthor")
   authorId    Int
   tags        Tag[]
   customTags  CustomTag[]
   comments    Comment[]
-  likes       Like[]    @relation(name: "LikeToPost")
-  reports     Report[]  @relation(name: "ReportToPost")
+  likes       Like[]      @relation(name: "LikeToPost")
+  reports     Report[]    @relation(name: "ReportToPost")
+  reactions   Reaction[]  @relation(name: "PostToReactions")
+}
+
+model Reaction {
+  id          Int       @id @default(autoincrement())
+  slug        String    @unique
+  image       String
+  artist      String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  posts       Post[]    @relation(name: "PostToReactions")
 }
 
 model Comment {
@@ -216,10 +230,37 @@ model Game {
   reports             Report[]            @relation(name: "ReportToGame")
   downloadLinks       GameDownloadLink[]  @relation(name: "LinkToGame")
   tracks              Track[]             @relation(name: "TrackToGame")
-  scores              Score[]             @relation(name: "ScoreToGame")
+  leaderboards        Leaderboard[]       @relation(name: "LeaderboardToGame")
+  achievements        Achievement[]       @relation(name: "AchievementToGame")
   ghosts              Ghost[]             @relation(name: "GhostToGame")
   data                Data[]              @relation(name: "DataToGame")
   ratings             Rating[]            @relation(name: "RatingToGame")
+  flags               Flag[]              @relation(name: "GamesToFlags")
+  tags                GameTag[]           @relation(name: "GamesToTags")
+}
+
+model GameTag {
+  id                  Int                 @id @default(autoincrement())
+  name                String
+  description         String?
+  icon                String
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  // Relations
+  games               Game[]              @relation(name: "GamesToTags")
+}
+
+model Flag {
+  id                  Int                 @id @default(autoincrement())
+  name                String
+  description         String?
+  icon                String
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  // Relations
+  games               Game[]             @relation(name: "GamesToFlags")
 }
 
 model RatingCategory {
@@ -263,16 +304,52 @@ model Track {
   gameId        Int
 }
 
-model Score {
-  id            Int       @id @default(autoincrement())
-  data          String
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+enum LeaderboardType {
+  SCORE
+  GOLF
+  SPEEDRUN
+  ENDURANCE
+}
+
+model Leaderboard {
+  id            Int             @id @default(autoincrement())
+  type          LeaderboardType
+  name          String
+  onlyBest      Boolean         @default(true)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
 
   // Relations
-  user          User      @relation(fields: [userId], references: [id], name: "ScoreToUser")
+  game          Game            @relation(fields: [gameId], references: [id], name: "LeaderboardToGame")
+  gameId        Int
+  scores        Score[]         @relation(name: "ScoreToLeaderboard")
+}
+
+model Score {
+  id            Int         @id @default(autoincrement())
+  data          Int
+  evidence      String
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  // Relations
+  user          User        @relation(fields: [userId], references: [id], name: "ScoreToUser")
   userId        Int
-  game          Game      @relation(fields: [gameId], references: [id], name: "ScoreToGame")
+  leaderboard   Leaderboard @relation(fields: [leaderboardId], references: [id], name: "ScoreToLeaderboard")
+  leaderboardId Int
+}
+
+model Achievement {
+  id            Int         @id @default(autoincrement())
+  name          String
+  description   String?
+  image         String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  // Relations
+  users         User[]      @relation(name: "AchievementToUsers")
+  game          Game        @relation(fields: [gameId], references: [id], name: "AchievementToGame")
   gameId        Int
 }
 

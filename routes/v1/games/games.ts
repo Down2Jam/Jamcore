@@ -1,6 +1,7 @@
 import express, { Response, Request } from "express";
 import { PrismaClient } from "@prisma/client";
 import getJam from "@middleware/getJam";
+import db from "@helper/db";
 
 const prisma = new PrismaClient();
 var router = express.Router();
@@ -17,6 +18,10 @@ router.put("/:gameSlug", getJam, async function (req, res) {
     ratingCategories,
     published,
     themeJustification,
+    achievements,
+    flags,
+    tags,
+    leaderboards,
   } = req.body;
 
   if (!name || !category) {
@@ -37,6 +42,10 @@ router.put("/:gameSlug", getJam, async function (req, res) {
       where: { slug: gameSlug },
       include: {
         ratingCategories: true,
+        tags: true,
+        flags: true,
+        achievements: true,
+        leaderboards: true,
       },
     });
 
@@ -59,6 +68,19 @@ router.put("/:gameSlug", getJam, async function (req, res) {
         currentRatingCategories.filter(
           (ratingCategory) => ratingCategory.id == category
         ).length == 0
+    );
+
+    const curTags = existingGame.tags;
+    const disTags = curTags.filter((curTag) => !tags.includes(curTag.id));
+    const newTags = tags.filter(
+      (tag: number) => curTags.filter((curTag) => curTag.id == tag).length == 0
+    );
+
+    const curFlags = existingGame.flags;
+    const disFlags = curFlags.filter((curFlag) => !flags.includes(curFlag.id));
+    const newFlags = flags.filter(
+      (tag: number) =>
+        curFlags.filter((curFlag) => curFlag.id == tag).length == 0
     );
 
     // Update the game
@@ -86,6 +108,22 @@ router.put("/:gameSlug", getJam, async function (req, res) {
             id: category,
           })),
         },
+        tags: {
+          disconnect: disTags.map((tag) => ({
+            id: tag.id,
+          })),
+          connect: newTags.map((tag: number) => ({
+            id: tag,
+          })),
+        },
+        flags: {
+          disconnect: disFlags.map((flag) => ({
+            id: flag.id,
+          })),
+          connect: newFlags.map((flag: number) => ({
+            id: flag,
+          })),
+        },
         category,
         published,
         themeJustification,
@@ -94,6 +132,96 @@ router.put("/:gameSlug", getJam, async function (req, res) {
         downloadLinks: true,
       },
     });
+
+    for (const leaderboard of leaderboards) {
+      if (
+        existingGame.leaderboards.filter(
+          (curLeaderboard) => curLeaderboard.id == leaderboard.id
+        ).length > 0
+      ) {
+        db.leaderboard.update({
+          where: {
+            id: leaderboard.id,
+          },
+          data: {
+            type: leaderboard.type,
+            name: leaderboard.name,
+            onlyBest: leaderboard.onlyBest,
+          },
+        });
+      } else {
+        db.leaderboard.create({
+          data: {
+            type: leaderboard.type,
+            name: leaderboard.name,
+            onlyBest: leaderboard.onlyBest,
+            game: {
+              connect: {
+                id: updatedGame.id,
+              },
+            },
+          },
+        });
+      }
+    }
+
+    for (const leaderboard of existingGame.leaderboards) {
+      if (
+        leaderboards.filter((leaderboard2) => leaderboard2.id == leaderboard.id)
+          .length == 0
+      ) {
+        db.leaderboard.delete({
+          where: {
+            id: leaderboard.id,
+          },
+        });
+      }
+    }
+
+    for (const achievement of achievements) {
+      if (
+        existingGame.achievements.filter(
+          (curAchievement) => curAchievement.id == achievement.id
+        ).length > 0
+      ) {
+        db.achievement.update({
+          where: {
+            id: achievement.id,
+          },
+          data: {
+            name: achievement.name,
+            description: achievement.description ? achievement.description : "",
+            image: achievement.image ? achievement.image : "",
+          },
+        });
+      } else {
+        db.achievement.create({
+          data: {
+            name: achievement.name,
+            description: achievement.description ? achievement.description : "",
+            image: achievement.image ? achievement.image : "",
+            game: {
+              connect: {
+                id: updatedGame.id,
+              },
+            },
+          },
+        });
+      }
+    }
+
+    for (const achievement of existingGame.achievements) {
+      if (
+        achievements.filter((achievement2) => achievement2.id == achievement.id)
+          .length == 0
+      ) {
+        db.achievement.delete({
+          where: {
+            id: achievement.id,
+          },
+        });
+      }
+    }
 
     res.json(updatedGame);
   } catch (error) {

@@ -28,6 +28,18 @@ router.post(
   body("ratingCategories").isArray().withMessage({
     message: "Please enter a valid rating category array",
   }),
+  body("achievements").isArray().withMessage({
+    message: "Please enter a valid achievements array",
+  }),
+  body("flags").isArray().withMessage({
+    message: "Please enter a valid flags array",
+  }),
+  body("tags").isArray().withMessage({
+    message: "Please enter a valid tags array",
+  }),
+  body("leaderboards").isArray().withMessage({
+    message: "Please enter a valid leaderboards array",
+  }),
 
   authUser,
   getUser,
@@ -48,6 +60,10 @@ router.post(
       ratingCategories,
       published,
       themeJustification,
+      achievements,
+      flags,
+      tags,
+      leaderboards,
     } = req.body;
 
     try {
@@ -75,6 +91,32 @@ router.post(
           category,
           published,
           themeJustification,
+          achievements: {
+            create: achievements.map((achievement: any) => ({
+              name: achievement.name,
+              description: achievement.description
+                ? achievement.description
+                : "",
+              image: achievement.image ? achievement.image : "",
+            })),
+          },
+          leaderboards: {
+            create: leaderboards.map((leaderboard: any) => ({
+              type: leaderboard.type,
+              name: leaderboard.name,
+              onlyBest: leaderboard.onlyBest,
+            })),
+          },
+          tags: {
+            connect: tags.map((id: number) => ({
+              id: id,
+            })),
+          },
+          flags: {
+            connect: flags.map((id: number) => ({
+              id: id,
+            })),
+          },
         },
         include: {
           downloadLinks: true,

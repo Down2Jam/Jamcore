@@ -38,6 +38,10 @@ router.get(
         include: {
           downloadLinks: true,
           ratingCategories: true,
+          tags: true,
+          flags: true,
+          leaderboards: true,
+          achievements: true,
         },
       });
 
