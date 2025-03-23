@@ -16,7 +16,7 @@ router.get(
       orderBy: { name: "asc" },
       include: { category: true },
       where: {
-        postTag: true,
+        gameTag: true,
       },
     });
 
