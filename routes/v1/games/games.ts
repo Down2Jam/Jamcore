@@ -45,7 +45,11 @@ router.put("/:gameSlug", getJam, async function (req, res) {
         tags: true,
         flags: true,
         achievements: true,
-        leaderboards: true,
+        leaderboards: {
+          include: {
+            scores: true,
+          },
+        },
       },
     });
 
@@ -170,6 +174,16 @@ router.put("/:gameSlug", getJam, async function (req, res) {
         leaderboards.filter((leaderboard2) => leaderboard2.id == leaderboard.id)
           .length == 0
       ) {
+        if (leaderboard.scores) {
+          for (const score of leaderboard.scores) {
+            await db.score.delete({
+              where: {
+                id: score.id,
+              },
+            });
+          }
+        }
+
         await db.leaderboard.delete({
           where: {
             id: leaderboard.id,

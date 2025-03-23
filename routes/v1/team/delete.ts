@@ -23,6 +23,16 @@ router.delete(
       if (res.locals.targetTeam.game) {
         if (res.locals.targetTeam.game.leaderboards) {
           for (const leaderboard of res.locals.targetTeam.game.leaderboards) {
+            if (res.locals.targetTeam.game.scores) {
+              for (const score of leaderboard.scores) {
+                await db.score.delete({
+                  where: {
+                    id: score.id,
+                  },
+                });
+              }
+            }
+
             await db.leaderboard.delete({
               where: {
                 id: leaderboard.id,
