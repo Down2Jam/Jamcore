@@ -139,7 +139,7 @@ router.put("/:gameSlug", getJam, async function (req, res) {
           (curLeaderboard) => curLeaderboard.id == leaderboard.id
         ).length > 0
       ) {
-        db.leaderboard.update({
+        await db.leaderboard.update({
           where: {
             id: leaderboard.id,
           },
@@ -150,7 +150,7 @@ router.put("/:gameSlug", getJam, async function (req, res) {
           },
         });
       } else {
-        db.leaderboard.create({
+        await db.leaderboard.create({
           data: {
             type: leaderboard.type,
             name: leaderboard.name,
@@ -170,7 +170,7 @@ router.put("/:gameSlug", getJam, async function (req, res) {
         leaderboards.filter((leaderboard2) => leaderboard2.id == leaderboard.id)
           .length == 0
       ) {
-        db.leaderboard.delete({
+        await db.leaderboard.delete({
           where: {
             id: leaderboard.id,
           },
@@ -184,7 +184,7 @@ router.put("/:gameSlug", getJam, async function (req, res) {
           (curAchievement) => curAchievement.id == achievement.id
         ).length > 0
       ) {
-        db.achievement.update({
+        await db.achievement.update({
           where: {
             id: achievement.id,
           },
@@ -195,7 +195,7 @@ router.put("/:gameSlug", getJam, async function (req, res) {
           },
         });
       } else {
-        db.achievement.create({
+        await db.achievement.create({
           data: {
             name: achievement.name,
             description: achievement.description ? achievement.description : "",
@@ -215,7 +215,7 @@ router.put("/:gameSlug", getJam, async function (req, res) {
         achievements.filter((achievement2) => achievement2.id == achievement.id)
           .length == 0
       ) {
-        db.achievement.delete({
+        await db.achievement.delete({
           where: {
             id: achievement.id,
           },
