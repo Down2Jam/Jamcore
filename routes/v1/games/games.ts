@@ -288,6 +288,8 @@ router.get("/:gameSlug", async function (req, res) {
           owner: true,
         },
       },
+      ratingCategories: true,
+      majRatingCategories: true,
       tags: true,
       flags: true,
       leaderboards: {

@@ -36,7 +36,11 @@ async function getUser(
       twitch: true,
       primaryRoles: true,
       secondaryRoles: true,
-      teams: true,
+      teams: {
+        include: {
+          game: true,
+        },
+      },
       teamInvites: {
         include: {
           team: {
