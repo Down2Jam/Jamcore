@@ -254,8 +254,13 @@ router.get("/:gameSlug", async function (req, res) {
       team: {
         include: {
           users: true,
+          owner: true,
         },
       },
+      tags: true,
+      flags: true,
+      leaderboards: true,
+      achievements: true,
     },
   });
 
