@@ -263,6 +263,25 @@ router.get("/:gameSlug", async function (req, res) {
       flags: true,
       leaderboards: true,
       achievements: true,
+      comments: {
+        include: {
+          author: true,
+          likes: true,
+          children: {
+            include: {
+              author: true,
+              likes: true,
+              children: {
+                include: {
+                  author: true,
+                  likes: true,
+                  children: true,
+                },
+              },
+            },
+          },
+        },
+      },
     },
   });
 

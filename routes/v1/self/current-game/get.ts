@@ -42,6 +42,7 @@ router.get(
           flags: true,
           leaderboards: true,
           achievements: true,
+          comments: true,
         },
       });
 

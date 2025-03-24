@@ -145,6 +145,8 @@ model Comment {
   postId    Int?
   comment   Comment?  @relation(fields: [commentId], references: [id], name: "CommentToComments")
   commentId Int?
+  game      Game?     @relation(fields: [gameId], references: [id], name: "CommentToGame")
+  gameId    Int?
   author    User      @relation(fields: [authorId], references: [id])
   authorId  Int
   likes     Like[]    @relation(name: "LikeToComment")
@@ -240,7 +242,8 @@ model Game {
   data                Data[]              @relation(name: "DataToGame")
   ratings             Rating[]            @relation(name: "RatingToGame")
   flags               Flag[]              @relation(name: "GamesToFlags")
-  tags                Tag[]           @relation(name: "GamesToTags")
+  tags                Tag[]               @relation(name: "GamesToTags")
+  comments            Comment[]           @relation(name: "CommentToGame")
 }
 
 model Flag {

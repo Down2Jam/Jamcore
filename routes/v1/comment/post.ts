@@ -17,9 +17,14 @@ router.post(
   getUser,
 
   async (req, res) => {
-    const { content, postId = null, commentId = null } = req.body;
+    const {
+      content,
+      postId = null,
+      commentId = null,
+      gameId = null,
+    } = req.body;
 
-    if (!content || !(postId || commentId)) {
+    if (!content || !(postId || commentId || gameId)) {
       res.status(400);
       res.send();
       return;
@@ -53,12 +58,27 @@ router.post(
       }
     }
 
+    if (gameId) {
+      const game = await db.game.findUnique({
+        where: {
+          id: gameId,
+        },
+      });
+
+      if (!game) {
+        res.status(401);
+        res.send();
+        return;
+      }
+    }
+
     await db.comment.create({
       data: {
         content,
         authorId: res.locals.user.id,
         postId: postId,
         commentId: commentId,
+        gameId: gameId,
       },
     });
 
