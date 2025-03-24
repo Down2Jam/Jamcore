@@ -213,6 +213,7 @@ model EventCategory {
 enum GameCategory {
   REGULAR
   ODA
+  EXTRA
 }
 
 model Game {

@@ -23,7 +23,7 @@ router.post(
   body("slug").isString().withMessage({
     message: "Please enter a valid slug",
   }),
-  body("category").isString().isIn(["ODA", "REGULAR"]).withMessage({
+  body("category").isString().isIn(["ODA", "REGULAR", "EXTRA"]).withMessage({
     message: "Please enter a valid category",
   }),
   body("ratingCategories").isArray().withMessage({
