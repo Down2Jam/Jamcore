@@ -218,6 +218,7 @@ model Game {
   name                String
   description         String?
   thumbnail           String?
+  banner              String?
   category            GameCategory
   createdAt           DateTime            @default(now())
   updatedAt           DateTime            @updatedAt

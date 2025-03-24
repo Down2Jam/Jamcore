@@ -13,6 +13,7 @@ router.put("/:gameSlug", getJam, async function (req, res) {
     slug,
     description,
     thumbnail,
+    banner,
     downloadLinks,
     category,
     ratingCategories,
@@ -95,6 +96,7 @@ router.put("/:gameSlug", getJam, async function (req, res) {
         slug,
         description,
         thumbnail,
+        banner,
         downloadLinks: {
           deleteMany: {}, // Remove all existing download links
           create: downloadLinks.map(

@@ -55,6 +55,7 @@ router.post(
       slug,
       description,
       thumbnail,
+      banner,
       downloadLinks,
       category,
       ratingCategories,
@@ -73,6 +74,7 @@ router.post(
           slug,
           description,
           thumbnail,
+          banner,
           jamId: res.locals.jam.id,
           downloadLinks: {
             create: downloadLinks.map(
