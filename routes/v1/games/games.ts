@@ -158,6 +158,7 @@ router.put("/:gameSlug", getJam, async function (req, res) {
             name: leaderboard.name,
             onlyBest: leaderboard.onlyBest,
             maxUsersShown: leaderboard.maxUsersShown,
+            decimalPlaces: leaderboard.decimalPlaces,
           },
         });
       } else {
@@ -167,6 +168,7 @@ router.put("/:gameSlug", getJam, async function (req, res) {
             name: leaderboard.name,
             onlyBest: leaderboard.onlyBest,
             maxUsersShown: leaderboard.maxUsersShown,
+            decimalPlaces: leaderboard.decimalPlaces,
             game: {
               connect: {
                 id: updatedGame.id,

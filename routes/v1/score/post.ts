@@ -31,7 +31,7 @@ router.post(
       await db.score.create({
         data: {
           evidence,
-          data: score,
+          data: score * 10 ** res.locals.leaderboard.decimalPlaces,
           userId: res.locals.user.id,
           leaderboardId: res.locals.leaderboard.id,
         },
