@@ -11,8 +11,14 @@ router.get(
   "/",
   rateLimit(),
 
-  async (_req, res) => {
-    const categories = await db.ratingCategory.findMany({});
+  async (req, res) => {
+    const { always } = req.query;
+    const categories = await db.ratingCategory.findMany({
+      where: {
+        always: always == "true" ? true : false,
+      },
+      orderBy: [{ order: "desc" }, { id: "asc" }],
+    });
 
     res.send({
       message: "Categories fetched",

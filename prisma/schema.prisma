@@ -265,6 +265,8 @@ model RatingCategory {
   name                  String
   description           String?
   askMajorityContent    Boolean             @default(false)
+  order                 Int                 @default(0)
+  always                Boolean             @default(false)
   createdAt             DateTime            @default(now())
   updatedAt             DateTime            @updatedAt
 

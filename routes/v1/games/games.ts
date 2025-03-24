@@ -290,6 +290,7 @@ router.get("/:gameSlug", async function (req, res) {
       },
       ratingCategories: true,
       majRatingCategories: true,
+      ratings: true,
       tags: true,
       flags: true,
       leaderboards: {
