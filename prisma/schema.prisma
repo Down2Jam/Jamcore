@@ -162,7 +162,8 @@ model Jam {
   slaughterHours  Int       @default(96)
   votingHours  	  Int       @default(72)
   jammingHours    Int       @default(72)
-  ratingHours     Int       @default(336)
+  ratingHours     Int       @default(334)
+  submissionHours Int       @default(2)
   isActive        Boolean   @default(true)
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt

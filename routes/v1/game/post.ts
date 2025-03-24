@@ -1,5 +1,6 @@
 import db from "@helper/db";
 import assertJamPhase from "@middleware/assertJamPhase";
+import assertJamPhaseIn from "@middleware/assertJamPhaseIn";
 import assertTargetTeamDoesNotHaveGame from "@middleware/assertTargetTeamDoesNotHaveGame";
 import assertUserIsInTargetTeam from "@middleware/assertUserIsInTargetTeam";
 import authUser from "@middleware/authUser";
@@ -45,7 +46,7 @@ router.post(
   getUser,
   getJam,
   getTargetTeam,
-  assertJamPhase("Jamming"),
+  assertJamPhaseIn(["Jamming", "Submission"]),
   assertUserIsInTargetTeam,
   assertTargetTeamDoesNotHaveGame,
 

@@ -47,8 +47,12 @@ export const getCurrentActiveJam = async () => {
       new Date(votingEnd).getTime() + jam.jammingHours * 60 * 60 * 1000
     ).toISOString();
 
+    const submissionEnd = new Date(
+      new Date(jammingEnd).getTime() + jam.submissionHours * 60 * 60 * 1000
+    ).toISOString();
+
     const ratingEnd = new Date(
-      new Date(jammingEnd).getTime() + jam.ratingHours * 60 * 60 * 1000
+      new Date(submissionEnd).getTime() + jam.ratingHours * 60 * 60 * 1000
     ).toISOString();
 
     // console.log("Phase times (UTC):");
@@ -57,6 +61,7 @@ export const getCurrentActiveJam = async () => {
     // console.log("End of Slaughter:", slaughterEnd);
     // console.log("End of Voting:", votingEnd);
     // console.log("End of Jamming:", jammingEnd);
+    // console.log("End of Submission:", submissionEnd);
     // console.log("End of Rating:", ratingEnd);
     // console.log("=======");
 
@@ -79,7 +84,9 @@ export const getCurrentActiveJam = async () => {
       return { phase: "Voting", futureJam };
     if (now >= votingEnd && now < jammingEnd)
       return { phase: "Jamming", futureJam };
-    if (now >= jammingEnd && now < ratingEnd)
+    if (now >= jammingEnd && now < submissionEnd)
+      return { phase: "Submission", futureJam };
+    if (now >= submissionEnd && now < ratingEnd)
       return { phase: "Rating", futureJam };
   }
 

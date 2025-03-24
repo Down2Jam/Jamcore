@@ -30,7 +30,11 @@ router.put("/:gameSlug", getJam, async function (req, res) {
     return;
   }
 
-  if (res.locals.jamPhase != "Rating" && res.locals.jamPhase != "Jamming") {
+  if (
+    res.locals.jamPhase != "Rating" &&
+    res.locals.jamPhase != "Submission" &&
+    res.locals.jamPhase != "Jamming"
+  ) {
     res
       .status(400)
       .send("Can't edit game outside of jamming and rating period.");

@@ -1,11 +1,11 @@
 import { NextFunction, Response, Request } from "express";
 
 /**
- * Middleware to assert that the jam is in a certain phase
+ * Middleware to assert that the jam is in an array of phases
  * Requires getJam to be used previously in the assert chain
  */
-function assertJamPhase(
-  phase:
+function assertJamPhaseIn(
+  phases: (
     | "Upcoming Jam"
     | "Suggestion"
     | "Elimination"
@@ -13,14 +13,15 @@ function assertJamPhase(
     | "Jamming"
     | "Submission"
     | "Rating"
+  )[]
 ) {
   return (_req: Request, res: Response, next: NextFunction): void => {
     if (!res.locals.jamPhase) {
       res.status(502).send("Jam not gotten.");
     }
 
-    if (res.locals.jamPhase != phase) {
-      res.status(401).send(`Jam is not in ${phase} phase.`);
+    if (!phases.includes(res.locals.jamPhase)) {
+      res.status(401).send(`Jam is not in the requested phases.`);
       return;
     }
 
@@ -28,4 +29,4 @@ function assertJamPhase(
   };
 }
 
-export default assertJamPhase;
+export default assertJamPhaseIn;
