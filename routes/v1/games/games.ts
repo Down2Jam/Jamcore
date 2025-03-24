@@ -305,7 +305,7 @@ router.get("/:gameSlug", async function (req, res) {
 
 router.get("/", async function (req: Request, res: Response) {
   const { sort } = req.query;
-  let orderBy = {};
+  let orderBy: {} | undefined = {};
 
   switch (sort) {
     case "oldest":
@@ -314,18 +314,14 @@ router.get("/", async function (req: Request, res: Response) {
     case "newest":
       orderBy = { id: "desc" };
       break;
-    // case "top":
-    //   orderBy = { scores: { _count: "desc" } };
-    //   break;
-    // case "bottom":
-    //   orderBy = { scores: { _count: "asc" } };
-    //   break;
+    case "random":
+      orderBy = undefined;
     default:
       orderBy = { id: "desc" };
       break;
   }
 
-  const game = await prisma.game.findMany({
+  let game = await prisma.game.findMany({
     include: {
       jam: true,
     },
@@ -338,6 +334,10 @@ router.get("/", async function (req: Request, res: Response) {
   if (!game) {
     res.status(404).send("No Games were found");
     return;
+  }
+
+  if (sort === "random") {
+    game = game.sort(() => Math.random() - 0.5);
   }
 
   res.json(game);
