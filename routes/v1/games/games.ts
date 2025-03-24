@@ -153,6 +153,7 @@ router.put("/:gameSlug", getJam, async function (req, res) {
             type: leaderboard.type,
             name: leaderboard.name,
             onlyBest: leaderboard.onlyBest,
+            maxUsersShown: leaderboard.maxUsersShown,
           },
         });
       } else {
@@ -161,6 +162,7 @@ router.put("/:gameSlug", getJam, async function (req, res) {
             type: leaderboard.type,
             name: leaderboard.name,
             onlyBest: leaderboard.onlyBest,
+            maxUsersShown: leaderboard.maxUsersShown,
             game: {
               connect: {
                 id: updatedGame.id,
@@ -261,7 +263,15 @@ router.get("/:gameSlug", async function (req, res) {
       },
       tags: true,
       flags: true,
-      leaderboards: true,
+      leaderboards: {
+        include: {
+          scores: {
+            include: {
+              user: true,
+            },
+          },
+        },
+      },
       achievements: true,
       comments: {
         include: {

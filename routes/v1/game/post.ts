@@ -107,6 +107,7 @@ router.post(
               type: leaderboard.type,
               name: leaderboard.name,
               onlyBest: leaderboard.onlyBest,
+              maxUsersShown: leaderboard.maxUsersShown,
             })),
           },
           tags: {

@@ -310,6 +310,7 @@ model Leaderboard {
   id            Int             @id @default(autoincrement())
   type          LeaderboardType
   name          String
+  maxUsersShown Int             @default(10)
   onlyBest      Boolean         @default(true)
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
