@@ -60,6 +60,7 @@ router.post(
       downloadLinks,
       category,
       ratingCategories,
+      majRatingCategories,
       published,
       themeJustification,
       achievements,
@@ -87,6 +88,11 @@ router.post(
           },
           ratingCategories: {
             connect: ratingCategories.map((id: number) => ({
+              id: id,
+            })),
+          },
+          majRatingCategories: {
+            connect: majRatingCategories.map((id: number) => ({
               id: id,
             })),
           },

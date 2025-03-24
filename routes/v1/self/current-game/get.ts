@@ -38,6 +38,7 @@ router.get(
         include: {
           downloadLinks: true,
           ratingCategories: true,
+          majRatingCategories: true,
           tags: true,
           flags: true,
           leaderboards: true,

@@ -17,6 +17,7 @@ router.put("/:gameSlug", getJam, async function (req, res) {
     downloadLinks,
     category,
     ratingCategories,
+    majRatingCategories,
     published,
     themeJustification,
     achievements,
@@ -47,6 +48,7 @@ router.put("/:gameSlug", getJam, async function (req, res) {
       where: { slug: gameSlug },
       include: {
         ratingCategories: true,
+        majRatingCategories: true,
         tags: true,
         flags: true,
         achievements: true,
@@ -75,6 +77,17 @@ router.put("/:gameSlug", getJam, async function (req, res) {
     const newRatingCategories = ratingCategories.filter(
       (category: number) =>
         currentRatingCategories.filter(
+          (ratingCategory) => ratingCategory.id == category
+        ).length == 0
+    );
+
+    const currentMajRatingCategories = existingGame.majRatingCategories;
+    const disconnectMajRatingCategories = currentMajRatingCategories.filter(
+      (category) => !majRatingCategories.includes(category.id)
+    );
+    const newMajRatingCategories = majRatingCategories.filter(
+      (category: number) =>
+        currentMajRatingCategories.filter(
           (ratingCategory) => ratingCategory.id == category
         ).length == 0
     );
@@ -115,6 +128,14 @@ router.put("/:gameSlug", getJam, async function (req, res) {
             id: categry.id,
           })),
           connect: newRatingCategories.map((category: number) => ({
+            id: category,
+          })),
+        },
+        majRatingCategories: {
+          disconnect: disconnectMajRatingCategories.map((categry) => ({
+            id: categry.id,
+          })),
+          connect: newMajRatingCategories.map((category: number) => ({
             id: category,
           })),
         },

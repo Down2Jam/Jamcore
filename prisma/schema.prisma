@@ -226,6 +226,7 @@ model Game {
   createdAt           DateTime            @default(now())
   updatedAt           DateTime            @updatedAt
   ratingCategories    RatingCategory[]    
+  majRatingCategories RatingCategory[]    @relation(name: "GameToMajorityContentRating")
   published           Boolean             @default(false)
   themeJustification  String?
 
@@ -260,15 +261,17 @@ model Flag {
 }
 
 model RatingCategory {
-  id            Int                 @id @default(autoincrement())
-  name          String
-  description   String?
-  createdAt     DateTime            @default(now())
-  updatedAt     DateTime            @updatedAt
+  id                    Int                 @id @default(autoincrement())
+  name                  String
+  description           String?
+  askMajorityContent    Boolean             @default(false)
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
 
   // Relations
-  ratings       Rating[]            @relation("RatingToCategory")
-  games         Game[]
+  ratings               Rating[]            @relation("RatingToCategory")
+  games                 Game[]
+  majContentGames       Game[]              @relation("GameToMajorityContentRating")
 }
 
 model Rating {
