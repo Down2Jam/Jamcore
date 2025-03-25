@@ -29,6 +29,7 @@ router.post(
         slug: (username as string).toLowerCase(),
       },
       select: {
+        slug: true,
         password: true,
       },
     });
