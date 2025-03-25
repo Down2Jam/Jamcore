@@ -30,6 +30,12 @@ async function getJam(
     },
     include: {
       users: true,
+      games: {
+        include: {
+          ratings: true,
+          ratingCategories: true,
+        },
+      },
     },
   });
 

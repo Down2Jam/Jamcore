@@ -7,6 +7,12 @@ export const getCurrentActiveJam = async () => {
     where: { isActive: true },
     include: {
       users: true,
+      games: {
+        include: {
+          ratings: true,
+          ratingCategories: true,
+        },
+      },
     },
   });
 
