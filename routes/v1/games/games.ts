@@ -290,24 +290,14 @@ router.get("/:gameSlug", async function (req, res) {
         include: {
           scores: {
             include: {
-              user: {
-                omit: {
-                  password: true,
-                  email: true,
-                },
-              },
+              user: true,
             },
           },
         },
       },
       team: {
         include: {
-          owner: {
-            omit: {
-              password: true,
-              email: true,
-            },
-          },
+          owner: true,
           users: {
             include: {
               ratings: {
