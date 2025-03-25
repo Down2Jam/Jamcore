@@ -1,8 +1,6 @@
 import { Request, Response } from "express";
-import { PrismaClient } from "@prisma/client";
 import { getCurrentActiveJam } from "../services/jamService";
-
-const prisma = new PrismaClient();
+import db from "@helper/db";
 
 export const getSuggestions = async (req: Request, res: Response) => {
   try {
@@ -13,7 +11,7 @@ export const getSuggestions = async (req: Request, res: Response) => {
     }
 
     // Fetch all suggestions for the current jam
-    const suggestions = await prisma.themeSuggestion.findMany({
+    const suggestions = await db.themeSuggestion.findMany({
       where: { jamId: activeJam.futureJam.id },
     });
 
@@ -40,7 +38,7 @@ export const postSuggestion = async (req: Request, res: Response) => {
     }
 
     // Create a new suggestion in the database
-    const newSuggestion = await prisma.themeSuggestion.create({
+    const newSuggestion = await db.themeSuggestion.create({
       data: {
         suggestion: suggestionText,
         userId,

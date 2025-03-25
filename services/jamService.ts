@@ -1,9 +1,7 @@
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import db from "@helper/db";
 
 export const getCurrentActiveJam = async () => {
-  const jams = await prisma.jam.findMany({
+  const jams = await db.jam.findMany({
     where: { isActive: true },
     include: {
       users: true,
@@ -114,7 +112,7 @@ export const checkJamParticipation = async (req, res, next) => {
     }
 
     // Check if user has joined this jam
-    const hasJoined = await prisma.jam.findFirst({
+    const hasJoined = await db.jam.findFirst({
       where: {
         id: activeJam.futureJam.id,
         users: {

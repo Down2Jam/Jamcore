@@ -5,8 +5,8 @@ import getJam from "../../../middleware/getJam";
 import { PrismaClient } from "@prisma/client";
 import { userIsInJam } from "../../../helper/jam";
 import rateLimit from "@middleware/rateLimit";
+import db from "@helper/db";
 
-const prisma = new PrismaClient();
 var router = express.Router();
 
 router.post(
@@ -25,7 +25,7 @@ router.post(
       return;
     }
 
-    await prisma.jam.update({
+    await db.jam.update({
       where: {
         id: jam.id,
       },

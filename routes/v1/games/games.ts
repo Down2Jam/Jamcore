@@ -1,9 +1,7 @@
 import express, { Response, Request } from "express";
-import { PrismaClient } from "@prisma/client";
 import getJam from "@middleware/getJam";
 import db from "@helper/db";
 
-const prisma = new PrismaClient();
 var router = express.Router();
 
 router.put("/:gameSlug", getJam, async function (req, res) {
@@ -44,7 +42,7 @@ router.put("/:gameSlug", getJam, async function (req, res) {
 
   try {
     // Find the existing game
-    const existingGame = await prisma.game.findUnique({
+    const existingGame = await db.game.findUnique({
       where: { slug: gameSlug },
       include: {
         ratingCategories: true,
@@ -106,7 +104,7 @@ router.put("/:gameSlug", getJam, async function (req, res) {
     );
 
     // Update the game
-    const updatedGame = await prisma.game.update({
+    const updatedGame = await db.game.update({
       where: { slug: gameSlug },
       data: {
         name,
@@ -278,7 +276,7 @@ router.put("/:gameSlug", getJam, async function (req, res) {
 router.get("/:gameSlug", async function (req, res) {
   const { gameSlug } = req.params;
 
-  const game = await prisma.game.findUnique({
+  const game = await db.game.findUnique({
     where: { slug: gameSlug },
     include: {
       downloadLinks: true,
@@ -388,7 +386,7 @@ router.get("/", async function (req: Request, res: Response) {
       break;
   }
 
-  let game = await prisma.game.findMany({
+  let game = await db.game.findMany({
     include: {
       jam: true,
     },

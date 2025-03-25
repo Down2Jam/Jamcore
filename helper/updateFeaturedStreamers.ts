@@ -1,8 +1,5 @@
 import axios from "axios";
-import { PrismaClient } from "@prisma/client";
 import db from "./db";
-
-const prisma = new PrismaClient();
 
 export async function updateFeaturedStreamers() {
   const clientId = process.env.TWITCH_CLIENT_ID;
@@ -149,7 +146,7 @@ export async function updateFeaturedStreamers() {
         : [];
 
     // Step 4: Update database with filtered streams
-    await prisma.featuredStreamer.deleteMany(); // Clear existing records
+    await db.featuredStreamer.deleteMany(); // Clear existing records
 
     const finalStreams: any[] = [];
     const addedStreamers = new Set<string>();
@@ -170,7 +167,7 @@ export async function updateFeaturedStreamers() {
     for (const stream of finalStreams) {
       console.log(stream);
       console.log("Inserting stream:", stream.user_name);
-      await prisma.featuredStreamer.create({
+      await db.featuredStreamer.create({
         data: {
           userName: stream.user_name,
           thumbnailUrl: stream.thumbnail_url
