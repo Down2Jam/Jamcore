@@ -22,6 +22,13 @@ async function getUser(
       slug: userSlug,
     },
     select: {
+      ratings: {
+        select: {
+          value: true,
+          gameId: true,
+          categoryId: true,
+        },
+      },
       id: true,
       name: true,
       bio: true,
