@@ -31,7 +31,13 @@ router.post(
       await db.score.create({
         data: {
           evidence,
-          data: score * 10 ** res.locals.leaderboard.decimalPlaces,
+          data:
+            score *
+            10 **
+              (res.locals.leaderboard.type == "SCORE" ||
+              res.locals.leaderboard.type == "GOLF"
+                ? res.locals.leaderboard.decimalPlaces
+                : 0),
           userId: res.locals.user.id,
           leaderboardId: res.locals.leaderboard.id,
         },
