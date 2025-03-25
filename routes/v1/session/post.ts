@@ -28,6 +28,9 @@ router.post(
       where: {
         slug: (username as string).toLowerCase(),
       },
+      select: {
+        password: true,
+      },
     });
 
     if (!user) {

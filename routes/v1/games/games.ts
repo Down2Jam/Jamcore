@@ -389,6 +389,7 @@ router.get("/", async function (req: Request, res: Response) {
   let game = await db.game.findMany({
     include: {
       jam: true,
+      ratings: true,
     },
     where: {
       published: true,
