@@ -312,9 +312,13 @@ router.get("/:gameSlug", async function (req, res) {
             include: {
               ratings: {
                 select: {
-                  category: {
+                  game: {
                     select: {
-                      id: true,
+                      ratingCategories: {
+                        select: {
+                          id: true,
+                        },
+                      },
                     },
                   },
                 },
