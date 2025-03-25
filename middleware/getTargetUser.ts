@@ -46,6 +46,15 @@ async function getTargetUser(
         bannerPicture: true,
         primaryRoles: true,
         secondaryRoles: true,
+        teams: {
+          select: {
+            game: {
+              include: {
+                jam: true,
+              },
+            },
+          },
+        },
       },
     });
   } else {
@@ -66,6 +75,15 @@ async function getTargetUser(
         bannerPicture: true,
         primaryRoles: true,
         secondaryRoles: true,
+        teams: {
+          select: {
+            game: {
+              include: {
+                jam: true,
+              },
+            },
+          },
+        },
       },
     });
   }
