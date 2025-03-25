@@ -282,22 +282,65 @@ router.get("/:gameSlug", async function (req, res) {
     where: { slug: gameSlug },
     include: {
       downloadLinks: true,
-      team: {
-        include: {
-          users: true,
-          owner: true,
-        },
-      },
       ratingCategories: true,
       majRatingCategories: true,
-      ratings: true,
       tags: true,
       flags: true,
       leaderboards: {
         include: {
           scores: {
             include: {
-              user: true,
+              user: {
+                omit: {
+                  password: true,
+                  email: true,
+                },
+              },
+            },
+          },
+        },
+      },
+      team: {
+        include: {
+          owner: {
+            omit: {
+              password: true,
+              email: true,
+            },
+          },
+          users: {
+            include: {
+              ratings: {
+                select: {
+                  category: {
+                    select: {
+                      id: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      ratings: {
+        include: {
+          user: {
+            select: {
+              teams: {
+                select: {
+                  game: {
+                    select: {
+                      published: true,
+                      ratingCategories: {
+                        select: {
+                          id: true,
+                        },
+                      },
+                    },
+                  },
+                },
+              },
             },
           },
         },
