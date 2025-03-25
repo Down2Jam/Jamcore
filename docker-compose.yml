@@ -12,7 +12,10 @@ services:
       - postgres_data:/var/lib/postgresql/data/
 
   jamcore:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: ${NODE_ENV:-dev}
     environment:
       DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}"
     ports:
