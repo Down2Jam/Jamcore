@@ -63,7 +63,7 @@ router.post(
       { name: user.slug },
       process.env.TOKEN_SECRET,
       {
-        expiresIn: "1d",
+        expiresIn: "7d",
       }
     );
 
