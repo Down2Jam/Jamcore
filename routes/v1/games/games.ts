@@ -409,6 +409,12 @@ router.get("/", async function (req: Request, res: Response) {
     case "newest":
       orderBy = { id: "desc" };
       break;
+    case "leastrated":
+      orderBy = undefined;
+      break;
+    case "danger":
+      orderBy = undefined;
+      break;
     case "random":
       orderBy = undefined;
     default:
@@ -419,7 +425,29 @@ router.get("/", async function (req: Request, res: Response) {
   let game = await db.game.findMany({
     include: {
       jam: true,
-      ratings: true,
+      ratingCategories: true,
+      ratings: {
+        include: {
+          user: {
+            select: {
+              teams: {
+                select: {
+                  game: {
+                    select: {
+                      published: true,
+                      ratingCategories: {
+                        select: {
+                          id: true,
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
     },
     where: {
       published: true,
@@ -432,8 +460,43 @@ router.get("/", async function (req: Request, res: Response) {
     return;
   }
 
+  const ratingCategories = await db.ratingCategory.findMany({
+    where: {
+      always: true,
+    },
+  });
+
   if (sort === "random") {
     game = game.sort(() => Math.random() - 0.5);
+  }
+
+  if (sort === "leastratings") {
+    game = game.sort(
+      (a, b) =>
+        a.ratings.length /
+          (a.ratingCategories.length + ratingCategories.length) -
+        b.ratings.length / (b.ratingCategories.length + ratingCategories.length)
+    );
+  }
+
+  if (sort === "danger") {
+    game = game.filter((game) =>
+      game.ratingCategories.some(
+        (category) =>
+          game.ratings.filter(
+            (rating) =>
+              rating.user.teams.some(
+                (team) => team.game && team.game.published
+              ) && rating.categoryId === category.id
+          ).length < 5
+      )
+    );
+    game = game.sort(
+      (a, b) =>
+        b.ratings.length /
+          (b.ratingCategories.length + ratingCategories.length) -
+        a.ratings.length / (a.ratingCategories.length + ratingCategories.length)
+    );
   }
 
   res.json(game);
