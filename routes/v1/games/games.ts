@@ -1,6 +1,8 @@
 import express, { Response, Request } from "express";
 import getJam from "@middleware/getJam";
 import db from "@helper/db";
+import authUserOptional from "@middleware/authUserOptional";
+import getUserOptional from "@middleware/getUserOptional";
 
 var router = express.Router();
 
@@ -273,38 +275,43 @@ router.put("/:gameSlug", getJam, async function (req, res) {
   }
 });
 
-router.get("/:gameSlug", async function (req, res) {
-  const { gameSlug } = req.params;
+router.get(
+  "/:gameSlug",
+  authUserOptional,
+  getUserOptional,
+  async function (req, res) {
+    const { gameSlug } = req.params;
 
-  const game = await db.game.findUnique({
-    where: { slug: gameSlug },
-    include: {
-      downloadLinks: true,
-      ratingCategories: true,
-      majRatingCategories: true,
-      tags: true,
-      flags: true,
-      leaderboards: {
-        include: {
-          scores: {
-            include: {
-              user: true,
+    const game = await db.game.findUnique({
+      where: { slug: gameSlug },
+      include: {
+        downloadLinks: true,
+        ratingCategories: true,
+        majRatingCategories: true,
+        tags: true,
+        flags: true,
+        leaderboards: {
+          include: {
+            scores: {
+              include: {
+                user: true,
+              },
             },
           },
         },
-      },
-      team: {
-        include: {
-          owner: true,
-          users: {
-            include: {
-              ratings: {
-                select: {
-                  game: {
-                    select: {
-                      ratingCategories: {
-                        select: {
-                          id: true,
+        team: {
+          include: {
+            owner: true,
+            users: {
+              include: {
+                ratings: {
+                  select: {
+                    game: {
+                      select: {
+                        ratingCategories: {
+                          select: {
+                            id: true,
+                          },
                         },
                       },
                     },
@@ -314,19 +321,19 @@ router.get("/:gameSlug", async function (req, res) {
             },
           },
         },
-      },
-      ratings: {
-        include: {
-          user: {
-            select: {
-              teams: {
-                select: {
-                  game: {
-                    select: {
-                      published: true,
-                      ratingCategories: {
-                        select: {
-                          id: true,
+        ratings: {
+          include: {
+            user: {
+              select: {
+                teams: {
+                  select: {
+                    game: {
+                      select: {
+                        published: true,
+                        ratingCategories: {
+                          select: {
+                            id: true,
+                          },
                         },
                       },
                     },
@@ -336,37 +343,60 @@ router.get("/:gameSlug", async function (req, res) {
             },
           },
         },
-      },
-      achievements: true,
-      comments: {
-        include: {
-          author: true,
-          likes: true,
-          children: {
-            include: {
-              author: true,
-              likes: true,
-              children: {
-                include: {
-                  author: true,
-                  likes: true,
-                  children: true,
+        achievements: true,
+        comments: {
+          include: {
+            author: true,
+            likes: true,
+            children: {
+              include: {
+                author: true,
+                likes: true,
+                children: {
+                  include: {
+                    author: true,
+                    likes: true,
+                    children: true,
+                  },
                 },
               },
             },
           },
         },
       },
-    },
-  });
+    });
 
-  if (!game) {
-    res.status(404).send("Game not found");
-    return;
+    if (!game) {
+      res.status(404).send("Game not found");
+      return;
+    }
+
+    let commentsWithHasLiked = game?.comments;
+
+    if (res.locals.user) {
+      function addHasLikedToComments(comments: any[]): any {
+        return comments?.map((comment) => ({
+          ...comment,
+          hasLiked:
+            res.locals.user &&
+            comment.likes?.some(
+              (like: any) => like.userId === res.locals.user.id
+            ),
+          children: comment.children
+            ? addHasLikedToComments(comment.children)
+            : [],
+        }));
+      }
+
+      commentsWithHasLiked = addHasLikedToComments(game?.comments);
+    }
+
+    res.json({
+      ...game,
+      comments: commentsWithHasLiked,
+    });
   }
-
-  res.json(game);
-});
+);
 
 router.get("/", async function (req: Request, res: Response) {
   const { sort } = req.query;

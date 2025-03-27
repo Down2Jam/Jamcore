@@ -29,6 +29,9 @@ router.get("/", async function (req, res) {
       where: {
         id: idnumber,
       },
+      include: {
+        likes: true,
+      },
     });
 
     res.send({
@@ -38,7 +41,7 @@ router.get("/", async function (req, res) {
   } else {
     const post = await db.post.findUnique({
       where: {
-        slug,
+        slug: slug as string,
       },
       include: {
         author: true,

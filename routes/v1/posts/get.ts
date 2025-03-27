@@ -130,12 +130,26 @@ router.get(
       userId = userRecord ? userRecord.id : null;
     }
 
+    function addHasLikedToComments(comments: any[]): any {
+      return comments?.map((comment) => ({
+        ...comment,
+        hasLiked:
+          userId && comment.likes?.some((like: any) => like.userId === userId),
+        children: comment.children
+          ? addHasLikedToComments(comment.children)
+          : [],
+      }));
+    }
+
     const postsWithLikes = posts.map((post) => ({
       ...post,
       hasLiked: userId
         ? post.likes.some((like) => like.userId === userId)
         : false,
+      comments: addHasLikedToComments(post.comments),
     }));
+
+    console.log(postsWithLikes[0]?.comments);
 
     res.send(postsWithLikes);
   }
