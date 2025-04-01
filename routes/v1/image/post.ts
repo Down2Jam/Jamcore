@@ -1,7 +1,7 @@
 import { Router } from "express";
 import rateLimit from "@middleware/rateLimit";
 import authUser from "@middleware/authUser";
-import images from "@helper/images";
+import images, { UploadImage } from "@helper/images";
 
 const router = Router();
 
@@ -25,15 +25,13 @@ router.post(
     });
   },
 
-  (req, res) => {
-    res.status(200).send({
-      message: "Image uploaded",
-      data: `${
-        process.env.NODE_ENV === "production"
-          ? "https://d2jam.com"
-          : `http://localhost:${process.env.PORT || 3005}`
-      }/api/v1/image/${req.file?.filename}`,
-    });
+  async (req, res) => {
+    try {
+      await UploadImage(req, res);
+    } catch (err) {
+      console.error("Upload error:", err);
+      res.status(500).send({ message: "File upload error" });
+    }
   }
 );
 
