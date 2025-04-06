@@ -79,7 +79,7 @@ router.get(
     let filteredGames = games
       .map((game) => {
         let categories = [...game.ratingCategories, ...ratingCategories];
-        if (contentType == "MAJORITYCONTENT") {
+        if (contentType == "MAJORITYCONTENT" && game.category == "REGULAR") {
           categories = categories.filter(
             (category) =>
               !category.askMajorityContent ||
