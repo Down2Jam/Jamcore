@@ -18,7 +18,7 @@ router.get(
   getJam,
 
   async (req, res) => {
-    const { category, contentType } = req.query;
+    const { category, contentType, sort } = req.query;
 
     let games = await db.game.findMany({
       where: {
@@ -135,7 +135,21 @@ router.get(
       })
       .filter((game) => {
         const overallCategory = game.categoryAverages.find(
-          (avg) => avg.categoryName === "Overall"
+          (avg) =>
+            avg.categoryName ===
+            (sort == "OVERALL"
+              ? "Overall"
+              : sort == "GAMEPLAY"
+              ? "Gameplay"
+              : sort == "AUDIO"
+              ? "Audio"
+              : sort == "GRAPHICS"
+              ? "Graphics"
+              : sort == "CREATIVITY"
+              ? "Creativity"
+              : sort == "EMOTIONALDELIVERY"
+              ? "Emotional Delivery"
+              : "Theme")
         );
         return overallCategory && overallCategory.ratingCount >= 5;
       })
@@ -166,12 +180,42 @@ router.get(
 
     filteredGames.sort((a, b) => {
       const aOverall =
-        a.categoryAverages.find((avg) => avg.categoryName === "Overall")
-          ?.averageScore || 0;
+        a.categoryAverages.find(
+          (avg) =>
+            avg.categoryName ===
+            (sort == "OVERALL"
+              ? "Overall"
+              : sort == "GAMEPLAY"
+              ? "Gameplay"
+              : sort == "AUDIO"
+              ? "Audio"
+              : sort == "GRAPHICS"
+              ? "Graphics"
+              : sort == "CREATIVITY"
+              ? "Creativity"
+              : sort == "EMOTIONALDELIVERY"
+              ? "Emotional Delivery"
+              : "Theme")
+        )?.averageScore || 0;
 
       const bOverall =
-        b.categoryAverages.find((avg) => avg.categoryName === "Overall")
-          ?.averageScore || 0;
+        b.categoryAverages.find(
+          (avg) =>
+            avg.categoryName ===
+            (sort == "OVERALL"
+              ? "Overall"
+              : sort == "GAMEPLAY"
+              ? "Gameplay"
+              : sort == "AUDIO"
+              ? "Audio"
+              : sort == "GRAPHICS"
+              ? "Graphics"
+              : sort == "CREATIVITY"
+              ? "Creativity"
+              : sort == "EMOTIONALDELIVERY"
+              ? "Emotional Delivery"
+              : "Theme")
+        )?.averageScore || 0;
 
       return bOverall - aOverall;
     });
