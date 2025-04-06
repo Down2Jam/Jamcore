@@ -464,6 +464,11 @@ router.get(
           categoryIds.includes(rating.categoryId)
         );
 
+        const publishedRatings = filteredRatings.filter(
+          (rating) =>
+            rating.user.teams.filter((team) => team.game?.published).length > 0
+        );
+
         const categoryAverages = categories
           .filter(
             (category) =>
@@ -478,6 +483,9 @@ router.get(
             const categoryRatings = filteredRatings.filter(
               (rating) => rating.categoryId === category.id
             );
+            const categoryPublishedRatings = publishedRatings.filter(
+              (rating) => rating.categoryId === category.id
+            );
 
             const averageRating =
               categoryRatings.length > 0
@@ -487,10 +495,19 @@ router.get(
                   ) / categoryRatings.length
                 : 0;
 
+            const averagePublishedRating =
+              categoryPublishedRatings.length > 0
+                ? categoryPublishedRatings.reduce(
+                    (sum, rating) => sum + rating.value,
+                    0
+                  ) / categoryPublishedRatings.length
+                : 0;
+
             return {
               categoryId: category.id,
               categoryName: category.name,
-              averageScore: averageRating,
+              averageScore: averagePublishedRating,
+              averageUnrankedScore: averageRating,
               ratingCount: categoryRatings.length,
               placement: -1,
             };
@@ -522,7 +539,6 @@ router.get(
         })
         .filter((game) => game.ratingsCount >= 4.99);
 
-      // TODO: ONLY SHOW GAEMS THAT HAVE 5 OF THE THING
       newfilteredgames.forEach((game) => {
         game.categoryAverages.forEach((category) => {
           // Rank games within each category by averageScore
@@ -550,10 +566,12 @@ router.get(
 
       if (newgame.length > 0) {
         newgame[0].categoryAverages.forEach((cat) => {
-          if (!scores[cat.categoryName]) {
-            scores[cat.categoryName] = {};
+          if (cat.ratingCount >= 5) {
+            if (!scores[cat.categoryName]) {
+              scores[cat.categoryName] = {};
+            }
+            scores[cat.categoryName].placement = cat.placement;
           }
-          scores[cat.categoryName].placement = cat.placement;
         });
       }
 
@@ -566,6 +584,8 @@ router.get(
           }
           scores[cat.categoryName].averageScore = cat.averageScore;
           scores[cat.categoryName].ratingCount = cat.ratingCount;
+          scores[cat.categoryName].averageUnrankedScore =
+            cat.averageUnrankedScore;
         });
       }
     }
