@@ -46,7 +46,7 @@ router.post(
   getUser,
   getJam,
   getTargetTeam,
-  assertJamPhaseIn(["Jamming", "Submission"]),
+  assertJamPhaseIn(["Jamming", "Submission", "Rating"]),
   assertUserIsInTargetTeam,
   assertTargetTeamDoesNotHaveGame,
 
