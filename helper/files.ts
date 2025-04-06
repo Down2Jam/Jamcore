@@ -10,36 +10,45 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const storage = multer.memoryStorage();
 
-const images = multer({
-  storage: storage,
-  limits: { fileSize: 1024 * 1024 * 8 },
-  fileFilter: (_req, file, cb) => {
-    const allowedTypes = [
-      "image/jpeg", // JPEG images
-      "image/png", // PNG images
-      "image/apng", // APNG images
-      "image/gif", // GIF images
-      "image/webp", // WebP images
-      "image/svg+xml", // SVG images
-    ];
+const allowedImageTypes = [
+  "image/jpeg", // JPEG images
+  "image/png", // PNG images
+  "image/apng", // APNG images
+  "image/gif", // GIF images
+  "image/webp", // WebP images
+  "image/svg+xml", // SVG images
+];
 
-    if (!allowedTypes.includes(file.mimetype)) {
-      const error = new Error("Invalid file type");
-      return cb(error);
-    }
+const allowedMusicTypes = [
+  "audio/wav", // Wav sounds
+  "audio/ogg", // Ogg sounds
+  "audio/mpeg", // Mp3 sounds
+];
 
-    cb(null, true);
-  },
-});
+const uploadHandler = (fileTypes: string[], folder: string) =>
+  multer({
+    storage: storage,
+    limits: { fileSize: 1024 * 1024 * 8 }, // 8 MB limit
+    fileFilter: (_req, file, cb) => {
+      if (!fileTypes.includes(file.mimetype)) {
+        const error = new Error("Invalid file type");
+        return cb(error);
+      }
+      cb(null, true);
+    },
+  });
 
-export async function UploadImage(req: any, res: any) {
+export const images = uploadHandler(allowedImageTypes, "images");
+export const music = uploadHandler(allowedMusicTypes, "music");
+
+export async function UploadFile(req: any, res: any) {
   if (!req.file) {
     return res.status(400).json({ message: "No file uploaded" });
   }
 
   const file = req.file;
   const fileName = uuidv4() + path.extname(file.originalname);
-  const folder = "images";
+  const folder = file.mimetype.startsWith("image/") ? "images" : "music";
 
   if (await IsUsingS3()) {
     // Upload to S3
@@ -51,19 +60,19 @@ export async function UploadImage(req: any, res: any) {
     );
     if (success) {
       return res.json({
-        message: "Image uploaded",
+        message: "File uploaded",
         data: `${
           process.env.NODE_ENV === "production"
             ? "https://d2jam.com"
             : `http://localhost:${process.env.PORT || 3005}`
-        }/api/v1/image/${fileName}`,
+        }/api/v1/${folder}/${fileName}`,
       });
     } else {
       return res.status(500).json({ message: "S3 upload failed" });
     }
   } else {
     // Save locally
-    const localDir = path.resolve(__dirname, "..", "public", "images");
+    const localDir = path.resolve(__dirname, "..", "public", folder);
     if (!fs.existsSync(localDir)) {
       fs.mkdirSync(localDir, { recursive: true });
     }
@@ -71,17 +80,15 @@ export async function UploadImage(req: any, res: any) {
     fs.writeFileSync(localPath, file.buffer);
 
     return res.json({
-      message: "Image uploaded",
+      message: "File uploaded",
       data: `${
         process.env.NODE_ENV === "production"
           ? "https://d2jam.com"
           : `http://localhost:${process.env.PORT || 3005}`
-      }/api/v1/image/${fileName}`,
+      }/api/v1/${folder}/${fileName}`,
     });
   }
 }
-
-export default images;
 
 /*
 res.status(200).send({

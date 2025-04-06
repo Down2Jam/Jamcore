@@ -11,7 +11,7 @@ import { GetS3File } from "@helper/s3";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 /**
- * Route to get an image
+ * Route to get a song
  */
 router.get(
   "/:filename",
@@ -20,29 +20,29 @@ router.get(
   async (req, res) => {
     const { filename } = req.params;
 
-    const imagePath = path.join(
+    const musicPath = path.join(
       __dirname,
       "..",
       "..",
       "..",
       "public",
-      "images",
+      "music",
       `${filename}`
     );
 
-    if (existsSync(imagePath)) {
-      res.sendFile(imagePath, (err) => {
+    if (existsSync(musicPath)) {
+      res.sendFile(musicPath, (err) => {
         if (err) {
-          res.status(404).send("Image not found");
+          res.status(404).send("Music not found");
         }
       });
       return;
     }
 
     try {
-      const imageBuffer = await GetS3File("images", filename);
-      if (imageBuffer) {
-        res.send(imageBuffer);
+      const buffer = await GetS3File("music", filename);
+      if (buffer) {
+        res.send(buffer);
         return;
       }
     } catch (err) {

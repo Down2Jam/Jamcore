@@ -279,6 +279,7 @@ router.get(
   "/:gameSlug",
   authUserOptional,
   getUserOptional,
+  getJam,
   async function (req, res) {
     const { gameSlug } = req.params;
 
@@ -391,9 +392,175 @@ router.get(
       commentsWithHasLiked = addHasLikedToComments(game?.comments);
     }
 
+    // Ratings info
+
+    let placements = {};
+    let scores = {};
+    let count = {};
+
+    if (res.locals.jam.id !== game.jamId) {
+      let games = await db.game.findMany({
+        include: {
+          ratingCategories: true,
+          team: {
+            select: {
+              users: {
+                select: {
+                  ratings: {
+                    select: {
+                      game: {
+                        select: {
+                          ratingCategories: {
+                            select: {
+                              id: true,
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          ratings: {
+            select: {
+              value: true,
+              categoryId: true,
+              user: {
+                select: {
+                  teams: {
+                    select: {
+                      game: {
+                        select: {
+                          published: true,
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+
+      const ratingCategories = await db.ratingCategory.findMany({
+        where: {
+          always: true,
+        },
+      });
+
+      let filteredGames = games.map((game) => {
+        const categories = [...game.ratingCategories, ...ratingCategories];
+        const categoryIds = categories.map(
+          (ratingCategory) => ratingCategory.id
+        );
+
+        // Filter out ratings in categories the game has opted out of (in case they opt out later)
+        const filteredRatings = game.ratings.filter((rating) =>
+          categoryIds.includes(rating.categoryId)
+        );
+
+        const categoryAverages = categories.map((category) => {
+          const categoryRatings = filteredRatings.filter(
+            (rating) => rating.categoryId === category.id
+          );
+
+          const averageRating =
+            categoryRatings.length > 0
+              ? categoryRatings.reduce((sum, rating) => sum + rating.value, 0) /
+                categoryRatings.length
+              : 0;
+
+          return {
+            categoryId: category.id,
+            categoryName: category.name,
+            averageScore: averageRating,
+            ratingCount: categoryRatings.length,
+            placement: -1,
+          };
+        });
+
+        return {
+          ...game,
+          categoryAverages,
+          ratingsCount: game.team.users.reduce((totalRatings, user) => {
+            const userRatingCount = user.ratings.reduce((count, rating) => {
+              return (
+                count +
+                1 /
+                  (rating.game.ratingCategories.length +
+                    ratingCategories.length)
+              );
+            }, 0);
+            return totalRatings + userRatingCount;
+          }, 0),
+        };
+      });
+
+      const newfilteredgames = filteredGames
+        .filter((game) => {
+          const overallCategory = game.categoryAverages.find(
+            (avg) => avg.categoryName === "Overall"
+          );
+          return overallCategory && overallCategory.ratingCount >= 5;
+        })
+        .filter((game) => game.ratingsCount >= 4.99);
+
+      // TODO: ONLY SHOW GAEMS THAT HAVE 5 OF THE THING
+      newfilteredgames.forEach((game) => {
+        game.categoryAverages.forEach((category) => {
+          // Rank games within each category by averageScore
+          const rankedGamesInCategory = newfilteredgames
+            .map((g) => {
+              const categoryAvg = g.categoryAverages.find(
+                (cat) => cat.categoryId === category.categoryId
+              );
+              return {
+                gameId: g.id,
+                score: categoryAvg ? categoryAvg.averageScore : 0,
+              };
+            })
+            .sort((a, b) => b.score - a.score);
+
+          const gamePlacement = rankedGamesInCategory.findIndex(
+            (rankedGame) => rankedGame.gameId === game.id
+          );
+
+          category.placement = gamePlacement + 1;
+        });
+      });
+
+      const newgame = newfilteredgames.filter((fgame) => fgame.id == game.id);
+
+      if (newgame.length > 0) {
+        placements = newgame[0].categoryAverages.reduce((prev, cat) => {
+          prev[cat.categoryName] = cat.placement;
+          return prev;
+        }, {});
+      }
+
+      const gamedet = filteredGames.filter((fgame) => fgame.id == game.id);
+
+      if (gamedet.length > 0) {
+        scores = gamedet[0].categoryAverages.reduce((prev, cat) => {
+          prev[cat.categoryName] = cat.averageScore;
+          return prev;
+        }, {});
+        count = gamedet[0].categoryAverages.reduce((prev, cat) => {
+          prev[cat.categoryName] = cat.ratingCount;
+          return prev;
+        }, {});
+      }
+    }
+
     res.json({
       ...game,
       comments: commentsWithHasLiked,
+      placements,
+      scores,
+      count,
     });
   }
 );
