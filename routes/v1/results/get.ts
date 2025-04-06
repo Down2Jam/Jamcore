@@ -76,7 +76,7 @@ router.get(
       },
     });
 
-    const filteredGames = games
+    let filteredGames = games
       .map((game) => {
         let categories = [...game.ratingCategories, ...ratingCategories];
         if (contentType == "MAJORITYCONTENT") {
