@@ -88,6 +88,15 @@ router.get(
                 .includes(category.id)
           );
         }
+        categories = categories.filter(
+          (category) =>
+            filteredRatings.filter(
+              (rating) =>
+                rating.categoryId === category.id &&
+                rating.user.teams.filter((team) => team.game?.published)
+                  .length > 0
+            ).length >= 5
+        );
         const categoryIds = categories.map(
           (ratingCategory) => ratingCategory.id
         );
@@ -99,7 +108,10 @@ router.get(
 
         const categoryAverages = categories.map((category) => {
           const categoryRatings = filteredRatings.filter(
-            (rating) => rating.categoryId === category.id
+            (rating) =>
+              rating.categoryId === category.id &&
+              rating.user.teams.filter((team) => team.game?.published).length >
+                0
           );
 
           const averageRating =
