@@ -49,6 +49,7 @@ export async function UploadFile(req: any, res: any) {
   const file = req.file;
   const fileName = uuidv4() + path.extname(file.originalname);
   const folder = file.mimetype.startsWith("image/") ? "images" : "music";
+  const localFolder = file.mimetype.startsWith("image/") ? "image" : "music";
 
   if (await IsUsingS3()) {
     // Upload to S3
@@ -65,7 +66,7 @@ export async function UploadFile(req: any, res: any) {
           process.env.NODE_ENV === "production"
             ? "https://d2jam.com"
             : `http://localhost:${process.env.PORT || 3005}`
-        }/api/v1/${folder}/${fileName}`,
+        }/api/v1/${localFolder}/${fileName}`,
       });
     } else {
       return res.status(500).json({ message: "S3 upload failed" });
@@ -85,7 +86,7 @@ export async function UploadFile(req: any, res: any) {
         process.env.NODE_ENV === "production"
           ? "https://d2jam.com"
           : `http://localhost:${process.env.PORT || 3005}`
-      }/api/v1/${folder}/${fileName}`,
+      }/api/v1/${localFolder}/${fileName}`,
     });
   }
 }
