@@ -398,8 +398,12 @@ router.get(
 
     if (res.locals.jam.id !== game.jamId || res.locals.user?.id == 3) {
       let games = await db.game.findMany({
+        where: {
+          category: game.category,
+        },
         include: {
           ratingCategories: true,
+          majRatingCategories: true,
           team: {
             select: {
               users: {
@@ -460,25 +464,35 @@ router.get(
           categoryIds.includes(rating.categoryId)
         );
 
-        const categoryAverages = categories.map((category) => {
-          const categoryRatings = filteredRatings.filter(
-            (rating) => rating.categoryId === category.id
-          );
+        const categoryAverages = categories
+          .filter(
+            (category) =>
+              !category.askMajorityContent ||
+              game.category != "REGULAR" ||
+              game.majRatingCategories.filter((maj) => maj.id == category.id)
+                .length > 0
+          )
+          .map((category) => {
+            const categoryRatings = filteredRatings.filter(
+              (rating) => rating.categoryId === category.id
+            );
 
-          const averageRating =
-            categoryRatings.length > 0
-              ? categoryRatings.reduce((sum, rating) => sum + rating.value, 0) /
-                categoryRatings.length
-              : 0;
+            const averageRating =
+              categoryRatings.length > 0
+                ? categoryRatings.reduce(
+                    (sum, rating) => sum + rating.value,
+                    0
+                  ) / categoryRatings.length
+                : 0;
 
-          return {
-            categoryId: category.id,
-            categoryName: category.name,
-            averageScore: averageRating,
-            ratingCount: categoryRatings.length,
-            placement: -1,
-          };
-        });
+            return {
+              categoryId: category.id,
+              categoryName: category.name,
+              averageScore: averageRating,
+              ratingCount: categoryRatings.length,
+              placement: -1,
+            };
+          });
 
         return {
           ...game,
