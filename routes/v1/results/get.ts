@@ -135,21 +135,7 @@ router.get(
       })
       .filter((game) => {
         const overallCategory = game.categoryAverages.find(
-          (avg) =>
-            avg.categoryName ===
-            (sort == "OVERALL"
-              ? "Overall"
-              : sort == "GAMEPLAY"
-              ? "Gameplay"
-              : sort == "AUDIO"
-              ? "Audio"
-              : sort == "GRAPHICS"
-              ? "Graphics"
-              : sort == "CREATIVITY"
-              ? "Creativity"
-              : sort == "EMOTIONALDELIVERY"
-              ? "Emotional Delivery"
-              : "Theme")
+          (avg) => avg.categoryName === "Overall"
         );
         return overallCategory && overallCategory.ratingCount >= 5;
       })
@@ -218,6 +204,27 @@ router.get(
         )?.averageScore || 0;
 
       return bOverall - aOverall;
+    });
+
+    filteredGames = filteredGames.filter((game) => {
+      const overallCategory = game.categoryAverages.find(
+        (avg) =>
+          avg.categoryName ===
+          (sort == "OVERALL"
+            ? "Overall"
+            : sort == "GAMEPLAY"
+            ? "Gameplay"
+            : sort == "AUDIO"
+            ? "Audio"
+            : sort == "GRAPHICS"
+            ? "Graphics"
+            : sort == "CREATIVITY"
+            ? "Creativity"
+            : sort == "EMOTIONALDELIVERY"
+            ? "Emotional Delivery"
+            : "Theme")
+      );
+      return overallCategory && overallCategory.ratingCount >= 5;
     });
 
     res.json({ data: filteredGames });
