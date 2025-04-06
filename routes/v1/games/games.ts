@@ -453,14 +453,14 @@ router.get(
         },
       });
 
-      let filteredGames = games.map((game) => {
-        const categories = [...game.ratingCategories, ...ratingCategories];
+      let filteredGames = games.map((game2) => {
+        const categories = [...game2.ratingCategories, ...ratingCategories];
         const categoryIds = categories.map(
           (ratingCategory) => ratingCategory.id
         );
 
         // Filter out ratings in categories the game has opted out of (in case they opt out later)
-        const filteredRatings = game.ratings.filter((rating) =>
+        const filteredRatings = game2.ratings.filter((rating) =>
           categoryIds.includes(rating.categoryId)
         );
 
@@ -468,8 +468,10 @@ router.get(
           .filter(
             (category) =>
               !category.askMajorityContent ||
-              game.category != "REGULAR" ||
+              game2.category != "REGULAR" ||
               game.majRatingCategories.filter((maj) => maj.id == category.id)
+                .length == 0 ||
+              game2.majRatingCategories.filter((maj) => maj.id == category.id)
                 .length > 0
           )
           .map((category) => {
@@ -495,9 +497,9 @@ router.get(
           });
 
         return {
-          ...game,
+          ...game2,
           categoryAverages,
-          ratingsCount: game.team.users.reduce((totalRatings, user) => {
+          ratingsCount: game2.team.users.reduce((totalRatings, user) => {
             const userRatingCount = user.ratings.reduce((count, rating) => {
               return (
                 count +
