@@ -18,13 +18,14 @@ router.get(
   getJam,
 
   async (req, res) => {
-    const { category } = req.query;
+    const { category, contentType } = req.query;
 
     let games = await db.game.findMany({
       where: {
         category: category as GameCategory,
       },
       include: {
+        majRatingCategories: true,
         ratingCategories: true,
         team: {
           select: {
@@ -77,7 +78,16 @@ router.get(
 
     const filteredGames = games
       .map((game) => {
-        const categories = [...game.ratingCategories, ...ratingCategories];
+        let categories = [...game.ratingCategories, ...ratingCategories];
+        if (contentType == "MAJORITYCONTENT") {
+          categories = categories.filter(
+            (category) =>
+              !category.askMajorityContent ||
+              game.majRatingCategories
+                .map((cat) => cat.id)
+                .includes(category.id)
+          );
+        }
         const categoryIds = categories.map(
           (ratingCategory) => ratingCategory.id
         );
