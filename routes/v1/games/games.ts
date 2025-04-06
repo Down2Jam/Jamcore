@@ -394,11 +394,9 @@ router.get(
 
     // Ratings info
 
-    let placements = {};
     let scores = {};
-    let count = {};
 
-    if (res.locals.jam.id !== game.jamId) {
+    if (res.locals.jam.id !== game.jamId || res.locals.user.id == 3) {
       let games = await db.game.findMany({
         include: {
           ratingCategories: true,
@@ -535,32 +533,31 @@ router.get(
       const newgame = newfilteredgames.filter((fgame) => fgame.id == game.id);
 
       if (newgame.length > 0) {
-        placements = newgame[0].categoryAverages.reduce((prev, cat) => {
-          prev[cat.categoryName] = cat.placement;
-          return prev;
-        }, {});
+        newgame[0].categoryAverages.forEach((cat) => {
+          if (!scores[cat.categoryName]) {
+            scores[cat.categoryName] = {};
+          }
+          scores[cat.categoryName].placement = cat.placement;
+        });
       }
 
       const gamedet = filteredGames.filter((fgame) => fgame.id == game.id);
 
       if (gamedet.length > 0) {
-        scores = gamedet[0].categoryAverages.reduce((prev, cat) => {
-          prev[cat.categoryName] = cat.averageScore;
-          return prev;
-        }, {});
-        count = gamedet[0].categoryAverages.reduce((prev, cat) => {
-          prev[cat.categoryName] = cat.ratingCount;
-          return prev;
-        }, {});
+        gamedet[0].categoryAverages.forEach((cat) => {
+          if (!scores[cat.categoryName]) {
+            scores[cat.categoryName] = {};
+          }
+          scores[cat.categoryName].averageScore = cat.averageScore;
+          scores[cat.categoryName].ratingCount = cat.ratingCount;
+        });
       }
     }
 
     res.json({
       ...game,
       comments: commentsWithHasLiked,
-      placements,
       scores,
-      count,
     });
   }
 );
