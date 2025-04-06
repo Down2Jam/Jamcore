@@ -90,12 +90,18 @@ router.get(
         }
         categories = categories.filter(
           (category) =>
-            filteredRatings.filter(
-              (rating) =>
-                rating.categoryId === category.id &&
-                rating.user.teams.filter((team) => team.game?.published)
-                  .length > 0
-            ).length >= 5
+            game.ratings
+              .filter((rating) =>
+                categories
+                  .map((ratingCategory) => ratingCategory.id)
+                  .includes(rating.categoryId)
+              )
+              .filter(
+                (rating) =>
+                  rating.categoryId === category.id &&
+                  rating.user.teams.filter((team) => team.game?.published)
+                    .length > 0
+              ).length >= 5
         );
         const categoryIds = categories.map(
           (ratingCategory) => ratingCategory.id
