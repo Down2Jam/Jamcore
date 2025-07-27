@@ -1,0 +1,26 @@
+{
+  "name": "Latte",
+  "type": "Light",
+  "extends": "Base",
+  "colors": {
+    "base": "#eff1f5",
+    "mantle": "#e6e9ef",
+    "crust": "#dce0e8",
+    "text": "#4c4f69",
+
+    "red": "#d20f39",
+    "orange": "#fe640b",
+    "yellow": "#df8e1d",
+    "lime": "#40a02b",
+    "green": "#40a02b",
+    "teal": "#179299",
+    "cyan": "#04a5e5",
+    "blue": "#1e66f5",
+    "indigo": "#7287fd",
+    "violet": "#8839ef",
+    "purple": "#8839ef",
+    "magenta": "#ea76cb",
+    "pink": "#ea76cb",
+    "gray": "#4c4f69"
+  }
+}

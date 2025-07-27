@@ -1,0 +1,67 @@
+{
+  "name": "Nord",
+  "type": "Light",
+  "extends": "Base",
+  "colors": {
+    "base": "#2e3440",
+    "mantle": "#3b4252",
+    "crust": "#2e3440",
+    "text": "#d8dee9",
+
+    "red": "#88c0d0",
+    "redDark": "#81a1c1",
+    "redLight": "#8fbcbb",
+
+    "orange": "#88c0d0",
+    "orangeDark": "#81a1c1",
+    "orangeLight": "#8fbcbb",
+
+    "yellow": "#88c0d0",
+    "yellowDark": "#81a1c1",
+    "yellowLight": "#8fbcbb",
+
+    "lime": "#88c0d0",
+    "limeDark": "#81a1c1",
+    "limeLight": "#8fbcbb",
+
+    "green": "#88c0d0",
+    "greenDark": "#81a1c1",
+    "greenLight": "#8fbcbb",
+
+    "teal": "#88c0d0",
+    "tealDark": "#81a1c1",
+    "tealLight": "#8fbcbb",
+
+    "cyan": "#88c0d0",
+    "cyanDark": "#81a1c1",
+    "cyanLight": "#8fbcbb",
+
+    "blue": "#88c0d0",
+    "blueDark": "#81a1c1",
+    "blueLight": "#8fbcbb",
+
+    "indigo": "#88c0d0",
+    "indigoDark": "#81a1c1",
+    "indigoLight": "#8fbcbb",
+
+    "violet": "#88c0d0",
+    "violetDark": "#81a1c1",
+    "violetLight": "#8fbcbb",
+
+    "purple": "#88c0d0",
+    "purpleDark": "#81a1c1",
+    "purpleLight": "#8fbcbb",
+
+    "magenta": "#88c0d0",
+    "magentaDark": "#81a1c1",
+    "magentaLight": "#8fbcbb",
+
+    "pink": "#88c0d0",
+    "pinkDark": "#81a1c1",
+    "pinkLight": "#8fbcbb",
+
+    "gray": "#88c0d0",
+    "grayDark": "#81a1c1",
+    "grayLight": "#8fbcbb"
+  }
+}

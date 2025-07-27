@@ -1,0 +1,26 @@
+{
+  "name": "Resurrect 64",
+  "type": "Dark",
+  "extends": "Base",
+  "colors": {
+    "base": "#3e3546",
+    "mantle": "#3e3546",
+    "crust": "#2e222f",
+    "text": "#c7dcd0",
+
+    "red": "#e83b3b",
+    "orange": "#fb6b1d",
+    "yellow": "#f9c22b",
+    "lime": "#cddf6c",
+    "green": "#91db69",
+    "teal": "#1ebc73",
+    "cyan": "#0eaf9b",
+    "blue": "#4d9be6",
+    "indigo": "#4d65b4",
+    "violet": "#6b3e75",
+    "purple": "#a884f3",
+    "magenta": "#eaaded",
+    "pink": "#f68181",
+    "gray": "#9babb2"
+  }
+}
