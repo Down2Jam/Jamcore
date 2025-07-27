@@ -1,0 +1,31 @@
+{
+  "name": "Abyss",
+  "authors": ["Ategon"],
+  "description": "",
+  "version": "0.1.0",
+  "keywords": [],
+  "repository": "",
+  "type": "Dark",
+  "extends": "Base",
+  "colors": {
+    "base": "#000000",
+    "mantle": "@base",
+    "crust": "@base",
+    "text": "#aaa",
+
+    "red": "#aaa",
+    "orange": "#aaa",
+    "yellow": "#aaa",
+    "lime": "#aaa",
+    "green": "#aaa",
+    "teal": "#aaa",
+    "cyan": "#aaa",
+    "blue": "#aaa",
+    "indigo": "#aaa",
+    "violet": "#aaa",
+    "purple": "#aaa",
+    "magenta": "#aaa",
+    "pink": "#aaa",
+    "gray": "#aaa"
+  }
+}

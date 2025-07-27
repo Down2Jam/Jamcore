@@ -1,0 +1,31 @@
+{
+  "name": "Obsidian",
+  "authors": ["Ategon"],
+  "description": "",
+  "version": "0.1.0",
+  "keywords": [],
+  "repository": "",
+  "type": "Dark",
+  "extends": "Base",
+  "colors": {
+    "base": "#222222",
+    "mantle": "#1a1a1a",
+    "crust": "#000000",
+    "text": "#ffffff",
+
+    "red": "#e95833",
+    "orange": "#fdb34e",
+    "yellow": "#f5dc42",
+    "lime": "#b7f24e",
+    "green": "#5ef24e",
+    "teal": "#4ef2ae",
+    "cyan": "#4ef2ea",
+    "blue": "#4eb9f2",
+    "indigo": "#4e6ff2",
+    "violet": "#774ef2",
+    "purple": "#c64ef2",
+    "magenta": "#ed47b0",
+    "pink": "#ed4786",
+    "gray": "#939393"
+  }
+}

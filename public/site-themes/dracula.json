@@ -1,0 +1,26 @@
+{
+  "name": "Dracula",
+  "type": "Light",
+  "extends": "Base",
+  "colors": {
+    "base": "#282A36",
+    "mantle": "#282A36",
+    "crust": "#282A36",
+    "text": "#F8F8F2",
+
+    "red": "#FF5555",
+    "orange": "#FFB86C",
+    "yellow": "#F1FA8C",
+    "lime": "#50FA7B",
+    "green": "#50FA7B",
+    "teal": "#8BE9FD",
+    "cyan": "#8BE9FD",
+    "blue": "#6272A4",
+    "indigo": "#6272A4",
+    "violet": "#BD93F9",
+    "purple": "#BD93F9",
+    "magenta": "#FF79C6",
+    "pink": "#FF79C6",
+    "gray": "#44475A"
+  }
+}

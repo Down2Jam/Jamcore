@@ -1,0 +1,26 @@
+{
+  "name": "Hotdog",
+  "type": "Light",
+  "extends": "Base",
+  "colors": {
+    "base": "#fe0000",
+    "mantle": "#ffff00",
+    "crust": "#fe0000",
+    "text": "#ffff00",
+
+    "red": "#ffff00",
+    "orange": "#ffff00",
+    "yellow": "#ffff00",
+    "lime": "#ffff00",
+    "green": "#ffff00",
+    "teal": "#ffff00",
+    "cyan": "#ffff00",
+    "blue": "#ffff00",
+    "indigo": "#ffff00",
+    "violet": "#ffff00",
+    "purple": "#ffff00",
+    "magenta": "#ffff00",
+    "pink": "#ffff00",
+    "gray": "#ffff00"
+  }
+}

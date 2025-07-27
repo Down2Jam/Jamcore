@@ -1,0 +1,26 @@
+{
+  "name": "Macchiato",
+  "type": "Dark",
+  "extends": "Base",
+  "colors": {
+    "base": "#24273a",
+    "mantle": "#1e2030",
+    "crust": "#181926",
+    "text": "#cad3f5",
+
+    "red": "#ed8796",
+    "orange": "#f5a97f",
+    "yellow": "#eed49f",
+    "lime": "#a6da95",
+    "green": "#a6da95",
+    "teal": "#8bd5ca",
+    "cyan": "#91d7e3",
+    "blue": "#8aadf4",
+    "indigo": "#8aadf4",
+    "violet": "#c6a0f6",
+    "purple": "#c6a0f6",
+    "magenta": "#f5bde6",
+    "pink": "#f5bde6",
+    "gray": "#939ab7"
+  }
+}
