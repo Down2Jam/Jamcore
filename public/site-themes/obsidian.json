@@ -8,10 +8,11 @@
   "type": "Dark",
   "extends": "Base",
   "colors": {
+    "text": "#ffffff",
+
     "base": "#222222",
     "mantle": "#1a1a1a",
     "crust": "#000000",
-    "text": "#ffffff",
 
     "red": "#e95833",
     "orange": "#fdb34e",

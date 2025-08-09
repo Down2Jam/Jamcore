@@ -8,6 +8,8 @@
     "crust": "#dce0e8",
     "text": "#4c4f69",
 
+    "textLight": "@base",
+
     "red": "#d20f39",
     "orange": "#fe640b",
     "yellow": "#df8e1d",

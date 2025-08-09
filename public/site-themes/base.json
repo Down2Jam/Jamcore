@@ -3,6 +3,14 @@
   "type": "Dark",
   "hidden": true,
   "colors": {
+    "text": "#ffffff",
+    "textFaded": "@text > darken > darken",
+
+    "textDark": "@text",
+    "textDarkFaded": "@textFaded",
+    "textLight": "@text",
+    "textLightFaded": "@textFaded",
+
     "redDark": "@red > darken",
     "redLight": "@red > lighten",
     "orangeDark": "@orange > darken",
