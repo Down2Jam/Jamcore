@@ -26,6 +26,8 @@
     "cyanDark": "@cyan > darken",
     "cyanLight": "@cyan > lighten",
     "blueDark": "@blue > darken",
+    "blueDarkDark": "@blue > darken > darken",
+    "blueDarkDarkDark": "@blue > darken > darken > darken",
     "blueLight": "@blue > lighten",
     "indigoDark": "@indigo > darken",
     "indigoLight": "@indigo > lighten",

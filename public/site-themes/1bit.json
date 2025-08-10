@@ -1,0 +1,31 @@
+{
+  "name": "1BIT",
+  "authors": ["Ategon"],
+  "description": "",
+  "version": "0.1.0",
+  "keywords": [],
+  "repository": "",
+  "type": "Dark",
+  "extends": "Base",
+  "colors": {
+    "base": "#222323",
+    "mantle": "@base",
+    "crust": "@base",
+    "text": "#f0f6f0",
+
+    "red": "#f0f6f0",
+    "orange": "#f0f6f0",
+    "yellow": "#f0f6f0",
+    "lime": "#f0f6f0",
+    "green": "#f0f6f0",
+    "teal": "#f0f6f0",
+    "cyan": "#f0f6f0",
+    "blue": "#f0f6f0",
+    "indigo": "#f0f6f0",
+    "violet": "#f0f6f0",
+    "purple": "#f0f6f0",
+    "magenta": "#f0f6f0",
+    "pink": "#f0f6f0",
+    "gray": "#f0f6f0"
+  }
+}

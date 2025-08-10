@@ -1,0 +1,33 @@
+{
+  "name": "Midnight Ablaze",
+  "authors": ["Ategon"],
+  "description": "",
+  "version": "0.1.0",
+  "keywords": [],
+  "repository": "",
+  "type": "Dark",
+  "extends": "Base",
+  "colors": {
+    "text": "#ff8274",
+    "textFaded": "#d53c6a",
+
+    "base": "#31051e",
+    "mantle": "#1f0510",
+    "crust": "#130208",
+
+    "red": "#7c183c",
+    "orange": "#7c183c",
+    "yellow": "#7c183c",
+    "lime": "#7c183c",
+    "green": "#7c183c",
+    "teal": "#7c183c",
+    "cyan": "#7c183c",
+    "blue": "#7c183c",
+    "indigo": "#7c183c",
+    "violet": "#7c183c",
+    "purple": "#7c183c",
+    "magenta": "#7c183c",
+    "pink": "#7c183c",
+    "gray": "#7c183c"
+  }
+}

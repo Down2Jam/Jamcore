@@ -7,6 +7,7 @@
   "repository": "",
   "type": "Dark",
   "extends": "Base",
+  "hidden": true,
   "colors": {
     "base": "#000000",
     "mantle": "@base",

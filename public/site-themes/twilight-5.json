@@ -1,0 +1,34 @@
+{
+  "name": "Twilight 5",
+  "authors": ["Ategon"],
+  "description": "",
+  "version": "0.1.0",
+  "keywords": [],
+  "repository": "",
+  "type": "Dark",
+  "extends": "Base",
+  "colors": {
+    "text": "#292831",
+    "textFaded": "#333f58",
+    "textLight": "@crust",
+
+    "base": "#4a7a96",
+    "mantle": "#ee8695",
+    "crust": "#fbbbad",
+
+    "red": "#4a7a96",
+    "orange": "#4a7a96",
+    "yellow": "#4a7a96",
+    "lime": "#4a7a96",
+    "green": "#4a7a96",
+    "teal": "#4a7a96",
+    "cyan": "#4a7a96",
+    "blue": "#4a7a96",
+    "indigo": "#4a7a96",
+    "violet": "#4a7a96",
+    "purple": "#4a7a96",
+    "magenta": "#4a7a96",
+    "pink": "#4a7a96",
+    "gray": "#4a7a96"
+  }
+}

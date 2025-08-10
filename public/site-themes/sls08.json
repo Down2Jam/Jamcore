@@ -1,0 +1,33 @@
+{
+  "name": "SLS08 Dark",
+  "authors": ["Ategon"],
+  "description": "",
+  "version": "0.1.0",
+  "keywords": [],
+  "repository": "",
+  "type": "Dark",
+  "extends": "Base",
+  "colors": {
+    "text": "#ffecd6",
+    "textFaded": "#ffd4a3",
+
+    "base": "#8d697a",
+    "mantle": "#544e68",
+    "crust": "#0d2b45",
+
+    "red": "#ffaa5e",
+    "orange": "#ffaa5e",
+    "yellow": "#ffaa5e",
+    "lime": "#ffaa5e",
+    "green": "#ffaa5e",
+    "teal": "#ffaa5e",
+    "cyan": "#ffaa5e",
+    "blue": "#ffaa5e",
+    "indigo": "#ffaa5e",
+    "violet": "#ffaa5e",
+    "purple": "#ffaa5e",
+    "magenta": "#ffaa5e",
+    "pink": "#ffaa5e",
+    "gray": "#ffaa5e"
+  }
+}

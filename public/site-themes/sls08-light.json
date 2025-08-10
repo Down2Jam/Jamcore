@@ -1,0 +1,34 @@
+{
+  "name": "SLS08 Light",
+  "authors": ["Ategon"],
+  "description": "",
+  "version": "0.1.0",
+  "keywords": [],
+  "repository": "",
+  "type": "Light",
+  "extends": "Base",
+  "colors": {
+    "text": "#0d2b45",
+    "textFaded": "#203c56",
+    "textLight": "@mantle",
+
+    "base": "#ffaa5e",
+    "mantle": "#ffd4a3",
+    "crust": "#ffecd6",
+
+    "red": "#d08159",
+    "orange": "#d08159",
+    "yellow": "#d08159",
+    "lime": "#d08159",
+    "green": "#d08159",
+    "teal": "#d08159",
+    "cyan": "#d08159",
+    "blue": "#d08159",
+    "indigo": "#d08159",
+    "violet": "#d08159",
+    "purple": "#d08159",
+    "magenta": "#d08159",
+    "pink": "#d08159",
+    "gray": "#d08159"
+  }
+}
