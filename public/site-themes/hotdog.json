@@ -1,6 +1,7 @@
 {
   "name": "Hotdog",
   "type": "Light",
+  "hidden": true,
   "extends": "Base",
   "colors": {
     "base": "#fe0000",
