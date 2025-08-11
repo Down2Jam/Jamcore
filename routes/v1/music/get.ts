@@ -1,54 +1,68 @@
 import { Router } from "express";
 import rateLimit from "@middleware/rateLimit";
 import path from "path";
-
-const router = Router();
 import { fileURLToPath } from "url";
 import { dirname } from "path";
 import { existsSync } from "fs";
+import mime from "mime-types";
 import { GetS3File } from "@helper/s3";
 
+const router = Router();
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-/**
- * Route to get a song
- */
-router.get(
-  "/:filename",
-  rateLimit(9999),
+router.get("/:filename", rateLimit(9999), async (req, res, next) => {
+  const { filename } = req.params;
+  const musicPath = path.join(
+    __dirname,
+    "..",
+    "..",
+    "..",
+    "public",
+    "music",
+    filename
+  );
+  const contentType = mime.lookup(filename) || "application/octet-stream";
 
-  async (req, res) => {
-    const { filename } = req.params;
+  // If we end early (client aborted), don't try to respond again.
+  let ended = false;
+  const markEnded = () => {
+    ended = true;
+  };
+  res.once("close", markEnded);
+  res.once("finish", markEnded);
 
-    const musicPath = path.join(
-      __dirname,
-      "..",
-      "..",
-      "..",
-      "public",
-      "music",
-      `${filename}`
-    );
-
+  try {
     if (existsSync(musicPath)) {
+      res.type(contentType);
       res.sendFile(musicPath, (err) => {
         if (err) {
-          res.status(404).send("Music not found");
+          if (!res.headersSent && !ended) {
+            res.status(500).end();
+          }
         }
+        return;
       });
       return;
     }
 
-    try {
-      const buffer = await GetS3File("music", filename);
-      if (buffer) {
-        res.send(buffer);
-        return;
-      }
-    } catch (err) {
-      console.error("Error getting image from S3:", err);
+    // Not on disk — try S3
+    const buffer = await GetS3File("music", filename);
+
+    if (ended) return; // client already left
+    if (buffer) {
+      res.status(200);
+      res.setHeader("Content-Type", contentType);
+      res.setHeader("Content-Length", buffer.length.toString());
+      res.send(buffer);
+      return;
     }
+
+    if (!res.headersSent && !ended) {
+      res.status(404).send("Music not found");
+    }
+  } catch (err) {
+    if (!res.headersSent && !ended) return next(err);
   }
-);
+});
 
 export default router;
