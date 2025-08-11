@@ -5,7 +5,7 @@
   "version": "0.1.0",
   "keywords": [],
   "repository": "",
-  "type": "Dark",
+  "type": "Light",
   "extends": "Base",
   "colors": {
     "text": "#292831",
