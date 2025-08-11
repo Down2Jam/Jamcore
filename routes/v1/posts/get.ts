@@ -7,6 +7,7 @@ var router = express.Router();
 type WhereType = {
   createdAt?: {};
   tags?: {};
+  sticky?: boolean;
 };
 
 router.get(
@@ -89,12 +90,13 @@ router.get(
       orderBy = { likes: { _count: "desc" } };
     }
 
+    if (sticky === "true") {
+      where.sticky = true;
+    }
+
     const posts = await db.post.findMany({
       take: 20,
-      where: {
-        ...where,
-        sticky: sticky === "true",
-      },
+      where,
       include: {
         author: true,
         tags: true,
