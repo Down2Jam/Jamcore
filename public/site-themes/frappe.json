@@ -1,6 +1,6 @@
 {
   "name": "Frappe",
-  "type": "Light",
+  "type": "Dark",
   "extends": "Base",
   "colors": {
     "base": "#303446",

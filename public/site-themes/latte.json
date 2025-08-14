@@ -9,6 +9,7 @@
     "text": "#4c4f69",
 
     "textLight": "@base",
+    "textLightFaded": "@base > darken > darken",
 
     "red": "#d20f39",
     "orange": "#fe640b",

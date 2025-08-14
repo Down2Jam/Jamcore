@@ -1,6 +1,6 @@
 {
   "name": "Dracula",
-  "type": "Light",
+  "type": "Dark",
   "extends": "Base",
   "colors": {
     "base": "#282A36",

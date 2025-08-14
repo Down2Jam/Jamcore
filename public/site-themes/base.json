@@ -7,11 +7,12 @@
     "textFaded": "@text > darken > darken",
 
     "textDark": "@text",
-    "textDarkFaded": "@textFaded",
+    "textDarkFaded": "@text > darken > darken",
     "textLight": "@text",
-    "textLightFaded": "@textFaded",
+    "textLightFaded": "@text > darken > darken",
 
     "redDark": "@red > darken",
+    "redDarkDark": "@red > darken > darken",
     "redLight": "@red > lighten",
     "orangeDark": "@orange > darken",
     "orangeLight": "@orange > lighten",
@@ -20,7 +21,9 @@
     "limeDark": "@lime > darken",
     "limeLight": "@lime > lighten",
     "greenDark": "@green > darken",
+    "greenDarkDark": "@green > darken > darken",
     "greenLight": "@green > lighten",
+    "greenLightLight": "@green > lighten > lighten",
     "tealDark": "@teal > darken",
     "tealLight": "@teal > lighten",
     "cyanDark": "@cyan > darken",
@@ -28,7 +31,9 @@
     "blueDark": "@blue > darken",
     "blueDarkDark": "@blue > darken > darken",
     "blueDarkDarkDark": "@blue > darken > darken > darken",
+    "blueDarkDarkDarkDark": "@blue > darken > darken > darken > darken",
     "blueLight": "@blue > lighten",
+    "blueLightLight": "@blue > lighten > lighten",
     "indigoDark": "@indigo > darken",
     "indigoLight": "@indigo > lighten",
     "violetDark": "@violet > darken",
@@ -38,8 +43,12 @@
     "magentaDark": "@magenta > darken",
     "magentaLight": "@magenta > lighten",
     "pinkDark": "@pink > darken",
+    "pinkDarkDark": "@pink > darken > darken",
     "pinkLight": "@pink > lighten",
+    "pinkLightLight": "@pink > lighten > lighten",
     "grayDark": "@gray > darken",
+    "grayDarkDark": "@gray > darken > darken",
+    "grayDarkDarkDark": "@gray > darken > darken > darken",
     "grayLight": "@gray > lighten"
   }
 }

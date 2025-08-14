@@ -8,6 +8,7 @@
     "crust": "#fe0000",
     "text": "#000000",
     "textLight": "@dummy",
+    "textLightFaded": "@dummy > darken > darken",
     "dummy": "#ffffff",
 
     "red": "#000000",

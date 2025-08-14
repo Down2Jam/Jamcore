@@ -11,6 +11,7 @@
     "text": "#0d2b45",
     "textFaded": "#203c56",
     "textLight": "@mantle",
+    "textLightFaded": "@mantle > darken > darken",
 
     "base": "#ffaa5e",
     "mantle": "#ffd4a3",

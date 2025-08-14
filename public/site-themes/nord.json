@@ -1,6 +1,6 @@
 {
   "name": "Nord",
-  "type": "Light",
+  "type": "Dark",
   "extends": "Base",
   "colors": {
     "base": "#2e3440",
