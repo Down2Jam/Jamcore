@@ -23,13 +23,13 @@ router.get(
     });
 
     if (!user) {
-      return res.status(401).send("Unauthorized: User not found.");
+      return res.status(401).send({ message: "Unauthorized: User not found." });
     }
 
     // Get current active jam
     const activeJam = await getCurrentActiveJam();
     if (!activeJam || !activeJam.futureJam) {
-      return res.status(404).send("No active jam found.");
+      return res.status(404).send({ message: "No active jam found." });
     }
 
     // Fetch user's suggestions for the current jam
@@ -41,10 +41,10 @@ router.get(
         },
       });
 
-      res.json(suggestions);
+      res.json({ message: "Suggestions fetched", data: suggestions });
     } catch (error) {
       console.error("Error fetching suggestions:", error);
-      res.status(500).send("Internal Server Error.");
+      res.status(500).send({ message: "Internal Server Error." });
     }
   }
 );
@@ -91,60 +91,12 @@ router.delete(
   }
 );
 
-router.put(
-  "/suggestion/:id",
-  authenticateUser,
-  checkJamParticipation,
-  async function (req, res) {
-    const suggestionId = parseInt(req.params.id);
-    const { suggestionText } = req.body;
-    const username = res.locals.userSlug;
-
-    if (!suggestionText) {
-      return res.status(400).send("Suggestion text is required.");
-    }
-
-    // Find the user
-    const user = await db.user.findUnique({
-      where: { slug: username },
-    });
-
-    if (!user) {
-      return res.status(401).send("Unauthorized: User not found.");
-    }
-
-    // Check if the suggestion belongs to the user
-    const suggestion = await db.themeSuggestion.findUnique({
-      where: { id: suggestionId },
-    });
-
-    if (!suggestion || suggestion.userId !== user.id) {
-      return res
-        .status(403)
-        .send("Unauthorized: You cannot update this suggestion.");
-    }
-
-    // Update the suggestion
-    try {
-      const updatedSuggestion = await db.themeSuggestion.update({
-        where: { id: suggestionId },
-        data: { suggestion: suggestionText },
-      });
-
-      res.json(updatedSuggestion);
-    } catch (error) {
-      console.error("Error updating suggestion:", error);
-      res.status(500).send("Internal Server Error.");
-    }
-  }
-);
-
 router.post(
   "/suggestion",
   authenticateUser,
   checkJamParticipation,
   async function (req, res) {
-    const { suggestionText } = req.body;
+    const { suggestionText, description } = req.body;
 
     if (!suggestionText) {
       return res.status(400).send("Suggestion text is required.");
@@ -198,6 +150,7 @@ router.post(
           suggestion: suggestionText,
           userId: user.id,
           jamId: activeJam.futureJam.id,
+          description: description,
         },
       });
 

@@ -10,7 +10,7 @@ function authUser(req: Request, res: Response, next: NextFunction): void {
   const accessToken = authHeader && authHeader.split(" ")[1];
 
   if (!accessToken || !refreshToken) {
-    res.status(401).send("Unauthorized: Missing tokens.");
+    res.status(401).send({ message: "Unauthorized: Missing tokens." });
     return;
   }
 
@@ -63,7 +63,7 @@ function authUser(req: Request, res: Response, next: NextFunction): void {
       next();
     } catch (refreshError) {
       console.error("Refresh Token Error:", refreshError.message);
-      res.status(401).send("Unauthorized: Invalid tokens.");
+      res.status(401).send({ message: "Unauthorized: Missing tokens." });
       return;
     }
   }

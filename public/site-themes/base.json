@@ -17,6 +17,7 @@
     "orangeDark": "@orange > darken",
     "orangeLight": "@orange > lighten",
     "yellowDark": "@yellow > darken",
+    "yellowDarkDark": "@yellow > darken > darken",
     "yellowLight": "@yellow > lighten",
     "limeDark": "@lime > darken",
     "limeLight": "@lime > lighten",

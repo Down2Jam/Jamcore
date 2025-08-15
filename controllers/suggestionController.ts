@@ -24,7 +24,7 @@ export const getSuggestions = async (req: Request, res: Response) => {
 
 export const postSuggestion = async (req: Request, res: Response) => {
   try {
-    const { suggestionText, userId } = req.body;
+    const { suggestionText, description, userId } = req.body;
 
     // Validate input
     if (!suggestionText || !userId) {
@@ -41,6 +41,7 @@ export const postSuggestion = async (req: Request, res: Response) => {
     const newSuggestion = await db.themeSuggestion.create({
       data: {
         suggestion: suggestionText,
+        description: description,
         userId,
         jamId: activeJam.futureJam.id,
       },
