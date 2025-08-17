@@ -16,15 +16,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const router = Router();
 
 function getRandomPfp(): string | null {
-  const pfpsPath = path.join(
-    __dirname,
-    "..",
-    "..",
-    "..",
-    "public",
-    "images",
-    "pfps"
-  );
+  const pfpsPath = path.join(__dirname, "..", "..", "..", "public", "pfps");
 
   if (!fs.existsSync(pfpsPath)) return null;
 
@@ -39,7 +31,7 @@ function getRandomPfp(): string | null {
     process.env.NODE_ENV === "production"
       ? "https://d2jam.com"
       : `http://localhost:${process.env.PORT || 3005}`
-  }/api/v1/image/pfp/${files[randomIndex]}`;
+  }/api/v1/pfp/${files[randomIndex]}`;
 }
 
 /**

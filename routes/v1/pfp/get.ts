@@ -25,9 +25,7 @@ router.get(
       "..",
       "..",
       "..",
-      "..",
       "public",
-      "images",
       "pfps",
       `${filename}`
     );

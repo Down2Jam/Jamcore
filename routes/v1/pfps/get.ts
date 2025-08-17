@@ -18,15 +18,7 @@ router.get(
   rateLimit(),
 
   (_req, res) => {
-    const dir = path.join(
-      __dirname,
-      "..",
-      "..",
-      "..",
-      "public",
-      "images",
-      "pfps"
-    );
+    const dir = path.join(__dirname, "..", "..", "..", "public", "pfps");
 
     readdir(dir, (err, files) => {
       if (err) return res.status(500).json({ message: "Failed to read pfps" });
@@ -39,7 +31,7 @@ router.get(
               process.env.NODE_ENV === "production"
                 ? "https://d2jam.com"
                 : `http://localhost:${process.env.PORT || 3005}`
-            }/api/v1/image/pfp/${file}`
+            }/api/v1/pfp/${file}`
         );
 
       res.json({ message: "fetched pfps", data: imageUrls });
