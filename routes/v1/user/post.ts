@@ -7,8 +7,40 @@ import checkUsernameConflict from "@middleware/checkUsernameConflict";
 import assertTokenSecret from "@middleware/assertTokenSecret";
 import rateLimit from "@middleware/rateLimit";
 import logger from "@helper/logger";
+import fs from "fs";
+import path, { dirname } from "path";
+import { fileURLToPath } from "url";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const router = Router();
+
+function getRandomPfp(): string | null {
+  const pfpsPath = path.join(
+    __dirname,
+    "..",
+    "..",
+    "..",
+    "public",
+    "images",
+    "pfps"
+  );
+
+  if (!fs.existsSync(pfpsPath)) return null;
+
+  const files = fs
+    .readdirSync(pfpsPath)
+    .filter((f) => /\.(png|jpe?g|gif|webp|svg)$/i.test(f));
+
+  if (files.length === 0) return null;
+
+  const randomIndex = Math.floor(Math.random() * files.length);
+  return `${
+    process.env.NODE_ENV === "production"
+      ? "https://d2jam.com"
+      : `http://localhost:${process.env.PORT || 3005}`
+  }/api/v1/image/pfp/${files[randomIndex]}`;
+}
 
 /**
  * Route to add a user to the database.
@@ -32,12 +64,15 @@ router.post(
     const { username, password, email } = req.body;
 
     try {
+      const randomPfp = getRandomPfp();
+
       const user = await db.user.create({
         data: {
           slug: username.toLowerCase().replace(" ", "_"),
           name: username,
           password: await hashPassword(password),
           email: email ? email : null,
+          profilePicture: randomPfp,
         },
       });
 
