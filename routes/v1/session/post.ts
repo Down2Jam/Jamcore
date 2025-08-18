@@ -72,6 +72,7 @@ router.post(
       .cookie("refreshToken", refreshToken, {
         httpOnly: true,
         sameSite: "strict",
+        maxAge: 7 * 24 * 60 * 60 * 1000,
       })
       .header("Authorization", accessToken)
       .send({

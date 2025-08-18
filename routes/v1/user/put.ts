@@ -19,6 +19,9 @@ router.put(
   rateLimit(),
 
   body("name"),
+  body("short")
+    .isLength({ max: 32 })
+    .withMessage("Short must be at most 32 characters."),
 
   authUser,
   getUser,
@@ -31,6 +34,7 @@ router.put(
       profilePicture,
       bannerPicture,
       bio,
+      short,
       name,
       primaryRoles,
       secondaryRoles,
@@ -46,12 +50,14 @@ router.put(
           profilePicture,
           bannerPicture,
           bio,
+          short,
           name,
         },
         select: {
           id: true,
           name: true,
           bio: true,
+          short: true,
           profilePicture: true,
           createdAt: true,
           slug: true,

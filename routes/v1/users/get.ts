@@ -23,6 +23,7 @@ router.get(
         id: true,
         name: true,
         bio: true,
+        short: true,
         profilePicture: true,
         createdAt: true,
         slug: true,

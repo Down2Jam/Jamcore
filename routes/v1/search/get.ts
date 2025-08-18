@@ -50,7 +50,7 @@ router.get(
 
     if (searchTypes.includes("users")) {
       data["users"] = await db.$queryRaw`
-        SELECT id, name, slug
+        SELECT id, name, slug, "bannerPicture", "profilePicture", short
         FROM "User" 
         WHERE name % ${query} 
         ORDER BY name <-> ${query} ASC

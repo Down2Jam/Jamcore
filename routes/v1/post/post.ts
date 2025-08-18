@@ -124,6 +124,13 @@ router.post("/", async function (req, res) {
     },
   });
 
+  await db.like.create({
+    data: {
+      userId: user.id,
+      postId: newpost.id,
+    },
+  });
+
   if (tags && tags.length > 0) {
     await db.post.update({
       where: { id: newpost.id },

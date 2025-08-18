@@ -36,6 +36,7 @@ async function getTargetUserOptional(
       select: {
         id: true,
         name: true,
+        short: true,
         bio: true,
         profilePicture: true,
         createdAt: true,
@@ -57,6 +58,7 @@ async function getTargetUserOptional(
         id: true,
         name: true,
         bio: true,
+        short: true,
         profilePicture: true,
         createdAt: true,
         slug: true,
