@@ -73,6 +73,9 @@ router.get(
             },
           },
         },
+        where: {
+          jamId: res.locals.jam.id,
+        },
       });
     }
 

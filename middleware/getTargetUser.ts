@@ -52,6 +52,7 @@ async function getTargetUser(
             game: {
               include: {
                 jam: true,
+                downloadLinks: true,
               },
             },
           },
@@ -82,6 +83,7 @@ async function getTargetUser(
             game: {
               include: {
                 jam: true,
+                downloadLinks: true,
               },
             },
           },
