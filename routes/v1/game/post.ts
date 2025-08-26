@@ -67,6 +67,7 @@ router.post(
       flags,
       tags,
       leaderboards,
+      short,
     } = req.body;
 
     try {
@@ -98,6 +99,7 @@ router.post(
           },
           teamId: res.locals.targetTeam.id,
           category,
+          short,
           published,
           themeJustification,
           achievements: {

@@ -41,7 +41,7 @@ router.get(
 
     if (searchTypes.includes("games")) {
       data["games"] = await db.$queryRaw`
-        SELECT id, name, slug
+        SELECT id, name, slug, banner, thumbnail, short
         FROM "Game" 
         WHERE name % ${query} 
         ORDER BY name <-> ${query} ASC

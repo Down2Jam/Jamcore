@@ -222,6 +222,7 @@ model Game {
   slug                String              @unique
   name                String
   description         String?
+  short               String?
   thumbnail           String?
   banner              String?
   category            GameCategory
