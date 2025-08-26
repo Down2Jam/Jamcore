@@ -36,6 +36,10 @@ router.get(
           game: {
             include: {
               jam: true,
+              downloadLinks: true,
+              tags: true,
+              flags: true,
+              leaderboards: true,
             },
           },
           owner: true,
@@ -61,6 +65,10 @@ router.get(
           game: {
             include: {
               jam: true,
+              downloadLinks: true,
+              tags: true,
+              flags: true,
+              leaderboards: true,
             },
           },
         },
