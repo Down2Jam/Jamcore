@@ -40,6 +40,7 @@
     "violetDark": "@violet > darken",
     "violetLight": "@violet > lighten",
     "purpleDark": "@purple > darken",
+    "purpleDarkDark": "@purple > darken > darken",
     "purpleLight": "@purple > lighten",
     "magentaDark": "@magenta > darken",
     "magentaLight": "@magenta > lighten",

@@ -40,6 +40,9 @@ router.get(
             themeSuggestionId: "asc",
           },
         ],
+        where: {
+          jamId: res.locals.jam.id,
+        },
         take: 15,
       });
 
@@ -48,6 +51,7 @@ router.get(
       const prethemes = await db.themeSuggestion.findMany({
         where: {
           id: { in: themeIds },
+          jamId: res.locals.jam.id,
         },
         include: {
           votes2: {
@@ -62,8 +66,6 @@ router.get(
         ...prethemes.find((t) => t.id === ts.themeSuggestionId),
         slaughterScoreSum: ts._sum.slaughterScore,
       }));
-
-      console.log(themes);
     } else {
       themes = await db.themeSuggestion.findMany({
         include: {

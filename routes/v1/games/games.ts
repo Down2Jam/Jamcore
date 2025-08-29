@@ -66,7 +66,11 @@ router.put("/:gameSlug", getJam, async function (req, res) {
       return;
     }
 
-    if (res.locals.jamPhase == "Rating" && existingGame.category != category) {
+    if (
+      res.locals.jamPhase == "Rating" &&
+      existingGame.category != category &&
+      category != "EXTRA" // So it can swap from regular to extra in rating period
+    ) {
       res.status(400).send("Can't update category outside of jamming period.");
       return;
     }
