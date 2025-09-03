@@ -254,7 +254,7 @@ router.post(
       res.locals.jam &&
       res.locals.jam &&
       new Date(res.locals.jam.startTime).getTime() - new Date().getTime() <=
-        60 * 60 * 1000
+        60 * 60 * 1000 * 24
     ) {
       return res.status(400).send("Voting is closed.");
     }
