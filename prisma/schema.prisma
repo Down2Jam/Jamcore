@@ -297,6 +297,7 @@ model Rating {
 model Track {
   id            Int       @id @default(autoincrement())
   slug          String    @unique
+  url           String
   name          String
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt

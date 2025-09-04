@@ -35,7 +35,6 @@ router.get(
         },
         take: 5, // Limit results
       });
-
       res.json(users);
     } catch (error) {
       console.error("Error searching users:", error);

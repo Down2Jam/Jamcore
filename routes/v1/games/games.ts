@@ -25,6 +25,7 @@ router.put("/:gameSlug", getJam, async function (req, res) {
     tags,
     leaderboards,
     short,
+    songs,
   } = req.body;
 
   if (!name || !category) {
@@ -52,6 +53,7 @@ router.put("/:gameSlug", getJam, async function (req, res) {
         majRatingCategories: true,
         tags: true,
         flags: true,
+        tracks: true,
         achievements: true,
         leaderboards: {
           include: {
@@ -229,6 +231,47 @@ router.put("/:gameSlug", getJam, async function (req, res) {
       }
     }
 
+    for (const song of songs) {
+      if (
+        existingGame.tracks.filter((curTrack) => curTrack.id == song.id)
+          .length > 0
+      ) {
+        await db.track.update({
+          where: {
+            id: song.id,
+          },
+          data: {
+            name: song.name,
+            url: song.url,
+            slug: song.slug,
+            composer: {
+              connect: {
+                id: song.composerId,
+              },
+            },
+          },
+        });
+      } else {
+        await db.track.create({
+          data: {
+            name: song.name,
+            slug: song.slug,
+            url: song.url,
+            composer: {
+              connect: {
+                id: song.composerId,
+              },
+            },
+            game: {
+              connect: {
+                id: updatedGame.id,
+              },
+            },
+          },
+        });
+      }
+    }
+
     for (const achievement of achievements) {
       if (
         existingGame.achievements.filter(
@@ -297,6 +340,17 @@ router.get(
         majRatingCategories: true,
         tags: true,
         flags: true,
+        achievements: {
+          include: {
+            users: true,
+          },
+        },
+        tracks: {
+          include: {
+            composer: true,
+            game: true,
+          },
+        },
         leaderboards: {
           include: {
             scores: {
@@ -350,7 +404,6 @@ router.get(
             },
           },
         },
-        achievements: true,
         comments: {
           include: {
             author: true,

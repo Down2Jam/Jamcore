@@ -40,6 +40,12 @@ router.get(
               tags: true,
               flags: true,
               leaderboards: true,
+              achievements: true,
+              tracks: {
+                include: {
+                  composer: true,
+                },
+              },
             },
           },
           owner: true,

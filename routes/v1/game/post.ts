@@ -68,6 +68,7 @@ router.post(
       tags,
       leaderboards,
       short,
+      songs,
     } = req.body;
 
     try {
@@ -109,6 +110,18 @@ router.post(
                 ? achievement.description
                 : "",
               image: achievement.image ? achievement.image : "",
+            })),
+          },
+          tracks: {
+            create: songs.map((song: any) => ({
+              name: song.name,
+              slug: song.slug,
+              url: song.url,
+              composer: {
+                connect: {
+                  id: song.composerId,
+                },
+              },
             })),
           },
           leaderboards: {
