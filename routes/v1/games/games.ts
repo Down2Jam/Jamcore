@@ -231,6 +231,20 @@ router.put("/:gameSlug", getJam, async function (req, res) {
       }
     }
 
+    // figure out which existing tracks to keep (only those with an id present in payload)
+    const keepTrackIds = songs
+      .map((s: any) => s.id)
+      .filter((id: number | undefined) => typeof id === "number");
+
+    // remove tracks that were deleted client-side
+    await db.track.deleteMany({
+      where: {
+        gameId: updatedGame.id,
+        // if no ids to keep, delete all existing tracks for this game
+        ...(keepTrackIds.length > 0 ? { id: { notIn: keepTrackIds } } : {}),
+      },
+    });
+
     for (const song of songs) {
       if (
         existingGame.tracks.filter((curTrack) => curTrack.id == song.id)
