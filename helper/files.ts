@@ -22,6 +22,7 @@ const allowedImageTypes = [
 const allowedMusicTypes = [
   "audio/wav", // Wav sounds
   "audio/ogg", // Ogg sounds
+  "application/ogg", // More Ogg
   "audio/mpeg", // Mp3 sounds
 ];
 
