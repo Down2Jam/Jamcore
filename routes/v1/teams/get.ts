@@ -39,6 +39,8 @@ router.get(
               downloadLinks: true,
               tags: true,
               flags: true,
+              ratingCategories: true,
+              majRatingCategories: true,
               leaderboards: true,
               achievements: true,
               tracks: {
@@ -72,6 +74,8 @@ router.get(
             include: {
               jam: true,
               downloadLinks: true,
+              ratingCategories: true,
+              majRatingCategories: true,
               tags: true,
               flags: true,
               leaderboards: true,
