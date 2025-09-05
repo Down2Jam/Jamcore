@@ -231,38 +231,37 @@ router.put("/:gameSlug", getJam, async function (req, res) {
       }
     }
 
-    // figure out which existing tracks to keep (only those with an id present in payload)
+    // figure out which existing tracks to keep (ids already present in DB)
+    const existingIds = new Set(existingGame.tracks.map((t) => t.id));
+
     const keepTrackIds = songs
-      .map((s: any) => s.id)
-      .filter((id: number | undefined) => typeof id === "number");
+      .map((s: any) => s?.id)
+      .filter(
+        (id: unknown): id is number =>
+          Number.isInteger(id) && existingIds.has(id)
+      );
 
     // remove tracks that were deleted client-side
-    await db.track.deleteMany({
-      where: {
-        gameId: updatedGame.id,
-        // if no ids to keep, delete all existing tracks for this game
-        ...(keepTrackIds.length > 0 ? { id: { notIn: keepTrackIds } } : {}),
-      },
-    });
+    const where: any = { gameId: updatedGame.id };
+    if (keepTrackIds.length > 0) {
+      where.id = { notIn: keepTrackIds };
+    }
+    await db.track.deleteMany({ where });
 
     for (const song of songs) {
-      if (
-        existingGame.tracks.filter((curTrack) => curTrack.id == song.id)
-          .length > 0
-      ) {
+      const hasRealId = Number.isInteger(song?.id) && existingIds.has(song.id);
+
+      if (hasRealId) {
         await db.track.update({
-          where: {
-            id: song.id,
-          },
+          where: { id: song.id },
           data: {
             name: song.name,
             url: song.url,
             slug: song.slug,
-            composer: {
-              connect: {
-                id: song.composerId,
-              },
-            },
+            // connect composer only if provided
+            ...(song.composerId
+              ? { composer: { connect: { id: song.composerId } } }
+              : {}),
           },
         });
       } else {
@@ -276,11 +275,7 @@ router.put("/:gameSlug", getJam, async function (req, res) {
                 id: song.composerId,
               },
             },
-            game: {
-              connect: {
-                id: updatedGame.id,
-              },
-            },
+            game: { connect: { id: updatedGame.id } },
           },
         });
       }
