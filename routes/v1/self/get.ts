@@ -7,7 +7,7 @@ var router = Router();
 
 router.get(
   "/",
-  rateLimit(),
+  rateLimit(60),
 
   authUser,
   getUser,
