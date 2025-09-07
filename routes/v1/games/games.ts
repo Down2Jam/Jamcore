@@ -667,7 +667,7 @@ router.get(
 );
 
 router.get("/", async function (req: Request, res: Response) {
-  const { sort } = req.query;
+  const { sort, jamId } = req.query;
   let orderBy: {} | undefined = {};
 
   switch (sort) {
@@ -688,6 +688,14 @@ router.get("/", async function (req: Request, res: Response) {
     default:
       orderBy = { id: "desc" };
       break;
+  }
+
+  const where: any = { published: true };
+  if (jamId) {
+    const parsed = parseInt(jamId as string, 10);
+    if (!Number.isNaN(parsed)) {
+      where.jamId = parsed;
+    }
   }
 
   let game = await db.game.findMany({
@@ -718,9 +726,7 @@ router.get("/", async function (req: Request, res: Response) {
         },
       },
     },
-    where: {
-      published: true,
-    },
+    where,
     orderBy,
   });
 
