@@ -33,6 +33,7 @@ async function getJam(
       games: {
         include: {
           ratings: true,
+          tracks: true,
           ratingCategories: true,
         },
       },

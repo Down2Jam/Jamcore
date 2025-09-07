@@ -37,13 +37,12 @@ router.get(
 
     const data: Record<string, Record<string, string | number>> = {};
 
-    // TODO: Prevent code injection here
-
     if (searchTypes.includes("games")) {
       data["games"] = await db.$queryRaw`
         SELECT id, name, slug, banner, thumbnail, short
         FROM "Game" 
-        WHERE name % ${query} 
+        WHERE published = true
+          AND name % ${query} 
         ORDER BY name <-> ${query} ASC
         LIMIT 2;`;
     }
@@ -68,10 +67,12 @@ router.get(
 
     if (searchTypes.includes("tracks")) {
       data["tracks"] = await db.$queryRaw`
-        SELECT id, name
-        FROM "Track" 
-        WHERE name % ${query} 
-        ORDER BY name <-> ${query} ASC
+        SELECT t.id, t.name
+        FROM "Track" t
+        JOIN "Game" g ON g.id = t."gameId"
+        WHERE g.published = true
+          AND t.name % ${query}
+        ORDER BY t.name <-> ${query} ASC
         LIMIT 2;`;
     }
 

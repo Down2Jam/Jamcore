@@ -9,6 +9,7 @@ export const getCurrentActiveJam = async () => {
         include: {
           ratings: true,
           ratingCategories: true,
+          tracks: true,
         },
       },
     },

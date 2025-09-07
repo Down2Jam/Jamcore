@@ -171,7 +171,8 @@ model Jam {
   themePerUser    Int       @default(3)
   themePerRound   Int       @default(15)
   noOfRounds      Int       @default(1)
-
+  icon            String?
+  color           String?
 
   // Relations
   games             Game[]            @relation(name: "GameToJam")
