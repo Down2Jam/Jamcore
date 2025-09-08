@@ -10,7 +10,7 @@ const router = Router();
  */
 router.get(
   "/",
-  rateLimit(),
+  rateLimit(60),
 
   getTargetUserOptional,
 
