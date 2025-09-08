@@ -29,7 +29,7 @@ const allowedMusicTypes = [
 const uploadHandler = (fileTypes: string[], folder: string) =>
   multer({
     storage: storage,
-    limits: { fileSize: 1024 * 1024 * 8 }, // 8 MB limit
+    limits: { fileSize: 1024 * 1024 * 12 }, // 12 MB limit
     fileFilter: (_req, file, cb) => {
       if (!fileTypes.includes(file.mimetype)) {
         const error = new Error("Invalid file type");
