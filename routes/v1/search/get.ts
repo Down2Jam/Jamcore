@@ -67,13 +67,34 @@ router.get(
 
     if (searchTypes.includes("tracks")) {
       data["tracks"] = await db.$queryRaw`
-        SELECT t.id, t.name
+        SELECT 
+          t.id,
+          t.name,
+          t."createdAt",
+          t."updatedAt",
+          json_build_object(
+            'id', g.id,
+            'name', g.name,
+            'slug', g.slug,
+            'thumbnail', g.thumbnail,
+            'banner', g.banner,
+            'short', g.short
+          ) AS game,
+          json_build_object(
+            'id', u.id,
+            'name', u.name,
+            'slug', u.slug,
+            'profilePicture', u."profilePicture",
+            'bannerPicture', u."bannerPicture"
+          ) AS composer
         FROM "Track" t
         JOIN "Game" g ON g.id = t."gameId"
+        LEFT JOIN "User" u ON u.id = t."composerId"
         WHERE g.published = true
           AND t.name % ${query}
         ORDER BY t.name <-> ${query} ASC
-        LIMIT 2;`;
+        LIMIT 2;
+      `;
     }
 
     if (searchTypes.includes("teams")) {
