@@ -688,6 +688,8 @@ router.get("/", async function (req: Request, res: Response) {
       break;
     case "random":
       orderBy = undefined;
+    case "ratingbalance":
+      orderBy = undefined;
     default:
       orderBy = { id: "desc" };
       break;
@@ -720,8 +722,24 @@ router.get("/", async function (req: Request, res: Response) {
                           id: true,
                         },
                       },
+                      jamId: true,
+                      category: true,
                     },
                   },
+                },
+              },
+            },
+          },
+        },
+      },
+      team: {
+        select: {
+          users: {
+            select: {
+              ratings: {
+                select: {
+                  gameId: true,
+                  game: { select: { jamId: true, ratingCategories: true } },
                 },
               },
             },
@@ -757,24 +775,83 @@ router.get("/", async function (req: Request, res: Response) {
     );
   }
 
+  const isAllowedRaterInJam = (
+    r: (typeof game)[number]["ratings"][number],
+    jamId: number
+  ) =>
+    r.user.teams.some((t) => {
+      const tg = t.game;
+      return (
+        tg && tg.published && tg.jamId === jamId && tg.category !== "EXTRA"
+      );
+    });
+
   if (sort === "danger") {
-    game = game.filter((game) =>
-      game.ratingCategories.some(
-        (category) =>
-          game.ratings.filter(
-            (rating) =>
-              rating.user.teams.some(
-                (team) => team.game && team.game.published
-              ) && rating.categoryId === category.id
-          ).length < 5
-      )
+    // Only non extra games
+    game = game.filter((g) => g.category !== "EXTRA");
+
+    // Exclude games that have more than 5 ratings in all categories
+    game = game.filter((g) =>
+      g.ratingCategories.some((cat) => {
+        const allowedCount = g.ratings.filter(
+          (r) => r.categoryId === cat.id && isAllowedRaterInJam(r, g.jamId)
+        ).length;
+        return allowedCount < 5;
+      })
     );
-    game = game.sort(
-      (a, b) =>
-        b.ratings.length /
-          (b.ratingCategories.length + ratingCategories.length) -
-        a.ratings.length / (a.ratingCategories.length + ratingCategories.length)
-    );
+
+    // Sort by normalized count
+    game = game.sort((a, b) => {
+      const allowedA = a.ratings.filter((r) =>
+        isAllowedRaterInJam(r, a.jamId)
+      ).length;
+      const allowedB = b.ratings.filter((r) =>
+        isAllowedRaterInJam(r, b.jamId)
+      ).length;
+
+      const normA =
+        allowedA / (a.ratingCategories.length + ratingCategories.length);
+      const normB =
+        allowedB / (b.ratingCategories.length + ratingCategories.length);
+
+      return normB - normA;
+    });
+  }
+
+  if (sort === "ratingbalance") {
+    const diff = (g: (typeof game)[number]) => {
+      const given = g.team.users.reduce(
+        (prev, cur) =>
+          prev +
+          cur.ratings.reduce(
+            (prev2, cur2) =>
+              prev2 +
+              (cur2.game.jamId === g.jamId
+                ? 1 /
+                  (cur2.game.ratingCategories.length + ratingCategories.length)
+                : 0),
+            0
+          ),
+        0
+      );
+
+      const gotten =
+        g.ratings.filter(
+          (rating) =>
+            rating.user.teams.filter(
+              (team) =>
+                team.game &&
+                team.game.jamId == g.jamId &&
+                team.game.published &&
+                team.game.category !== "EXTRA"
+            ).length > 0
+        ).length /
+        (g.ratingCategories.length + ratingCategories.length);
+
+      return given - gotten;
+    };
+
+    game = game.sort((a, b) => diff(b) - diff(a));
   }
 
   res.json(game);
