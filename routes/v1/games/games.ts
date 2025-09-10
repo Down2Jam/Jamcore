@@ -383,6 +383,7 @@ router.get(
                             id: true,
                           },
                         },
+                        jamId: true,
                       },
                     },
                   },
@@ -399,6 +400,8 @@ router.get(
                   select: {
                     game: {
                       select: {
+                        jamId: true,
+                        category: true,
                         published: true,
                         ratingCategories: {
                           select: {
