@@ -89,60 +89,54 @@ export async function updateFeaturedStreamers() {
       return stream;
     });
 
-    const filteredStreams = normalizedStreams.filter((stream) => {
-      if (!stream.tags) return false; // Skip streams without tags
-      if (stream.language !== "en") return false; // Skip non-English streams
-      return stream.tags.some((tag) => desiredTags.includes(tag.toLowerCase()));
-    });
+    const hasDesiredTag = (stream: any) =>
+      (stream.tags ?? []).some((t: string) =>
+        desiredTags.includes(t.toLowerCase())
+      );
 
-    const priorityStreams = filteredStreams
-      .filter((stream) =>
-        stream.tags.some((tag) => priorityTags.includes(tag.toLowerCase()))
-      )
-      .sort((a, b) => {
-        return (
+    const hasPriorityTag = (stream: any) =>
+      (stream.tags ?? []).some((t: string) =>
+        priorityTags.includes(t.toLowerCase())
+      );
+
+    const isKnownStreamer = (stream: any) =>
+      streamerNames.includes(stream.user_name.toLowerCase());
+
+    const priorityStreams = normalizedStreams
+      .filter(hasPriorityTag)
+      .sort(
+        (a, b) =>
           Math.log10(b.viewer_count + 1) -
           Math.log10(a.viewer_count + 1) +
-          (Math.random() - 0.5) * 2 // Small random offset
-        );
-      });
+          (Math.random() - 0.5) * 2
+      );
 
-    const streamerStreams = filteredStreams
-      .filter((stream) =>
-        stream.tags.every((tag) => !priorityTags.includes(tag.toLowerCase()))
-      )
-      .filter((stream) =>
-        streamerNames.includes(stream.user_name.toLowerCase())
-      )
-      .sort((a, b) => {
-        return (
+    const streamerStreams = normalizedStreams
+      .filter(hasDesiredTag)
+      .filter((s) => !hasPriorityTag(s))
+      .filter(isKnownStreamer)
+      .sort(
+        (a, b) =>
           Math.log10(b.viewer_count + 1) -
           Math.log10(a.viewer_count + 1) +
-          (Math.random() - 0.5) * 2 // Small random offset
-        );
-      });
+          (Math.random() - 0.5) * 2
+      );
 
-    const numStreams = priorityStreams.length + streamerStreams.length;
+    const numCore = priorityStreams.length + streamerStreams.length;
     const nonPriorityStreams =
-      numStreams < 3
-        ? filteredStreams
-            .filter((stream) =>
-              stream.tags.every(
-                (tag) => !priorityTags.includes(tag.toLowerCase())
-              )
-            )
-            .filter(
-              (stream) =>
-                !streamerNames.includes(stream.user_name.toLowerCase())
-            )
-            .sort((a, b) => {
-              return (
+      numCore < 3
+        ? normalizedStreams
+            .filter(hasDesiredTag)
+            .filter((s) => s.language === "en")
+            .filter((s) => !hasPriorityTag(s))
+            .filter((s) => !isKnownStreamer(s))
+            .sort(
+              (a, b) =>
                 Math.log10(b.viewer_count + 1) -
                 Math.log10(a.viewer_count + 1) +
-                (Math.random() - 0.5) * 2 // Small random offset
-              );
-            })
-            .slice(0, 3 - numStreams)
+                (Math.random() - 0.5) * 2
+            )
+            .slice(0, 3 - numCore)
         : [];
 
     // Step 4: Update database with filtered streams
