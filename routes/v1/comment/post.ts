@@ -3,6 +3,7 @@ import rateLimit from "@middleware/rateLimit";
 import db from "@helper/db";
 import authUser from "@middleware/authUser";
 import getUser from "@middleware/getUser";
+import { UserType } from "types/UserType";
 
 const router = Router();
 
@@ -30,8 +31,11 @@ router.post(
       return;
     }
 
+    let post;
+    let game;
+
     if (postId) {
-      const post = await db.post.findUnique({
+      post = await db.post.findUnique({
         where: {
           id: postId,
         },
@@ -59,9 +63,16 @@ router.post(
     }
 
     if (gameId) {
-      const game = await db.game.findUnique({
+      game = await db.game.findUnique({
         where: {
           id: gameId,
+        },
+        include: {
+          team: {
+            include: {
+              users: true,
+            },
+          },
         },
       });
 
@@ -72,7 +83,7 @@ router.post(
       }
     }
 
-    await db.comment.create({
+    const newcomment = await db.comment.create({
       data: {
         content,
         authorId: res.locals.user.id,
@@ -81,6 +92,32 @@ router.post(
         gameId: gameId,
       },
     });
+
+    if (post) {
+      await db.notification.create({
+        data: {
+          type: "POST_COMMENT",
+          recipientId: post.authorId,
+          actorId: res.locals.user.id,
+          postId: post.id,
+          commentId: newcomment.id,
+        },
+      });
+    }
+
+    if (game) {
+      game.team.users.forEach(async (member) => {
+        await db.notification.create({
+          data: {
+            type: "GAME_COMMENT",
+            recipientId: member.id,
+            actorId: res.locals.user.id,
+            gameId: game.id,
+            commentId: newcomment.id,
+          },
+        });
+      });
+    }
 
     res.send({ message: "Comment created" });
   }

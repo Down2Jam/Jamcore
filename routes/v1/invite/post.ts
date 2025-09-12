@@ -48,6 +48,15 @@ router.post(
       },
     });
 
+    await db.notification.create({
+      data: {
+        teamInviteId: invite.id,
+        recipientId: res.locals.targetUser.id,
+        actorId: res.locals.user.id,
+        type: "TEAM_INVITE",
+      },
+    });
+
     res.send({ message: "Invite created", data: invite });
   }
 );

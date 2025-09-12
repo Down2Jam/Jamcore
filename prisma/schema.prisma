@@ -15,44 +15,46 @@ datasource db {
 }
 
 model User {
-  id                Int               @id @default(autoincrement())
-  slug              String            @unique
-  name              String
-  email             String?
-  password          String
-  profilePicture    String?
-  bannerPicture     String?
-  short             String?
-  bio               String?
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
-  mod               Boolean           @default(false)
-  admin             Boolean           @default(false)
-  twitch            String?
+  id                      Int               @id @default(autoincrement())
+  slug                    String            @unique
+  name                    String
+  email                   String?
+  password                String
+  profilePicture          String?
+  bannerPicture           String?
+  short                   String?
+  bio                     String?
+  createdAt               DateTime          @default(now())
+  updatedAt               DateTime          @updatedAt
+  mod                     Boolean           @default(false)
+  admin                   Boolean           @default(false)
+  twitch                  String?
 
   // Relations
-  posts             Post[]            @relation(name: "PostToAuthor")
-  likes             Like[]
-  comments          Comment[]
-  jams              Jam[]
-  reports           Report[]          @relation(name: "ReportToUser")
-  createdReports    Report[]          @relation(name: "ReportToReporter")
-  themeSuggestions  ThemeSuggestion[] @relation(name: "SuggestionToUser")
-  themeVotes        ThemeVote[]       @relation(name: "VoteToUser")
-  themeVotes2       ThemeVote2[]      @relation(name: "Vote2ToUser")
-  tracks            Track[]           @relation(name: "TrackToComposer")
-  scores            Score[]           @relation(name: "ScoreToUser")
-  ghosts            Ghost[]           @relation(name: "GhostToUser")
-  data              Data[]            @relation(name: "DataToUser")
-  events            Event[]
-  primaryRoles      TeamRole[]        @relation(name: "PrimaryRolesToUsers")
-  secondaryRoles    TeamRole[]        @relation(name: "SecondaryRolesToUsers")
-  teams             Team[]
-  ownedTeams        Team[]            @relation(name: "TeamsToOwner")
-  teamApplications  TeamApplication[] @relation(name: "TeamApplicationsToUser")
-  teamInvites       TeamInvite[]      @relation(name: "TeamInvitesToUser")
-  ratings           Rating[]          @relation(name: "RatingToUser")
-  achievements      Achievement[]     @relation(name: "AchievementToUsers")
+  posts                   Post[]            @relation(name: "PostToAuthor")
+  likes                   Like[]
+  comments                Comment[]
+  jams                    Jam[]
+  reports                 Report[]          @relation(name: "ReportToUser")
+  createdReports          Report[]          @relation(name: "ReportToReporter")
+  themeSuggestions        ThemeSuggestion[] @relation(name: "SuggestionToUser")
+  themeVotes              ThemeVote[]       @relation(name: "VoteToUser")
+  themeVotes2             ThemeVote2[]      @relation(name: "Vote2ToUser")
+  tracks                  Track[]           @relation(name: "TrackToComposer")
+  scores                  Score[]           @relation(name: "ScoreToUser")
+  ghosts                  Ghost[]           @relation(name: "GhostToUser")
+  data                    Data[]            @relation(name: "DataToUser")
+  events                  Event[]
+  primaryRoles            TeamRole[]        @relation(name: "PrimaryRolesToUsers")
+  secondaryRoles          TeamRole[]        @relation(name: "SecondaryRolesToUsers")
+  teams                   Team[]
+  ownedTeams              Team[]            @relation(name: "TeamsToOwner")
+  teamApplications        TeamApplication[] @relation(name: "TeamApplicationsToUser")
+  teamInvites             TeamInvite[]      @relation(name: "TeamInvitesToUser")
+  ratings                 Rating[]          @relation(name: "RatingToUser")
+  achievements            Achievement[]     @relation(name: "AchievementToUsers")
+  receivedNotifications   Notification[]    @relation(name: "NotificationToRecipient")
+  sentNotifications       Notification[]    @relation(name: "NotificationToActor")
 }
 
 enum Priority {
@@ -104,23 +106,24 @@ model CustomTag {
 }
 
 model Post {
-  id          Int         @id @default(autoincrement())
-  slug        String?     @unique
-  title       String
-  content     String
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  sticky      Boolean     @default(false)
+  id            Int             @id @default(autoincrement())
+  slug          String?         @unique
+  title         String
+  content       String
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  sticky        Boolean         @default(false)
 
   // Relations
-  author      User        @relation(fields: [authorId], references: [id], name: "PostToAuthor")
-  authorId    Int
-  tags        Tag[]
-  customTags  CustomTag[]
-  comments    Comment[]
-  likes       Like[]      @relation(name: "LikeToPost")
-  reports     Report[]    @relation(name: "ReportToPost")
-  reactions   Reaction[]  @relation(name: "PostToReactions")
+  author        User            @relation(fields: [authorId], references: [id], name: "PostToAuthor")
+  authorId      Int
+  tags          Tag[]
+  customTags    CustomTag[]
+  comments      Comment[]
+  likes         Like[]          @relation(name: "LikeToPost")
+  reports       Report[]        @relation(name: "ReportToPost")
+  reactions     Reaction[]      @relation(name: "PostToReactions")
+  notifications Notification[]  @relation(name: "post")
 }
 
 model Reaction {
@@ -136,23 +139,24 @@ model Reaction {
 }
 
 model Comment {
-  id        Int       @id @default(autoincrement())
-  content   String
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id            Int             @id @default(autoincrement())
+  content       String
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
 
   // Relations
-  post      Post?     @relation(fields: [postId], references: [id])
-  postId    Int?
-  comment   Comment?  @relation(fields: [commentId], references: [id], name: "CommentToComments")
-  commentId Int?
-  game      Game?     @relation(fields: [gameId], references: [id], name: "CommentToGame")
-  gameId    Int?
-  author    User      @relation(fields: [authorId], references: [id])
-  authorId  Int
-  likes     Like[]    @relation(name: "LikeToComment")
-  reports   Report[]  @relation(name: "ReportToComment")
-  children  Comment[] @relation(name: "CommentToComments")
+  post          Post?           @relation(fields: [postId], references: [id])
+  postId        Int?
+  comment       Comment?        @relation(fields: [commentId], references: [id], name: "CommentToComments")
+  commentId     Int?
+  game          Game?           @relation(fields: [gameId], references: [id], name: "CommentToGame")
+  gameId        Int?
+  author        User            @relation(fields: [authorId], references: [id])
+  authorId      Int
+  likes         Like[]          @relation(name: "LikeToComment")
+  reports       Report[]        @relation(name: "ReportToComment")
+  children      Comment[]       @relation(name: "CommentToComments")
+  notifications Notification[]  @relation(name: "NotificationToComment")
 }
 
 model Jam {
@@ -250,6 +254,7 @@ model Game {
   flags               Flag[]              @relation(name: "GamesToFlags")
   tags                Tag[]               @relation(name: "GamesToTags")
   comments            Comment[]           @relation(name: "CommentToGame")
+  notifications       Notification[]      @relation(name: "NotificationToGame")
 }
 
 model Flag {
@@ -441,6 +446,57 @@ model Report {
   gameId      Int?
 }
 
+enum NotificationType {
+  GENERAL
+  GAME_COMMENT
+  COMMENT_REPLY
+  POST_COMMENT
+  FOLLOW
+  FOLLOW_BACK
+  TEAM_INVITE
+  TEAM_APPLICATION
+}
+
+model Notification {
+  id            Int               @id @default(autoincrement())
+  type          NotificationType
+
+  title         String?
+  body          String?
+  link          String?           
+  data          Json?             
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  // who triggered it
+  actor         User?             @relation(fields: [actorId], references: [id], name: "NotificationToActor")
+  actorId       Int?
+
+  // who receives it
+  recipient     User              @relation(fields: [recipientId], references: [id], name: "NotificationToRecipient")
+  recipientId   Int
+
+  // optional targets
+  post          Post?             @relation(name: "post", fields: [postId], references: [id])
+  postId        Int?
+  comment       Comment?          @relation(name: "NotificationToComment", fields: [commentId], references: [id])
+  commentId     Int?
+  game          Game?             @relation(name: "NotificationToGame", fields: [gameId], references: [id])
+  gameId        Int?
+  team          Team?             @relation(name: "team", fields: [teamId], references: [id])
+  teamId        Int?
+  teamInvite    TeamInvite?       @relation(name: "teamInvite", fields: [teamInviteId], references: [id])
+  teamInviteId  Int?
+  teamApplication TeamApplication? @relation(name: "teamApplication", fields: [teamApplicationId], references: [id])
+  teamApplicationId Int?
+
+  @@index([type, recipientId, createdAt])
+  @@index([postId])
+  @@index([commentId])
+  @@index([gameId])
+  @@index([teamId])
+}
+
 model ThemeSuggestion {
   id             	      Int       @id @default(autoincrement())
   suggestion 		 	      String
@@ -490,6 +546,7 @@ model Team {
   invites           TeamInvite[]      @relation(name: "TeamInvitesToTeam")
   applications      TeamApplication[] @relation(name: "TeamApplicationsToTeam")
   game              Game?             @relation(name: "GameToTeam")
+  notifications     Notification[]    @relation(name: "team")
 }
 
 
@@ -516,24 +573,26 @@ model TeamInvite {
   updatedAt         DateTime?   @updatedAt
 
   //Relations
-  team              Team        @relation(fields: [teamId], references: [id], name: "TeamInvitesToTeam")
+  team              Team            @relation(fields: [teamId], references: [id], name: "TeamInvitesToTeam")
   teamId            Int         
-  user              User        @relation(fields: [userId], references: [id], name: "TeamInvitesToUser")
+  user              User            @relation(fields: [userId], references: [id], name: "TeamInvitesToUser")
   userId            Int         
+  notifications     Notification[]  @relation(name: "teamInvite")
 }
 
 
 model TeamApplication {
-  id                Int         @id @default(autoincrement())
+  id                Int             @id @default(autoincrement())
   content           String?
-  createdAt         DateTime    @default(now())
-  updatedAt         DateTime?   @updatedAt
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime?       @updatedAt
 
   //Relations
-  team              Team        @relation(fields: [teamId], references: [id], name: "TeamApplicationsToTeam")
+  team              Team            @relation(fields: [teamId], references: [id], name: "TeamApplicationsToTeam")
   teamId            Int         
-  user              User        @relation(fields: [userId], references: [id], name: "TeamApplicationsToUser")
+  user              User            @relation(fields: [userId], references: [id], name: "TeamApplicationsToUser")
   userId            Int         
+  notifications     Notification[]  @relation(name: "teamApplication")
 }
 
 model ThemeVote2 {

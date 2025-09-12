@@ -35,11 +35,20 @@ router.post(
       return;
     }
 
-    await db.teamApplication.create({
+    const application = await db.teamApplication.create({
       data: {
         userId: res.locals.user.id,
         teamId: res.locals.targetTeam.id,
         content: content ? content : null,
+      },
+    });
+
+    await db.notification.create({
+      data: {
+        teamApplicationId: application.id,
+        recipientId: res.locals.targetTeam.ownerId,
+        actorId: res.locals.user.id,
+        type: "TEAM_APPLICATION",
       },
     });
 

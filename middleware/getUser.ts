@@ -39,6 +39,29 @@ async function getUser(
       mod: true,
       admin: true,
       jams: true,
+      receivedNotifications: {
+        include: {
+          teamApplication: {
+            include: {
+              user: true,
+              team: true,
+            },
+          },
+          teamInvite: {
+            include: {
+              user: true,
+              team: true,
+            },
+          },
+          comment: {
+            include: {
+              game: true,
+              post: true,
+              author: true,
+            },
+          },
+        },
+      },
       bannerPicture: true,
       email: true,
       twitch: true,
