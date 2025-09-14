@@ -98,6 +98,7 @@ async function getTargetUser(
         },
         scores: {
           include: {
+            user: true,
             leaderboard: {
               include: {
                 game: true,
