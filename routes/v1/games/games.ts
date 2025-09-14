@@ -690,6 +690,8 @@ router.get("/", async function (req: Request, res: Response) {
       orderBy = undefined;
     case "ratingbalance":
       orderBy = undefined;
+    case "karma":
+      orderBy = undefined;
     default:
       orderBy = { id: "desc" };
       break;
@@ -736,6 +738,47 @@ router.get("/", async function (req: Request, res: Response) {
         select: {
           users: {
             select: {
+              id: true,
+              achievements: {
+                select: {
+                  gameId: true,
+                  game: {
+                    select: {
+                      jamId: true,
+                    },
+                  },
+                },
+              },
+              scores: {
+                select: {
+                  leaderboard: {
+                    select: {
+                      gameId: true,
+                      game: {
+                        select: {
+                          jamId: true,
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+              comments: {
+                select: {
+                  gameId: true,
+                  game: {
+                    select: {
+                      jamId: true,
+                    },
+                  },
+                  likes: {
+                    select: {
+                      userId: true,
+                      id: true,
+                    },
+                  },
+                },
+              },
               ratings: {
                 select: {
                   gameId: true,
@@ -852,6 +895,100 @@ router.get("/", async function (req: Request, res: Response) {
     };
 
     game = game.sort((a, b) => diff(b) - diff(a));
+  }
+
+  if (sort === "karma") {
+    const karmaScore = (g: (typeof game)[number]) => {
+      const given = g.team.users.reduce(
+        (prev, cur) =>
+          prev +
+          cur.ratings.reduce(
+            (prev2, cur2) =>
+              prev2 +
+              (cur2.game.jamId === g.jamId
+                ? 1 /
+                  (cur2.game.ratingCategories.length + ratingCategories.length)
+                : 0),
+            0
+          ),
+        0
+      );
+
+      const gotten =
+        g.ratings.filter(
+          (rating) =>
+            rating.user.teams.filter(
+              (team) =>
+                team.game &&
+                team.game.jamId == g.jamId &&
+                team.game.published &&
+                team.game.category !== "EXTRA"
+            ).length > 0
+        ).length /
+        (g.ratingCategories.length + ratingCategories.length);
+
+      const likes = g.team.users.reduce(
+        (prev, cur) =>
+          prev +
+          cur.comments
+            .filter(
+              (comment) =>
+                comment.gameId &&
+                comment.game &&
+                comment.gameId !== g.id &&
+                comment.game.jamId === g.jamId
+            )
+            .reduce(
+              (prev2, cur2) =>
+                prev2 +
+                cur2.likes.filter(
+                  (like) =>
+                    g.team.users
+                      .map((user) => user.id)
+                      .filter((user) => user === like.userId).length === 0
+                ).length,
+              0
+            ),
+        0
+      );
+
+      const scores = g.team.users.reduce(
+        (prev, cur) =>
+          prev +
+          [
+            ...new Set(
+              cur.scores
+                .filter((sc) => sc.leaderboard.game.jamId === g.jamId)
+                .map((sc) => sc.leaderboard.gameId)
+            ),
+          ].length,
+        0
+      );
+
+      const achievements = g.team.users.reduce(
+        (prev, cur) =>
+          prev +
+          [
+            ...new Set(
+              cur.achievements
+                .filter((ach) => ach.game.jamId === g.jamId)
+                .map((ach) => ach.gameId)
+            ),
+          ].length,
+        0
+      );
+
+      const exponent = 0.73412;
+      const ratingScore = given ^ exponent;
+      const heartScore = 1 ^ exponent;
+      const achScore = 0.3333 * (achievements ^ exponent);
+      const scScore = 0.3333 * (scores ^ exponent);
+      const ratingsReceived = gotten;
+
+      return ratingScore + heartScore + achScore + scScore - ratingsReceived;
+    };
+
+    game = game.sort((a, b) => karmaScore(b) - karmaScore(a));
   }
 
   res.json(game);
