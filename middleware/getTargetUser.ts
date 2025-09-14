@@ -78,6 +78,43 @@ async function getTargetUser(
         bannerPicture: true,
         primaryRoles: true,
         secondaryRoles: true,
+        tracks: {
+          include: {
+            composer: true,
+            game: true,
+          },
+        },
+        posts: {
+          include: {
+            author: true,
+          },
+        },
+        comments: {
+          include: {
+            game: true,
+            post: true,
+            comment: true,
+          },
+        },
+        scores: {
+          include: {
+            leaderboard: {
+              include: {
+                game: true,
+                scores: {
+                  include: {
+                    user: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+        achievements: {
+          include: {
+            game: true,
+          },
+        },
         teams: {
           select: {
             game: {
