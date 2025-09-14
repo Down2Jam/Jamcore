@@ -113,7 +113,26 @@ async function getTargetUser(
         },
         achievements: {
           include: {
-            game: true,
+            game: {
+              include: {
+                achievements: {
+                  include: {
+                    users: true,
+                  },
+                },
+                leaderboards: {
+                  include: {
+                    scores: true,
+                  },
+                },
+                ratings: {
+                  select: {
+                    userId: true,
+                  },
+                },
+              },
+            },
+            users: true,
           },
         },
         teams: {
