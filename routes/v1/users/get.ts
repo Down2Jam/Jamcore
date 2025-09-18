@@ -13,24 +13,24 @@ router.get(
   rateLimit(),
 
   async (_req, res) => {
-    logger.info(`Users fetched`);
     const users = await db.user.findMany({
-      take: 10,
       orderBy: {
         id: "desc",
       },
       select: {
         id: true,
         name: true,
-        bio: true,
-        short: true,
         profilePicture: true,
-        createdAt: true,
         slug: true,
-        mod: true,
-        admin: true,
-        jams: true,
-        bannerPicture: true,
+        teams: {
+          select: {
+            game: {
+              select: {
+                published: true,
+              },
+            },
+          },
+        },
       },
     });
 
