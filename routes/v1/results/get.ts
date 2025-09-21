@@ -24,6 +24,21 @@ router.get(
   async (req, res) => {
     const { category, contentType, sort, jam } = req.query;
 
+    if (res.locals?.jam) {
+      const startMs = new Date(res.locals.startTime).getTime();
+      const jammingMs = (res.locals.jammingHours ?? 0) * 60 * 60 * 1000;
+      const submissionMs = (res.locals.submissionHours ?? 0) * 60 * 60 * 1000;
+      const ratingMs = (res.locals.ratingHours ?? 0) * 60 * 60 * 1000;
+
+      const endTs = startMs + jammingMs + submissionMs + ratingMs;
+      const isOver = Date.now() >= endTs;
+      const isOverride = res.locals.user?.id === 3;
+
+      if (!isOver && !isOverride) {
+        return res.json({ data: [] });
+      }
+    }
+
     let where = {
       category: category as GameCategory,
     };
@@ -32,18 +47,6 @@ router.get(
       where.jamId = parseInt(jam as string);
     }
 
-    if (
-      res.locals.jam &&
-      new Date(
-        new Date(res.locals.startTime).getTime() +
-          res.locals.jammingHours * 60 * 60 * 1000 +
-          res.locals.submissionHours * 60 * 60 * 1000 +
-          res.locals.ratingHours * 60 * 60 * 1000
-      ).getTime() > Date.now() &&
-      res.locals.user?.id !== 3
-    ) {
-      return { data: [] };
-    }
     let games = await db.game.findMany({
       where,
       include: {
