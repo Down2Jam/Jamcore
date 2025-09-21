@@ -40,7 +40,7 @@ router.get(
           res.locals.submissionHours * 60 * 60 * 1000 +
           res.locals.ratingHours * 60 * 60 * 1000
       ).getTime() > Date.now() &&
-      (!res.locals.user || res.locals.user.id !== 3)
+      res.locals.user?.id !== 3
     ) {
       return { data: [] };
     }
