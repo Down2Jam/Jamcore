@@ -28,7 +28,7 @@ router.get(
       category: category as GameCategory,
     };
 
-    if (jam !== "all") {
+    if (jam && jam !== "all") {
       where.jamId = parseInt(jam as string);
     }
 
