@@ -22,20 +22,30 @@ router.get(
   getJam,
 
   async (req, res) => {
-    const { category, contentType, sort } = req.query;
+    const { category, contentType, sort, jam } = req.query;
+
+    let where = {
+      category: category as GameCategory,
+    };
+
+    if (jam !== "all") {
+      where.jamId = parseInt(jam as string);
+    }
 
     if (
-      res.locals.jamPhase &&
-      (res.locals.jamPhase === "Rating" ||
-        res.locals.jamPhase === "Submission") &&
+      res.locals.jam &&
+      new Date(
+        new Date(res.locals.startTime).getTime() +
+          res.locals.jammingHours * 60 * 60 * 1000 +
+          res.locals.submissionHours * 60 * 60 * 1000 +
+          res.locals.ratingHours * 60 * 60 * 1000
+      ).getTime() > Date.now() &&
       (!res.locals.user || res.locals.user.id !== 3)
     ) {
       return { data: [] };
     }
     let games = await db.game.findMany({
-      where: {
-        category: category as GameCategory,
-      },
+      where,
       include: {
         majRatingCategories: true,
         ratingCategories: true,
