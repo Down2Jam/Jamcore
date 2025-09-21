@@ -471,6 +471,7 @@ router.get(
       let games = await db.game.findMany({
         where: {
           category: game.category,
+          jamId: game.jamId,
         },
         include: {
           ratingCategories: true,
@@ -604,7 +605,7 @@ router.get(
       const newfilteredgames = filteredGames
         .filter((game) => {
           const overallCategory = game.categoryAverages.find(
-            (avg) => avg.categoryName === "Overall"
+            (avg) => avg.categoryName === "RatingCategory.Overall.Title"
           );
           return overallCategory && overallCategory.ratingCount >= 5;
         })
@@ -706,6 +707,9 @@ router.get("/", async function (req: Request, res: Response) {
   }
 
   let game = await db.game.findMany({
+    where: {
+      jamId,
+    },
     include: {
       jam: true,
       ratingCategories: true,
