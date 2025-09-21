@@ -168,8 +168,8 @@ router.get(
           (avg) => avg.categoryName === "RatingCategory.Overall.Title"
         );
         return overallCategory && overallCategory.ratingCount >= 5;
-      });
-    //.filter((game) => game.ratingsCount >= 4.99);
+      })
+      .filter((game) => game.ratingsCount >= 4.99);
 
     filteredGames.forEach((game) => {
       game.categoryAverages.forEach((category) => {
