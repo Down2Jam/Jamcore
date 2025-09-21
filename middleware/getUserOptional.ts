@@ -12,7 +12,7 @@ async function getUserOptional(
 ): Promise<void> {
   const { userSlug } = res.locals;
 
-  if (!userSlug) {
+  if (!res.locals.userSlug) {
     next();
     return;
   }

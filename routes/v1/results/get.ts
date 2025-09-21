@@ -7,6 +7,8 @@ import { dirname } from "path";
 import getJam from "@middleware/getJam";
 import db from "@helper/db";
 import { GameCategory } from "@prisma/client";
+import authUserOptional from "@middleware/authUserOptional";
+import getUserOptional from "@middleware/getUserOptional";
 
 /**
  * Route to get the results
@@ -15,11 +17,21 @@ router.get(
   "/",
   rateLimit(),
 
+  authUserOptional,
+  getUserOptional,
   getJam,
 
   async (req, res) => {
     const { category, contentType, sort } = req.query;
 
+    if (
+      res.locals.jamPhase &&
+      (res.locals.jamPhase === "Rating" ||
+        res.locals.jamPhase === "Submission") &&
+      (!res.locals.user || res.locals.user.id !== 3)
+    ) {
+      return { data: [] };
+    }
     let games = await db.game.findMany({
       where: {
         category: category as GameCategory,
@@ -153,11 +165,11 @@ router.get(
       })
       .filter((game) => {
         const overallCategory = game.categoryAverages.find(
-          (avg) => avg.categoryName === "Overall"
+          (avg) => avg.categoryName === "RatingCategory.Overall.Title"
         );
         return overallCategory && overallCategory.ratingCount >= 5;
-      })
-      .filter((game) => game.ratingsCount >= 4.99);
+      });
+    //.filter((game) => game.ratingsCount >= 4.99);
 
     filteredGames.forEach((game) => {
       game.categoryAverages.forEach((category) => {
@@ -188,18 +200,18 @@ router.get(
           (avg) =>
             avg.categoryName ===
             (sort == "OVERALL"
-              ? "Overall"
+              ? "RatingCategory.Overall.Title"
               : sort == "GAMEPLAY"
-              ? "Gameplay"
+              ? "RatingCategory.Gameplay.Title"
               : sort == "AUDIO"
-              ? "Audio"
+              ? "RatingCategory.Audio.Title"
               : sort == "GRAPHICS"
-              ? "Graphics"
+              ? "RatingCategory.Graphics.Title"
               : sort == "CREATIVITY"
-              ? "Creativity"
+              ? "RatingCategory.Creativity.Title"
               : sort == "EMOTIONALDELIVERY"
-              ? "Emotional Delivery"
-              : "Theme")
+              ? "RatingCategory.Emotional.Title"
+              : "RatingCategory.Theme.Title")
         )?.averageScore || 0;
 
       const bOverall =
@@ -207,18 +219,18 @@ router.get(
           (avg) =>
             avg.categoryName ===
             (sort == "OVERALL"
-              ? "Overall"
+              ? "RatingCategory.Overall.Title"
               : sort == "GAMEPLAY"
-              ? "Gameplay"
+              ? "RatingCategory.Gameplay.Title"
               : sort == "AUDIO"
-              ? "Audio"
+              ? "RatingCategory.Audio.Title"
               : sort == "GRAPHICS"
-              ? "Graphics"
+              ? "RatingCategory.Graphics.Title"
               : sort == "CREATIVITY"
-              ? "Creativity"
+              ? "RatingCategory.Creativity.Title"
               : sort == "EMOTIONALDELIVERY"
-              ? "Emotional Delivery"
-              : "Theme")
+              ? "RatingCategory.Emotional.Title"
+              : "RatingCategory.Theme.Title")
         )?.averageScore || 0;
 
       return bOverall - aOverall;
@@ -229,18 +241,18 @@ router.get(
         (avg) =>
           avg.categoryName ===
           (sort == "OVERALL"
-            ? "Overall"
+            ? "RatingCategory.Overall.Title"
             : sort == "GAMEPLAY"
-            ? "Gameplay"
+            ? "RatingCategory.Gameplay.Title"
             : sort == "AUDIO"
-            ? "Audio"
+            ? "RatingCategory.Audio.Title"
             : sort == "GRAPHICS"
-            ? "Graphics"
+            ? "RatingCategory.Graphics.Title"
             : sort == "CREATIVITY"
-            ? "Creativity"
+            ? "RatingCategory.Creativity.Title"
             : sort == "EMOTIONALDELIVERY"
-            ? "Emotional Delivery"
-            : "Theme")
+            ? "RatingCategory.Emotional.Title"
+            : "RatingCategory.Theme.Title")
       );
       return overallCategory && overallCategory.ratingCount >= 5;
     });

@@ -13,7 +13,7 @@ function authUserOptional(
   const refreshToken = req.cookies["refreshToken"] || req.headers["refresh"];
   const accessToken = authHeader && authHeader.split(" ")[1];
 
-  if (!accessToken || !refreshToken) {
+  if (!accessToken || !refreshToken || accessToken === "null") {
     next();
     return;
   }
