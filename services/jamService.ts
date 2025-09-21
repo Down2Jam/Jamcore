@@ -75,7 +75,7 @@ export const getCurrentActiveJam = async () => {
     if (now < ratingEnd) {
       //console.log("checking  " + jam.id);
       if (!futureJam || jam.startTime < futureJam.startTime) {
-        if (futureJam) console.log("from " + futureJam.id);
+        //if (futureJam) console.log("from " + futureJam.id);
         futureJam = jam;
         //console.log("future jam changed to " + jam.id);
       } else continue;

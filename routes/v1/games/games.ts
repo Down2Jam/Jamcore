@@ -611,28 +611,30 @@ router.get(
         })
         .filter((game) => game.ratingsCount >= 4.99);
 
-      newfilteredgames.forEach((game) => {
-        game.categoryAverages.forEach((category) => {
-          // Rank games within each category by averageScore
-          const rankedGamesInCategory = newfilteredgames
-            .map((g) => {
-              const categoryAvg = g.categoryAverages.find(
-                (cat) => cat.categoryId === category.categoryId
-              );
-              return {
-                gameId: g.id,
-                score: categoryAvg ? categoryAvg.averageScore : 0,
-              };
-            })
-            .sort((a, b) => b.score - a.score);
+      if (game.category !== "EXTRA") {
+        newfilteredgames.forEach((game) => {
+          game.categoryAverages.forEach((category) => {
+            // Rank games within each category by averageScore
+            const rankedGamesInCategory = newfilteredgames
+              .map((g) => {
+                const categoryAvg = g.categoryAverages.find(
+                  (cat) => cat.categoryId === category.categoryId
+                );
+                return {
+                  gameId: g.id,
+                  score: categoryAvg ? categoryAvg.averageScore : 0,
+                };
+              })
+              .sort((a, b) => b.score - a.score);
 
-          const gamePlacement = rankedGamesInCategory.findIndex(
-            (rankedGame) => rankedGame.gameId === game.id
-          );
+            const gamePlacement = rankedGamesInCategory.findIndex(
+              (rankedGame) => rankedGame.gameId === game.id
+            );
 
-          category.placement = gamePlacement + 1;
+            category.placement = gamePlacement + 1;
+          });
         });
-      });
+      }
 
       const newgame = newfilteredgames.filter((fgame) => fgame.id == game.id);
 

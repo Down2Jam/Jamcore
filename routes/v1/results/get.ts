@@ -24,11 +24,12 @@ router.get(
   async (req, res) => {
     const { category, contentType, sort, jam } = req.query;
 
-    if (res.locals?.jam) {
-      const startMs = new Date(res.locals.startTime).getTime();
-      const jammingMs = (res.locals.jammingHours ?? 0) * 60 * 60 * 1000;
-      const submissionMs = (res.locals.submissionHours ?? 0) * 60 * 60 * 1000;
-      const ratingMs = (res.locals.ratingHours ?? 0) * 60 * 60 * 1000;
+    if (res.locals?.jam && res.locals?.jam.id == jam) {
+      const startMs = new Date(res.locals.jam.startTime).getTime();
+      const jammingMs = (res.locals.jam.jammingHours ?? 0) * 60 * 60 * 1000;
+      const submissionMs =
+        (res.locals.jam.submissionHours ?? 0) * 60 * 60 * 1000;
+      const ratingMs = (res.locals.jam.ratingHours ?? 0) * 60 * 60 * 1000;
 
       const endTs = startMs + jammingMs + submissionMs + ratingMs;
       const isOver = Date.now() >= endTs;
@@ -45,6 +46,10 @@ router.get(
 
     if (jam && jam !== "all") {
       where.jamId = parseInt(jam as string);
+    }
+
+    if (jam === "all") {
+      return res.json({ data: [] }); // temp
     }
 
     let games = await db.game.findMany({
