@@ -9,9 +9,13 @@ import { GetS3File } from "@helper/s3";
 
 const router = Router();
 const __dirname = dirname(fileURLToPath(import.meta.url));
+const SAFE_MUSIC_FILE = /^[A-Za-z0-9._-]+\.(wav|ogg|mp3)$/i;
 
 router.get("/:filename", rateLimit(9999), async (req, res, next) => {
   const { filename } = req.params;
+  if (!SAFE_MUSIC_FILE.test(filename)) {
+    return res.status(400).send("Invalid filename");
+  }
   const musicPath = path.join(
     __dirname,
     "..",

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { body } from "express-validator";
+import { body, validationResult } from "express-validator";
 import getTargetUser from "@middleware/getTargetUser";
 import authUser from "@middleware/authUser";
 import getUser from "@middleware/getUser";
@@ -8,6 +8,20 @@ import db from "@helper/db";
 import rateLimit from "@middleware/rateLimit";
 
 const router = Router();
+const PROD_ASSET_PATTERN = /^https:\/\/d2jam\.com\/api\/v1\/(image|pfp)\/[A-Za-z0-9._-]+$/;
+const DEV_ASSET_PATTERN =
+  /^http:\/\/(localhost|127\.0\.0\.1):\d+\/api\/v1\/(image|pfp)\/[A-Za-z0-9._-]+$/;
+
+function isAllowedAssetUrl(value: unknown): boolean {
+  if (value === null || value === undefined || value === "") return true;
+  if (typeof value !== "string") return false;
+
+  if (process.env.NODE_ENV === "production") {
+    return PROD_ASSET_PATTERN.test(value);
+  }
+
+  return DEV_ASSET_PATTERN.test(value);
+}
 
 /**
  * Route to edit a user in the database.
@@ -18,10 +32,20 @@ router.put(
   "/",
   rateLimit(),
 
-  body("name"),
+  body("name")
+    .isString()
+    .trim()
+    .isLength({ min: 1, max: 64 })
+    .withMessage("Name must be between 1 and 64 characters."),
   body("short")
     .isLength({ max: 32 })
     .withMessage("Short must be at most 32 characters."),
+  body("profilePicture")
+    .custom((value) => isAllowedAssetUrl(value))
+    .withMessage("Invalid profile picture URL."),
+  body("bannerPicture")
+    .custom((value) => isAllowedAssetUrl(value))
+    .withMessage("Invalid banner picture URL."),
 
   authUser,
   getUser,
@@ -39,6 +63,14 @@ router.put(
       primaryRoles,
       secondaryRoles,
     } = req.body;
+
+    const validation = validationResult(req);
+    if (!validation.isEmpty()) {
+      return res.status(400).json({
+        message: "Invalid request",
+        errors: validation.array(),
+      });
+    }
 
     try {
       const user = await db.user.update({

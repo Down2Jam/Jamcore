@@ -22,7 +22,7 @@ function getRandomPfp(): string | null {
 
   const files = fs
     .readdirSync(pfpsPath)
-    .filter((f) => /\.(png|jpe?g|gif|webp|svg)$/i.test(f));
+    .filter((f) => /\.(png|jpe?g|gif|webp)$/i.test(f));
 
   if (files.length === 0) return null;
 

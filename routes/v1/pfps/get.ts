@@ -24,7 +24,7 @@ router.get(
       if (err) return res.status(500).json({ message: "Failed to read pfps" });
 
       const imageUrls = files
-        .filter((f) => /\.(png|jpe?g|gif|webp|svg)$/.test(f))
+        .filter((f) => /\.(png|jpe?g|gif|webp)$/i.test(f))
         .map(
           (file) =>
             `${

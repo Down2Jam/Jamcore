@@ -10,23 +10,101 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const storage = multer.memoryStorage();
 
-const allowedImageTypes = [
-  "image/jpeg", // JPEG images
-  "image/png", // PNG images
-  "image/apng", // APNG images
-  "image/gif", // GIF images
-  "image/webp", // WebP images
-  "image/svg+xml", // SVG images
-];
+const imageMimeToExt: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/apng": "png",
+  "image/gif": "gif",
+  "image/webp": "webp",
+};
 
-const allowedMusicTypes = [
-  "audio/wav", // Wav sounds
-  "audio/ogg", // Ogg sounds
-  "application/ogg", // More Ogg
-  "audio/mpeg", // Mp3 sounds
-];
+const musicMimeToExt: Record<string, string> = {
+  "audio/wav": "wav",
+  "audio/ogg": "ogg",
+  "application/ogg": "ogg",
+  "audio/mpeg": "mp3",
+};
 
-const uploadHandler = (fileTypes: string[], folder: string) =>
+const allowedImageTypes = Object.keys(imageMimeToExt);
+const allowedMusicTypes = Object.keys(musicMimeToExt);
+
+function hasMagicBytes(fileBuffer: Buffer, mimeType: string): boolean {
+  if (!fileBuffer || fileBuffer.length < 4) return false;
+
+  if (mimeType === "image/jpeg") {
+    return (
+      fileBuffer[0] === 0xff && fileBuffer[1] === 0xd8 && fileBuffer[2] === 0xff
+    );
+  }
+
+  if (mimeType === "image/png" || mimeType === "image/apng") {
+    return (
+      fileBuffer.length >= 8 &&
+      fileBuffer[0] === 0x89 &&
+      fileBuffer[1] === 0x50 &&
+      fileBuffer[2] === 0x4e &&
+      fileBuffer[3] === 0x47 &&
+      fileBuffer[4] === 0x0d &&
+      fileBuffer[5] === 0x0a &&
+      fileBuffer[6] === 0x1a &&
+      fileBuffer[7] === 0x0a
+    );
+  }
+
+  if (mimeType === "image/gif") {
+    const header = fileBuffer.subarray(0, 6).toString("ascii");
+    return header === "GIF87a" || header === "GIF89a";
+  }
+
+  if (mimeType === "image/webp") {
+    const riff = fileBuffer.subarray(0, 4).toString("ascii");
+    const webp = fileBuffer.subarray(8, 12).toString("ascii");
+    return riff === "RIFF" && webp === "WEBP";
+  }
+
+  if (mimeType === "audio/wav") {
+    const riff = fileBuffer.subarray(0, 4).toString("ascii");
+    const wave = fileBuffer.subarray(8, 12).toString("ascii");
+    return riff === "RIFF" && wave === "WAVE";
+  }
+
+  if (mimeType === "audio/ogg" || mimeType === "application/ogg") {
+    return fileBuffer.subarray(0, 4).toString("ascii") === "OggS";
+  }
+
+  if (mimeType === "audio/mpeg") {
+    const id3 = fileBuffer.subarray(0, 3).toString("ascii") === "ID3";
+    const mpegSync =
+      fileBuffer.length >= 2 &&
+      fileBuffer[0] === 0xff &&
+      (fileBuffer[1] & 0xe0) === 0xe0;
+    return id3 || mpegSync;
+  }
+
+  return false;
+}
+
+function resolveUploadTarget(mimeType: string) {
+  if (imageMimeToExt[mimeType]) {
+    return {
+      folder: "images",
+      localFolder: "image",
+      extension: imageMimeToExt[mimeType],
+    };
+  }
+
+  if (musicMimeToExt[mimeType]) {
+    return {
+      folder: "music",
+      localFolder: "music",
+      extension: musicMimeToExt[mimeType],
+    };
+  }
+
+  return null;
+}
+
+const uploadHandler = (fileTypes: string[]) =>
   multer({
     storage: storage,
     limits: { fileSize: 1024 * 1024 * 12 }, // 12 MB limit
@@ -39,8 +117,8 @@ const uploadHandler = (fileTypes: string[], folder: string) =>
     },
   });
 
-export const images = uploadHandler(allowedImageTypes, "images");
-export const music = uploadHandler(allowedMusicTypes, "music");
+export const images = uploadHandler(allowedImageTypes);
+export const music = uploadHandler(allowedMusicTypes);
 
 export async function UploadFile(req: any, res: any) {
   if (!req.file) {
@@ -48,9 +126,19 @@ export async function UploadFile(req: any, res: any) {
   }
 
   const file = req.file;
-  const fileName = uuidv4() + path.extname(file.originalname);
-  const folder = file.mimetype.startsWith("image/") ? "images" : "music";
-  const localFolder = file.mimetype.startsWith("image/") ? "image" : "music";
+  const uploadTarget = resolveUploadTarget(file.mimetype);
+
+  if (!uploadTarget) {
+    return res.status(400).json({ message: "Invalid file type" });
+  }
+
+  if (!hasMagicBytes(file.buffer, file.mimetype)) {
+    return res.status(400).json({ message: "File content does not match type" });
+  }
+
+  const fileName = `${uuidv4()}.${uploadTarget.extension}`;
+  const folder = uploadTarget.folder;
+  const localFolder = uploadTarget.localFolder;
 
   if (await IsUsingS3()) {
     // Upload to S3
@@ -79,7 +167,7 @@ export async function UploadFile(req: any, res: any) {
       fs.mkdirSync(localDir, { recursive: true });
     }
     const localPath = path.join(localDir, fileName);
-    fs.writeFileSync(localPath, file.buffer);
+    fs.writeFileSync(localPath, file.buffer, { mode: 0o600 });
 
     return res.json({
       message: "File uploaded",
