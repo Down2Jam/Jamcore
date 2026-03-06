@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { body } from "express-validator";
+import { body, validationResult } from "express-validator";
 import getTargetUser from "@middleware/getTargetUser";
 import authUser from "@middleware/authUser";
 import getUser from "@middleware/getUser";
@@ -8,18 +8,21 @@ import db from "@helper/db";
 import rateLimit from "@middleware/rateLimit";
 
 const router = Router();
-const PREFIX_LENGTH = 6;
-const PREFIX_CHARS = "abcdefghijklmnopqrstuvwxyz0123456789";
+const PROD_ASSET_PATTERN =
+  /^https:\/\/d2jam\.com\/api\/v1\/(image|pfp)\/[A-Za-z0-9._-]+$/;
+const DEV_ASSET_PATTERN =
+  /^http:\/\/(localhost|127\.0\.0\.1):\d+\/api\/v1\/(image|pfp)\/[A-Za-z0-9._-]+$/;
 
-const buildPrefix = (seed?: string | null) => {
-  const normalized = (seed ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
-  const base = normalized.slice(0, PREFIX_LENGTH);
-  let prefix = base;
-  for (let i = prefix.length; i < PREFIX_LENGTH; i += 1) {
-    prefix += PREFIX_CHARS[Math.floor(Math.random() * PREFIX_CHARS.length)];
+function isAllowedAssetUrl(value: unknown): boolean {
+  if (value === null || value === undefined || value === "") return true;
+  if (typeof value !== "string") return false;
+
+  if (process.env.NODE_ENV === "production") {
+    return PROD_ASSET_PATTERN.test(value);
   }
-  return prefix;
-};
+
+  return DEV_ASSET_PATTERN.test(value);
+}
 
 /**
  * Route to edit a user in the database.
@@ -30,7 +33,11 @@ router.put(
   "/",
   rateLimit(),
 
-  body("name"),
+  body("name")
+    .isString()
+    .trim()
+    .isLength({ min: 1, max: 64 })
+    .withMessage("Name must be between 1 and 64 characters."),
   body("short")
     .isLength({ max: 155 })
     .withMessage("Short must be at most 155 characters."),
@@ -54,9 +61,9 @@ router.put(
             (link) =>
               typeof link === "string" &&
               link.length <= 200 &&
-              link.trim().length > 0
+              link.trim().length > 0,
           )
-        : true
+        : true,
     )
     .withMessage("Links must be non-empty strings."),
   body("recommendedGameIds")
@@ -66,7 +73,7 @@ router.put(
     .custom((ids) =>
       Array.isArray(ids)
         ? ids.every((id) => Number.isInteger(Number(id)))
-        : true
+        : true,
     )
     .withMessage("Recommended game ids must be numbers."),
   body("recommendedPostIds")
@@ -76,7 +83,7 @@ router.put(
     .custom((ids) =>
       Array.isArray(ids)
         ? ids.every((id) => Number.isInteger(Number(id)))
-        : true
+        : true,
     )
     .withMessage("Recommended post ids must be numbers."),
   body("recommendedTrackIds")
@@ -86,7 +93,7 @@ router.put(
     .custom((ids) =>
       Array.isArray(ids)
         ? ids.every((id) => Number.isInteger(Number(id)))
-        : true
+        : true,
     )
     .withMessage("Recommended track ids must be numbers."),
   body("linkLabels")
@@ -99,11 +106,17 @@ router.put(
             (label) =>
               typeof label === "string" &&
               label.length <= 40 &&
-              label.trim().length >= 0
+              label.trim().length >= 0,
           )
-        : true
+        : true,
     )
     .withMessage("Link labels must be strings."),
+  body("profilePicture")
+    .custom((value) => isAllowedAssetUrl(value))
+    .withMessage("Invalid profile picture URL."),
+  body("bannerPicture")
+    .custom((value) => isAllowedAssetUrl(value))
+    .withMessage("Invalid banner picture URL."),
 
   authUser,
   getUser,
@@ -129,6 +142,14 @@ router.put(
       recommendedPostIds,
       recommendedTrackIds,
     } = req.body;
+
+    const validation = validationResult(req);
+    if (!validation.isEmpty()) {
+      return res.status(400).json({
+        message: "Invalid request",
+        errors: validation.array(),
+      });
+    }
 
     try {
       const oldPrefix = res.locals.user.emotePrefix ?? null;
@@ -308,7 +329,9 @@ router.put(
           const nextSlugs = updates.map((u) => u.slug);
           const uniqueNext = new Set(nextSlugs);
           if (uniqueNext.size !== nextSlugs.length) {
-            res.status(409).send({ message: "Emote prefix causes duplicates." });
+            res
+              .status(409)
+              .send({ message: "Emote prefix causes duplicates." });
             return;
           }
 
@@ -320,9 +343,7 @@ router.put(
             select: { id: true },
           });
           if (conflicts.length > 0) {
-            res
-              .status(409)
-              .send({ message: "Emote prefix already in use." });
+            res.status(409).send({ message: "Emote prefix already in use." });
             return;
           }
 
@@ -331,22 +352,22 @@ router.put(
               db.reaction.update({
                 where: { id: update.id },
                 data: { slug: update.slug },
-              })
-            )
+              }),
+            ),
           );
         }
       }
 
       const currentPrimaryRoles = user.primaryRoles.map((role) => role.slug);
       const currentSecondaryRoles = user.secondaryRoles.map(
-        (role) => role.slug
+        (role) => role.slug,
       );
 
       const primaryRolesToDisconnect = currentPrimaryRoles.filter(
-        (role) => !primaryRoles.includes(role)
+        (role) => !primaryRoles.includes(role),
       );
       const secondaryRolesToDisconnect = currentSecondaryRoles.filter(
-        (role) => !secondaryRoles.includes(role)
+        (role) => !secondaryRoles.includes(role),
       );
 
       await db.user.update({
@@ -376,7 +397,7 @@ router.put(
       console.error("Failed to update user: ", error);
       res.status(500).send({ message: "Failed to update user" });
     }
-  }
+  },
 );
 
 export default router;

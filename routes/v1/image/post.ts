@@ -19,6 +19,9 @@ router.post(
     images.single("upload")(req, res, (err) => {
       if (err) {
         console.error("Multer error:", err);
+        if (err.code === "LIMIT_FILE_SIZE" || err.message === "Invalid file type") {
+          return res.status(400).send({ message: "Invalid upload" });
+        }
         return res.status(500).send({ message: "File upload error" });
       }
       next();
