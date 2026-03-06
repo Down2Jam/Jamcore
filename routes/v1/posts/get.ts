@@ -10,6 +10,63 @@ type WhereType = {
   sticky?: boolean;
 };
 
+const buildReactionSummary = (
+  reactions: Array<{
+    reaction: any;
+    userId: number;
+    reactionId: number;
+    user?: { id: number; slug: string; name: string; profilePicture?: string | null };
+  }>,
+  userId: number | null
+) => {
+  const summaryMap = new Map<
+    number,
+    {
+      reaction: any;
+      count: number;
+      reacted: boolean;
+      users: Array<{
+        id: number;
+        slug: string;
+        name: string;
+        profilePicture?: string | null;
+      }>;
+    }
+  >();
+
+  for (const entry of reactions) {
+    const current = summaryMap.get(entry.reactionId) ?? {
+      reaction: entry.reaction,
+      count: 0,
+      reacted: false,
+      users: [],
+    };
+    current.count += 1;
+    if (userId && entry.userId === userId) {
+      current.reacted = true;
+    }
+    if (entry.user) {
+      current.users.push(entry.user);
+    }
+    summaryMap.set(entry.reactionId, current);
+  }
+
+  return Array.from(summaryMap.values())
+    .map((summary) => ({
+      ...summary,
+      users: summary.users
+        .filter(
+          (user, index, self) =>
+            self.findIndex((u) => u.id === user.id) === index
+        )
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    }))
+    .sort((a, b) => {
+    if (b.count !== a.count) return b.count - a.count;
+    return a.reaction.slug.localeCompare(b.reaction.slug);
+  });
+};
+
 router.get(
   "/",
 
@@ -94,13 +151,26 @@ router.get(
       where.sticky = true;
     }
 
-    const posts = await db.post.findMany({
+const posts = await db.post.findMany({
       take: 20,
       where,
       include: {
         author: true,
         tags: true,
         likes: true,
+        postReactions: {
+          include: {
+            reaction: true,
+            user: {
+              select: {
+                id: true,
+                slug: true,
+                name: true,
+                profilePicture: true,
+              },
+            },
+          },
+        },
         comments: {
           include: {
             author: true,
@@ -148,6 +218,7 @@ router.get(
       hasLiked: userId
         ? post.likes.some((like) => like.userId === userId)
         : false,
+      reactions: buildReactionSummary(post.postReactions, userId),
       comments: addHasLikedToComments(post.comments),
     }));
 

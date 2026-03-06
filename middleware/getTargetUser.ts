@@ -9,15 +9,17 @@ async function getTargetUser(
   res: Response,
   next: NextFunction
 ): Promise<void> {
-  const { targetUserId, targetUserSlug } = req.body;
-  const {
-    targetUserId: queryTargetUserId,
-    targetUserSlug: queryTargetUserSlug,
-  } = req.query;
+  const targetUserId =
+    req.body?.targetUserId ??
+    req.query?.targetUserId ??
+    req.params?.targetUserId;
+  const targetUserSlug =
+    req.body?.targetUserSlug ??
+    req.query?.targetUserSlug ??
+    req.params?.targetUserSlug;
 
-  // Use query parameters if available, otherwise fallback to body
-  const userId = targetUserId || queryTargetUserId;
-  const userSlug = targetUserSlug || queryTargetUserSlug;
+  const userId = targetUserId;
+  const userSlug = targetUserSlug;
 
   if ((!userId || isNaN(parseInt(userId as string))) && !userSlug) {
     res.status(502).send("User id or slug missing.");
@@ -39,12 +41,49 @@ async function getTargetUser(
         bio: true,
         short: true,
         profilePicture: true,
+        profileBackground: true,
         createdAt: true,
         slug: true,
         mod: true,
         admin: true,
+        emotePrefix: true,
         jams: true,
         bannerPicture: true,
+        pronouns: true,
+        links: true,
+        linkLabels: true,
+        recommendedGames: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            thumbnail: true,
+          },
+        },
+        recommendedPosts: {
+          select: {
+            id: true,
+            title: true,
+            slug: true,
+          },
+        },
+        recommendedTracks: {
+          select: {
+            id: true,
+            name: true,
+            url: true,
+            composer: { select: { name: true } },
+            game: { select: { name: true, slug: true, thumbnail: true } },
+          },
+        },
+        userEmotes: {
+          select: {
+            id: true,
+            slug: true,
+            image: true,
+            updatedAt: true,
+          },
+        },
         primaryRoles: true,
         secondaryRoles: true,
         teams: {
@@ -70,12 +109,49 @@ async function getTargetUser(
         bio: true,
         short: true,
         profilePicture: true,
+        profileBackground: true,
         createdAt: true,
         slug: true,
         mod: true,
         admin: true,
+        emotePrefix: true,
         jams: true,
         bannerPicture: true,
+        pronouns: true,
+        links: true,
+        linkLabels: true,
+        recommendedGames: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            thumbnail: true,
+          },
+        },
+        recommendedPosts: {
+          select: {
+            id: true,
+            title: true,
+            slug: true,
+          },
+        },
+        recommendedTracks: {
+          select: {
+            id: true,
+            name: true,
+            url: true,
+            composer: { select: { name: true } },
+            game: { select: { name: true, slug: true, thumbnail: true } },
+          },
+        },
+        userEmotes: {
+          select: {
+            id: true,
+            slug: true,
+            image: true,
+            updatedAt: true,
+          },
+        },
         primaryRoles: true,
         secondaryRoles: true,
         tracks: {

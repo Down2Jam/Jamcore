@@ -12,6 +12,18 @@ import { Router } from "express";
 import { body } from "express-validator";
 
 const router = Router();
+const PREFIX_LENGTH = 6;
+const PREFIX_CHARS = "abcdefghijklmnopqrstuvwxyz0123456789";
+
+const buildPrefix = (seed?: string | null) => {
+  const normalized = (seed ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  const base = normalized.slice(0, PREFIX_LENGTH);
+  let prefix = base;
+  for (let i = prefix.length; i < PREFIX_LENGTH; i += 1) {
+    prefix += PREFIX_CHARS[Math.floor(Math.random() * PREFIX_CHARS.length)];
+  }
+  return prefix;
+};
 
 router.post(
   "/",
@@ -69,9 +81,29 @@ router.post(
       leaderboards,
       short,
       songs,
+      screenshots,
+      trailerUrl,
+      itchEmbedUrl,
+      inputMethods,
+      estOneRun,
+      estAnyPercent,
+      estHundredPercent,
+      emotePrefix,
     } = req.body;
 
     try {
+      let cleanedPrefix = emotePrefix
+        ? String(emotePrefix).trim().toLowerCase()
+        : null;
+      if (cleanedPrefix) {
+        if (!/^[a-z0-9]{6}$/.test(cleanedPrefix)) {
+          res.status(400).send({ message: "Emote prefix must be 6 characters." });
+          return;
+        }
+      } else {
+        cleanedPrefix = buildPrefix(slug);
+      }
+
       const game = await db.game.create({
         data: {
           name,
@@ -80,6 +112,7 @@ router.post(
           thumbnail,
           banner,
           jamId: res.locals.jam.id,
+          emotePrefix: cleanedPrefix,
           downloadLinks: {
             create: downloadLinks.map(
               (link: { url: string; platform: string }) => ({
@@ -103,6 +136,13 @@ router.post(
           short,
           published,
           themeJustification,
+          screenshots: Array.isArray(screenshots) ? screenshots : [],
+          trailerUrl,
+          itchEmbedUrl,
+          inputMethods: Array.isArray(inputMethods) ? inputMethods : [],
+          estOneRun,
+          estAnyPercent,
+          estHundredPercent,
           achievements: {
             create: achievements.map((achievement: any) => ({
               name: achievement.name,
@@ -117,6 +157,8 @@ router.post(
               name: song.name,
               slug: song.slug,
               url: song.url,
+              license: song.license || null,
+              allowDownload: Boolean(song.allowDownload),
               composer: {
                 connect: {
                   id: song.composerId,

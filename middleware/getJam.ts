@@ -7,7 +7,10 @@ async function getJam(
   res: Response,
   next: NextFunction
 ): Promise<void> {
-  const { jamId } = req.body;
+  const jamIdValue =
+    req.body?.jamId ?? req.query?.jamId ?? req.params?.jamId;
+  const jamId =
+    typeof jamIdValue === "string" ? Number(jamIdValue) : jamIdValue;
 
   // If no jam id provided gets the current jam
   if (!jamId) {

@@ -6,8 +6,8 @@ import path from "path";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-import games from "./games/games.js";
-import themes from "./themes/themes.js";
+import games from "./games/index.js";
+import themes from "./themes/index.js";
 
 var router = express.Router();
 
@@ -15,14 +15,16 @@ function loadRoutes(dir: string, routePath: string) {
   const files = readdirSync(dir, { withFileTypes: true });
 
   for (const file of files) {
+    const filePath = path.join(dir, file.name);
+
     if (file.isDirectory()) {
-      loadRoutes(path.join(file.path, file.name), routePath + "/" + file.name);
+      loadRoutes(filePath, routePath + "/" + file.name);
     } else {
       if (file.name == "v1.ts" || file.name == "index.ts") {
         continue;
       }
 
-      import(pathToFileURL(path.join(file.path, file.name)).href).then(
+      import(pathToFileURL(filePath).href).then(
         (module) => {
           if (!module.default) {
             console.log(

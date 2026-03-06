@@ -34,10 +34,12 @@ async function getUser(
       bio: true,
       short: true,
       profilePicture: true,
+      profileBackground: true,
       createdAt: true,
       slug: true,
       mod: true,
       admin: true,
+      emotePrefix: true,
       jams: true,
       receivedNotifications: {
         include: {
@@ -50,7 +52,11 @@ async function getUser(
           teamInvite: {
             include: {
               user: true,
-              team: true,
+              team: {
+                include: {
+                  owner: true,
+                },
+              },
             },
           },
           comment: {
@@ -63,6 +69,9 @@ async function getUser(
         },
       },
       bannerPicture: true,
+      pronouns: true,
+      links: true,
+      linkLabels: true,
       email: true,
       twitch: true,
       primaryRoles: true,

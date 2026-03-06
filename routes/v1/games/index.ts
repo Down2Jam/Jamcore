@@ -5,6 +5,18 @@ import authUserOptional from "@middleware/authUserOptional";
 import getUserOptional from "@middleware/getUserOptional";
 
 var router = express.Router();
+const PREFIX_LENGTH = 6;
+const PREFIX_CHARS = "abcdefghijklmnopqrstuvwxyz0123456789";
+
+const buildPrefix = (seed?: string | null) => {
+  const normalized = (seed ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  const base = normalized.slice(0, PREFIX_LENGTH);
+  let prefix = base;
+  for (let i = prefix.length; i < PREFIX_LENGTH; i += 1) {
+    prefix += PREFIX_CHARS[Math.floor(Math.random() * PREFIX_CHARS.length)];
+  }
+  return prefix;
+};
 
 router.put("/:gameSlug", getJam, async function (req, res) {
   const { gameSlug } = req.params;
@@ -26,6 +38,14 @@ router.put("/:gameSlug", getJam, async function (req, res) {
     leaderboards,
     short,
     songs,
+    screenshots,
+    trailerUrl,
+    itchEmbedUrl,
+    inputMethods,
+    estOneRun,
+    estAnyPercent,
+    estHundredPercent,
+    emotePrefix,
   } = req.body;
 
   if (!name || !category) {
@@ -113,6 +133,59 @@ router.put("/:gameSlug", getJam, async function (req, res) {
     );
 
     // Update the game
+    const oldPrefix = existingGame.emotePrefix ?? null;
+    let prefixUpdates: Array<{ id: number; slug: string }> | null = null;
+    let cleanedPrefix = emotePrefix
+      ? String(emotePrefix).trim().toLowerCase()
+      : null;
+    if (cleanedPrefix) {
+      if (!/^[a-z0-9]{6}$/.test(cleanedPrefix)) {
+        res.status(400).send("Emote prefix must be 6 characters.");
+        return;
+      }
+    } else {
+      const seed = slug || existingGame.slug;
+      cleanedPrefix = buildPrefix(seed);
+    }
+
+    if (cleanedPrefix && cleanedPrefix !== oldPrefix) {
+      const gameReactions = await db.reaction.findMany({
+        where: {
+          scopeType: "GAME",
+          scopeGameId: existingGame.id,
+        },
+        select: { id: true, slug: true },
+      });
+
+      if (gameReactions.length > 0) {
+        const suffixLength = oldPrefix ? oldPrefix.length : 6;
+        prefixUpdates = gameReactions.map((reaction) => {
+          const suffix = reaction.slug.slice(suffixLength);
+          const nextSlug = `${cleanedPrefix}${suffix}`;
+          return { id: reaction.id, slug: nextSlug };
+        });
+
+        const nextSlugs = prefixUpdates.map((u) => u.slug);
+        const uniqueNext = new Set(nextSlugs);
+        if (uniqueNext.size !== nextSlugs.length) {
+          res.status(409).send("Emote prefix causes duplicates.");
+          return;
+        }
+
+        const conflicts = await db.reaction.findMany({
+          where: {
+            slug: { in: nextSlugs },
+            NOT: { id: { in: prefixUpdates.map((u) => u.id) } },
+          },
+          select: { id: true },
+        });
+        if (conflicts.length > 0) {
+          res.status(409).send("Emote prefix already in use.");
+          return;
+        }
+      }
+    }
+
     const updatedGame = await db.game.update({
       where: { slug: gameSlug },
       data: {
@@ -122,6 +195,14 @@ router.put("/:gameSlug", getJam, async function (req, res) {
         thumbnail,
         banner,
         short,
+        emotePrefix: cleanedPrefix,
+        screenshots: Array.isArray(screenshots) ? screenshots : [],
+        trailerUrl,
+        itchEmbedUrl,
+        inputMethods: Array.isArray(inputMethods) ? inputMethods : [],
+        estOneRun,
+        estAnyPercent,
+        estHundredPercent,
         downloadLinks: {
           deleteMany: {}, // Remove all existing download links
           create: downloadLinks.map(
@@ -171,6 +252,17 @@ router.put("/:gameSlug", getJam, async function (req, res) {
         downloadLinks: true,
       },
     });
+
+    if (prefixUpdates && prefixUpdates.length > 0) {
+      await db.$transaction(
+        prefixUpdates.map((update) =>
+          db.reaction.update({
+            where: { id: update.id },
+            data: { slug: update.slug },
+          })
+        )
+      );
+    }
 
     for (const leaderboard of leaderboards) {
       if (
@@ -258,6 +350,8 @@ router.put("/:gameSlug", getJam, async function (req, res) {
             name: song.name,
             url: song.url,
             slug: song.slug,
+            license: song.license || null,
+            allowDownload: Boolean(song.allowDownload),
             // connect composer only if provided
             ...(song.composerId
               ? { composer: { connect: { id: song.composerId } } }
@@ -270,6 +364,8 @@ router.put("/:gameSlug", getJam, async function (req, res) {
             name: song.name,
             slug: song.slug,
             url: song.url,
+            license: song.license || null,
+            allowDownload: Boolean(song.allowDownload),
             composer: {
               connect: {
                 id: song.composerId,

@@ -8,6 +8,18 @@ import db from "@helper/db";
 import rateLimit from "@middleware/rateLimit";
 
 const router = Router();
+const PREFIX_LENGTH = 6;
+const PREFIX_CHARS = "abcdefghijklmnopqrstuvwxyz0123456789";
+
+const buildPrefix = (seed?: string | null) => {
+  const normalized = (seed ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  const base = normalized.slice(0, PREFIX_LENGTH);
+  let prefix = base;
+  for (let i = prefix.length; i < PREFIX_LENGTH; i += 1) {
+    prefix += PREFIX_CHARS[Math.floor(Math.random() * PREFIX_CHARS.length)];
+  }
+  return prefix;
+};
 
 /**
  * Route to edit a user in the database.
@@ -20,8 +32,78 @@ router.put(
 
   body("name"),
   body("short")
+    .isLength({ max: 155 })
+    .withMessage("Short must be at most 155 characters."),
+  body("emotePrefix")
+    .optional({ values: "falsy" })
+    .isLength({ min: 6, max: 6 })
+    .withMessage("Emote prefix must be exactly 6 characters.")
+    .matches(/^[a-z0-9]+$/)
+    .withMessage("Emote prefix must be lowercase letters or numbers."),
+  body("pronouns")
+    .optional({ values: "falsy" })
     .isLength({ max: 32 })
-    .withMessage("Short must be at most 32 characters."),
+    .withMessage("Pronouns must be at most 32 characters."),
+  body("links")
+    .optional()
+    .isArray({ max: 8 })
+    .withMessage("Links must be an array of up to 8 items.")
+    .custom((links) =>
+      Array.isArray(links)
+        ? links.every(
+            (link) =>
+              typeof link === "string" &&
+              link.length <= 200 &&
+              link.trim().length > 0
+          )
+        : true
+    )
+    .withMessage("Links must be non-empty strings."),
+  body("recommendedGameIds")
+    .optional()
+    .isArray({ max: 5 })
+    .withMessage("Recommended games must be an array of up to 5 items.")
+    .custom((ids) =>
+      Array.isArray(ids)
+        ? ids.every((id) => Number.isInteger(Number(id)))
+        : true
+    )
+    .withMessage("Recommended game ids must be numbers."),
+  body("recommendedPostIds")
+    .optional()
+    .isArray({ max: 5 })
+    .withMessage("Recommended posts must be an array of up to 5 items.")
+    .custom((ids) =>
+      Array.isArray(ids)
+        ? ids.every((id) => Number.isInteger(Number(id)))
+        : true
+    )
+    .withMessage("Recommended post ids must be numbers."),
+  body("recommendedTrackIds")
+    .optional()
+    .isArray({ max: 5 })
+    .withMessage("Recommended tracks must be an array of up to 5 items.")
+    .custom((ids) =>
+      Array.isArray(ids)
+        ? ids.every((id) => Number.isInteger(Number(id)))
+        : true
+    )
+    .withMessage("Recommended track ids must be numbers."),
+  body("linkLabels")
+    .optional()
+    .isArray({ max: 8 })
+    .withMessage("Link labels must be an array of up to 8 items.")
+    .custom((labels) =>
+      Array.isArray(labels)
+        ? labels.every(
+            (label) =>
+              typeof label === "string" &&
+              label.length <= 40 &&
+              label.trim().length >= 0
+          )
+        : true
+    )
+    .withMessage("Link labels must be strings."),
 
   authUser,
   getUser,
@@ -38,9 +120,90 @@ router.put(
       name,
       primaryRoles,
       secondaryRoles,
+      emotePrefix,
+      pronouns,
+      links,
+      profileBackground,
+      linkLabels,
+      recommendedGameIds,
+      recommendedPostIds,
+      recommendedTrackIds,
     } = req.body;
 
     try {
+      const oldPrefix = res.locals.user.emotePrefix ?? null;
+      let cleanedPrefix = emotePrefix
+        ? String(emotePrefix).trim().toLowerCase()
+        : null;
+
+      if (!cleanedPrefix) {
+        cleanedPrefix = buildPrefix(res.locals.user.slug);
+      }
+
+      const normalizedLinks = Array.isArray(links)
+        ? links.map((link: string) => link.trim()).filter(Boolean)
+        : undefined;
+      const normalizedLabels = Array.isArray(linkLabels)
+        ? linkLabels.map((label: string) => label.trim())
+        : undefined;
+
+      if (
+        normalizedLinks &&
+        normalizedLabels &&
+        normalizedLinks.length !== normalizedLabels.length
+      ) {
+        res.status(400).send({ message: "Link labels must match links." });
+        return;
+      }
+
+      const rawGameIds = Array.isArray(recommendedGameIds)
+        ? recommendedGameIds.map((id: number | string) => Number(id))
+        : [];
+      const rawPostIds = Array.isArray(recommendedPostIds)
+        ? recommendedPostIds.map((id: number | string) => Number(id))
+        : [];
+      const rawTrackIds = Array.isArray(recommendedTrackIds)
+        ? recommendedTrackIds.map((id: number | string) => Number(id))
+        : [];
+
+      const [existingGames, existingPosts, existingTracks] = await Promise.all([
+        rawGameIds.length
+          ? db.game.findMany({
+              where: { id: { in: rawGameIds } },
+              select: { id: true },
+            })
+          : Promise.resolve([]),
+        rawPostIds.length
+          ? db.post.findMany({
+              where: { id: { in: rawPostIds } },
+              select: { id: true },
+            })
+          : Promise.resolve([]),
+        rawTrackIds.length
+          ? db.track.findMany({
+              where: { id: { in: rawTrackIds } },
+              select: { id: true },
+            })
+          : Promise.resolve([]),
+      ]);
+
+      const existingGameIds = new Set(existingGames.map((g) => g.id));
+      const existingPostIds = new Set(existingPosts.map((p) => p.id));
+      const existingTrackIds = new Set(existingTracks.map((t) => t.id));
+
+      if (
+        (rawGameIds.length && existingGameIds.size !== rawGameIds.length) ||
+        (rawPostIds.length && existingPostIds.size !== rawPostIds.length) ||
+        (rawTrackIds.length && existingTrackIds.size !== rawTrackIds.length)
+      ) {
+        res.status(400).send({ message: "Invalid recommendation ids." });
+        return;
+      }
+
+      const recommendedGames = existingGames.map((g) => ({ id: g.id }));
+      const recommendedPosts = existingPosts.map((p) => ({ id: p.id }));
+      const recommendedTracks = existingTracks.map((t) => ({ id: t.id }));
+
       const user = await db.user.update({
         where: {
           id: res.locals.user.id,
@@ -49,9 +212,35 @@ router.put(
           email: email ? email : null,
           profilePicture,
           bannerPicture,
+          profileBackground,
           bio,
           short,
           name,
+          pronouns,
+          links: normalizedLinks,
+          linkLabels: normalizedLabels,
+          emotePrefix: cleanedPrefix,
+          ...(Array.isArray(recommendedGameIds)
+            ? {
+                recommendedGames: {
+                  set: recommendedGames,
+                },
+              }
+            : {}),
+          ...(Array.isArray(recommendedPostIds)
+            ? {
+                recommendedPosts: {
+                  set: recommendedPosts,
+                },
+              }
+            : {}),
+          ...(Array.isArray(recommendedTrackIds)
+            ? {
+                recommendedTracks: {
+                  set: recommendedTracks,
+                },
+              }
+            : {}),
         },
         select: {
           id: true,
@@ -59,16 +248,94 @@ router.put(
           bio: true,
           short: true,
           profilePicture: true,
+          profileBackground: true,
           createdAt: true,
           slug: true,
           mod: true,
           admin: true,
           jams: true,
           bannerPicture: true,
+          pronouns: true,
+          links: true,
+          linkLabels: true,
+          emotePrefix: true,
           primaryRoles: { select: { slug: true } },
           secondaryRoles: { select: { slug: true } },
+          recommendedGames: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              thumbnail: true,
+            },
+          },
+          recommendedPosts: {
+            select: {
+              id: true,
+              title: true,
+              slug: true,
+            },
+          },
+          recommendedTracks: {
+            select: {
+              id: true,
+              name: true,
+              url: true,
+              composer: { select: { name: true } },
+              game: { select: { name: true, slug: true, thumbnail: true } },
+            },
+          },
         },
       });
+
+      if (cleanedPrefix && cleanedPrefix !== oldPrefix) {
+        const userReactions = await db.reaction.findMany({
+          where: {
+            scopeType: "USER",
+            scopeUserId: res.locals.user.id,
+          },
+          select: { id: true, slug: true },
+        });
+
+        if (userReactions.length > 0) {
+          const suffixLength = oldPrefix ? oldPrefix.length : 6;
+          const updates = userReactions.map((reaction) => {
+            const suffix = reaction.slug.slice(suffixLength);
+            const nextSlug = `${cleanedPrefix}${suffix}`;
+            return { id: reaction.id, slug: nextSlug };
+          });
+
+          const nextSlugs = updates.map((u) => u.slug);
+          const uniqueNext = new Set(nextSlugs);
+          if (uniqueNext.size !== nextSlugs.length) {
+            res.status(409).send({ message: "Emote prefix causes duplicates." });
+            return;
+          }
+
+          const conflicts = await db.reaction.findMany({
+            where: {
+              slug: { in: nextSlugs },
+              NOT: { id: { in: updates.map((u) => u.id) } },
+            },
+            select: { id: true },
+          });
+          if (conflicts.length > 0) {
+            res
+              .status(409)
+              .send({ message: "Emote prefix already in use." });
+            return;
+          }
+
+          await db.$transaction(
+            updates.map((update) =>
+              db.reaction.update({
+                where: { id: update.id },
+                data: { slug: update.slug },
+              })
+            )
+          );
+        }
+      }
 
       const currentPrimaryRoles = user.primaryRoles.map((role) => role.slug);
       const currentSecondaryRoles = user.secondaryRoles.map(

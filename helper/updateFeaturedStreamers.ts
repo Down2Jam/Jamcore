@@ -16,7 +16,7 @@ export async function updateFeaturedStreamers() {
           client_secret: clientSecret,
           grant_type: "client_credentials",
         },
-      }
+      },
     );
     const accessToken = tokenResponse.data.access_token;
 
@@ -51,11 +51,12 @@ export async function updateFeaturedStreamers() {
       ue5: "unrealengine",
       godotengine: "godot",
       unity3d: "unity",
+      down2jam: "d2jam",
     };
 
     // Step 3: Filter streams by desired tags
-    const priorityTags = ["d2jam"];
-    const desiredTags = ["d2jam", "gamejam", "gamedev"];
+    const priorityTags = ["d2jam", "down2jam"];
+    const desiredTags = ["d2jam", "down2jam", "gamejam", "gamedev"];
     const streamers = await db.user.findMany({
       where: {
         twitch: {
@@ -64,7 +65,7 @@ export async function updateFeaturedStreamers() {
       },
     });
     const streamerNames = streamers.map((streamer) =>
-      streamer.twitch?.toLowerCase()
+      streamer.twitch?.toLowerCase(),
     );
 
     const normalizedStreams = streams.map((stream) => {
@@ -91,12 +92,12 @@ export async function updateFeaturedStreamers() {
 
     const hasDesiredTag = (stream: any) =>
       (stream.tags ?? []).some((t: string) =>
-        desiredTags.includes(t.toLowerCase())
+        desiredTags.includes(t.toLowerCase()),
       );
 
     const hasPriorityTag = (stream: any) =>
       (stream.tags ?? []).some((t: string) =>
-        priorityTags.includes(t.toLowerCase())
+        priorityTags.includes(t.toLowerCase()),
       );
 
     const isKnownStreamer = (stream: any) =>
@@ -108,7 +109,7 @@ export async function updateFeaturedStreamers() {
         (a, b) =>
           Math.log10(b.viewer_count + 1) -
           Math.log10(a.viewer_count + 1) +
-          (Math.random() - 0.5) * 2
+          (Math.random() - 0.5) * 2,
       );
 
     const streamerStreams = normalizedStreams
@@ -119,7 +120,7 @@ export async function updateFeaturedStreamers() {
         (a, b) =>
           Math.log10(b.viewer_count + 1) -
           Math.log10(a.viewer_count + 1) +
-          (Math.random() - 0.5) * 2
+          (Math.random() - 0.5) * 2,
       );
 
     const numCore = priorityStreams.length + streamerStreams.length;
@@ -134,7 +135,7 @@ export async function updateFeaturedStreamers() {
               (a, b) =>
                 Math.log10(b.viewer_count + 1) -
                 Math.log10(a.viewer_count + 1) +
-                (Math.random() - 0.5) * 2
+                (Math.random() - 0.5) * 2,
             )
             .slice(0, 3 - numCore)
         : [];
