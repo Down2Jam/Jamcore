@@ -12,16 +12,29 @@ const PROD_ASSET_PATTERN =
   /^https:\/\/d2jam\.com\/api\/v1\/(image|pfp)\/[A-Za-z0-9._-]+$/;
 const DEV_ASSET_PATTERN =
   /^http:\/\/(localhost|127\.0\.0\.1):\d+\/api\/v1\/(image|pfp)\/[A-Za-z0-9._-]+$/;
+const PROD_STATIC_IMAGE_PATTERN =
+  /^https:\/\/d2jam\.com\/images\/[A-Za-z0-9._/-]+$/;
+const DEV_STATIC_IMAGE_PATTERN =
+  /^http:\/\/(localhost|127\.0\.0\.1):\d+\/images\/[A-Za-z0-9._/-]+$/;
+const RELATIVE_STATIC_IMAGE_PATTERN = /^\/images\/[A-Za-z0-9._/-]+$/;
 
 function isAllowedAssetUrl(value: unknown): boolean {
   if (value === null || value === undefined || value === "") return true;
   if (typeof value !== "string") return false;
 
   if (process.env.NODE_ENV === "production") {
-    return PROD_ASSET_PATTERN.test(value);
+    return (
+      PROD_ASSET_PATTERN.test(value) ||
+      PROD_STATIC_IMAGE_PATTERN.test(value) ||
+      RELATIVE_STATIC_IMAGE_PATTERN.test(value)
+    );
   }
 
-  return DEV_ASSET_PATTERN.test(value);
+  return (
+    DEV_ASSET_PATTERN.test(value) ||
+    DEV_STATIC_IMAGE_PATTERN.test(value) ||
+    RELATIVE_STATIC_IMAGE_PATTERN.test(value)
+  );
 }
 
 /**
