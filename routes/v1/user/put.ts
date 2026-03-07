@@ -17,6 +17,27 @@ const PROD_STATIC_IMAGE_PATTERN =
 const DEV_STATIC_IMAGE_PATTERN =
   /^http:\/\/(localhost|127\.0\.0\.1):\d+\/images\/[A-Za-z0-9._/-]+$/;
 const RELATIVE_STATIC_IMAGE_PATTERN = /^\/images\/[A-Za-z0-9._/-]+$/;
+const PREFIX_CHARS = "abcdefghijklmnopqrstuvwxyz0123456789";
+
+function buildPrefix(source?: string | null): string {
+  const normalized = String(source ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+
+  let prefix = normalized.slice(0, 6);
+  let seed = 0;
+  const seedSource = normalized || "jamjar";
+  for (let i = 0; i < seedSource.length; i++) {
+    seed = (seed * 31 + seedSource.charCodeAt(i)) >>> 0;
+  }
+  while (prefix.length < 6) {
+    seed = (seed * 1664525 + 1013904223) >>> 0;
+    prefix += PREFIX_CHARS[seed % PREFIX_CHARS.length];
+  }
+
+  return prefix;
+}
 
 function isAllowedAssetUrl(value: unknown): boolean {
   if (value === null || value === undefined || value === "") return true;
@@ -171,7 +192,7 @@ router.put(
         : null;
 
       if (!cleanedPrefix) {
-        cleanedPrefix = buildPrefix(res.locals.user.slug);
+        cleanedPrefix = buildPrefix(name ?? res.locals.user.name ?? res.locals.user.slug);
       }
 
       const normalizedLinks = Array.isArray(links)
