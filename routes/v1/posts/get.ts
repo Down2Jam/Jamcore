@@ -1,5 +1,9 @@
 import express from "express";
 import { PostTime } from "../../../types/PostTimes";
+import {
+  isPrivilegedViewer,
+  mapCommentsForViewer,
+} from "@helper/contentModeration";
 import db from "@helper/db";
 
 var router = express.Router();
@@ -8,6 +12,8 @@ type WhereType = {
   createdAt?: {};
   tags?: {};
   sticky?: boolean;
+  deletedAt?: null;
+  removedAt?: null;
 };
 
 const buildReactionSummary = (
@@ -151,7 +157,22 @@ router.get(
       where.sticky = true;
     }
 
-const posts = await db.post.findMany({
+    let userId = null;
+    let privilegedViewer = false;
+    if (user) {
+      const userRecord = await db.user.findUnique({
+        where: { slug: String(user) },
+      });
+      userId = userRecord ? userRecord.id : null;
+      privilegedViewer = isPrivilegedViewer(userRecord);
+    }
+
+    if (!privilegedViewer) {
+      where.deletedAt = null;
+      where.removedAt = null;
+    }
+
+    const posts = await db.post.findMany({
       take: 20,
       where,
       include: {
@@ -194,32 +215,13 @@ const posts = await db.post.findMany({
       orderBy,
     });
 
-    let userId = null;
-    if (user) {
-      const userRecord = await db.user.findUnique({
-        where: { slug: String(user) },
-      });
-      userId = userRecord ? userRecord.id : null;
-    }
-
-    function addHasLikedToComments(comments: any[]): any {
-      return comments?.map((comment) => ({
-        ...comment,
-        hasLiked:
-          userId && comment.likes?.some((like: any) => like.userId === userId),
-        children: comment.children
-          ? addHasLikedToComments(comment.children)
-          : [],
-      }));
-    }
-
     const postsWithLikes = posts.map((post) => ({
       ...post,
       hasLiked: userId
         ? post.likes.some((like) => like.userId === userId)
         : false,
       reactions: buildReactionSummary(post.postReactions, userId),
-      comments: addHasLikedToComments(post.comments),
+      comments: mapCommentsForViewer(post.comments, userId, privilegedViewer),
     }));
 
     console.log(postsWithLikes[0]?.comments);

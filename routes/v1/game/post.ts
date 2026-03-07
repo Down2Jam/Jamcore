@@ -8,6 +8,7 @@ import getJam from "@middleware/getJam";
 import getTargetTeam from "@middleware/getTargetTeam";
 import getUser from "@middleware/getUser";
 import rateLimit from "@middleware/rateLimit";
+import { notifyNewMentions } from "@helper/mentionNotifications";
 import { Router } from "express";
 import { body } from "express-validator";
 
@@ -188,6 +189,18 @@ router.post(
         include: {
           downloadLinks: true,
         },
+      });
+
+      await notifyNewMentions({
+        type: "game",
+        actorId: res.locals.user.id,
+        actorName: res.locals.user.name,
+        actorSlug: res.locals.user.slug,
+        beforeContent: "",
+        afterContent: description,
+        gameId: game.id,
+        gameSlug: game.slug,
+        gameName: game.name,
       });
 
       res.status(201).json(game);

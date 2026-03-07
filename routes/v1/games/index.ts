@@ -1,6 +1,11 @@
 import express, { Response, Request } from "express";
 import getJam from "@middleware/getJam";
 import db from "@helper/db";
+import {
+  isPrivilegedViewer,
+  mapCommentsForViewer,
+} from "@helper/contentModeration";
+import { notifyNewMentions } from "@helper/mentionNotifications";
 import authUserOptional from "@middleware/authUserOptional";
 import getUserOptional from "@middleware/getUserOptional";
 
@@ -41,6 +46,7 @@ router.put("/:gameSlug", getJam, async function (req, res) {
     screenshots,
     trailerUrl,
     itchEmbedUrl,
+    userSlug,
     inputMethods,
     estOneRun,
     estAnyPercent,
@@ -252,6 +258,27 @@ router.put("/:gameSlug", getJam, async function (req, res) {
         downloadLinks: true,
       },
     });
+
+    const actor = userSlug
+      ? await db.user.findUnique({
+          where: { slug: userSlug },
+          select: { id: true, name: true, slug: true },
+        })
+      : null;
+
+    if (actor) {
+      await notifyNewMentions({
+        type: "game",
+        actorId: actor.id,
+        actorName: actor.name,
+        actorSlug: actor.slug,
+        beforeContent: existingGame.description,
+        afterContent: description,
+        gameId: updatedGame.id,
+        gameSlug: updatedGame.slug,
+        gameName: updatedGame.name,
+      });
+    }
 
     if (prefixUpdates && prefixUpdates.length > 0) {
       await db.$transaction(
@@ -539,25 +566,11 @@ router.get(
       return;
     }
 
-    let commentsWithHasLiked = game?.comments;
-
-    if (res.locals.user) {
-      function addHasLikedToComments(comments: any[]): any {
-        return comments?.map((comment) => ({
-          ...comment,
-          hasLiked:
-            res.locals.user &&
-            comment.likes?.some(
-              (like: any) => like.userId === res.locals.user.id
-            ),
-          children: comment.children
-            ? addHasLikedToComments(comment.children)
-            : [],
-        }));
-      }
-
-      commentsWithHasLiked = addHasLikedToComments(game?.comments);
-    }
+    const commentsWithHasLiked = mapCommentsForViewer(
+      game?.comments,
+      res.locals.user?.id ?? null,
+      isPrivilegedViewer(res.locals.user)
+    );
 
     // Ratings info
 

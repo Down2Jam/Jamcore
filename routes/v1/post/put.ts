@@ -1,5 +1,6 @@
 import { Router } from "express";
 import db from "@helper/db";
+import { notifyNewMentions } from "@helper/mentionNotifications";
 import jwt from "jsonwebtoken";
 
 const router = Router();
@@ -80,6 +81,11 @@ router.put("/", async function (req, res) {
     return;
   }
 
+  if (post.deletedAt || post.removedAt) {
+    res.status(400).send("Cannot edit a deleted or removed post.");
+    return;
+  }
+
   const user = await db.user.findUnique({
     where: { slug: username },
   });
@@ -117,15 +123,19 @@ router.put("/", async function (req, res) {
     title?: string;
     content?: string;
     sticky?: boolean;
+    editedAt?: Date;
     tags?: { set: Array<{ id: number }> };
   } = {};
+  let shouldMarkEdited = false;
 
   if (typeof title === "string") {
     data.title = title;
+    if (title !== post.title) shouldMarkEdited = true;
   }
 
   if (typeof content === "string") {
     data.content = content;
+    if (content !== post.content) shouldMarkEdited = true;
   }
 
   if (typeof sticky === "boolean") {
@@ -134,12 +144,29 @@ router.put("/", async function (req, res) {
 
   if (Array.isArray(tags)) {
     data.tags = { set: tags.map((tagId: number) => ({ id: tagId })) };
+    shouldMarkEdited = true;
+  }
+
+  if (shouldMarkEdited) {
+    data.editedAt = new Date();
   }
 
   const updatedPost = await db.post.update({
     where: { id: postIdNumber },
     data,
     include: { tags: true },
+  });
+
+  await notifyNewMentions({
+    type: "post",
+    actorId: user.id,
+    actorName: user.name,
+    actorSlug: user.slug,
+    beforeContent: post.content,
+    afterContent: typeof content === "string" ? content : post.content,
+    postId: updatedPost.id,
+    postSlug: updatedPost.slug,
+    postTitle: updatedPost.title,
   });
 
   res.json(updatedPost);

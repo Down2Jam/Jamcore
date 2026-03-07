@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { cleanupNotificationsForPost } from "@helper/contentModeration";
 import db from "@helper/db";
 import jwt from "jsonwebtoken";
 
@@ -7,7 +8,7 @@ const router = Router();
 // TODO: clean
 
 router.delete("/", async function (req, res) {
-  const { postId, username } = req.body;
+  const { postId, username, mode } = req.body;
 
   if (!postId || isNaN(parseInt(postId)) || !username) {
     res.status(400).send("Invalid post ID.");
@@ -87,7 +88,8 @@ router.delete("/", async function (req, res) {
   }
 
   const isAuthor = post.authorId === user.id;
-  const isModerator = user.mod === true;
+  const isModerator = user.mod === true || user.admin === true;
+  const isRemoval = mode === "remove";
 
   if (!isAuthor && !isModerator) {
     res.status(403);
@@ -95,11 +97,22 @@ router.delete("/", async function (req, res) {
     return;
   }
 
-  await db.post.delete({
+  if (isRemoval && !isModerator) {
+    res.status(403).send();
+    return;
+  }
+
+  await cleanupNotificationsForPost(postId);
+
+  await db.post.update({
     where: { id: postId },
+    data: {
+      deletedAt: !isRemoval ? new Date() : post.deletedAt,
+      removedAt: isRemoval ? new Date() : post.removedAt,
+    },
   });
 
-  res.send("Post deleted.");
+  res.send(isRemoval ? "Post removed." : "Post deleted.");
 });
 
 export default router;

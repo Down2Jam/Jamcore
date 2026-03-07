@@ -1,5 +1,6 @@
 import { Router } from "express";
 import db from "@helper/db";
+import { notifyNewMentions } from "@helper/mentionNotifications";
 import jwt from "jsonwebtoken";
 
 const router = Router();
@@ -141,6 +142,18 @@ router.post("/", async function (req, res) {
       },
     });
   }
+
+  await notifyNewMentions({
+    type: "post",
+    actorId: user.id,
+    actorName: user.name,
+    actorSlug: user.slug,
+    beforeContent: "",
+    afterContent: content,
+    postId: newpost.id,
+    postSlug: newpost.slug,
+    postTitle: newpost.title,
+  });
 
   res.send("Post created");
 });

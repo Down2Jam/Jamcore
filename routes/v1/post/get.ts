@@ -1,4 +1,8 @@
 import { Router } from "express";
+import {
+  isPrivilegedViewer,
+  mapCommentsForViewer,
+} from "@helper/contentModeration";
 import db from "@helper/db";
 
 const router = Router();
@@ -72,11 +76,13 @@ router.get("/", async function (req, res) {
   }
 
   let userId = null;
+  let privilegedViewer = false;
   if (user) {
     const userRecord = await db.user.findUnique({
       where: { slug: String(user) },
     });
     userId = userRecord ? userRecord.id : null;
+    privilegedViewer = isPrivilegedViewer(userRecord);
   }
 
   if (id) {
@@ -103,6 +109,11 @@ router.get("/", async function (req, res) {
         },
       },
     });
+
+    if ((post?.deletedAt || post?.removedAt) && !privilegedViewer) {
+      res.status(404).send();
+      return;
+    }
 
     const reactionSummary = buildReactionSummary(post?.postReactions ?? [], userId);
 
@@ -155,17 +166,15 @@ router.get("/", async function (req, res) {
       },
     });
 
-    function addHasLikedToComments(comments: any[]): any {
-      return comments?.map((comment) => ({
-        ...comment,
-        hasLiked: user && comment.likes?.some((like) => like.userId === userId),
-        children: comment.children
-          ? addHasLikedToComments(comment.children)
-          : [],
-      }));
+    if ((post?.deletedAt || post?.removedAt) && !privilegedViewer) {
+      res.status(404).send();
+      return;
     }
-
-    const commentsWithHasLiked = addHasLikedToComments(post?.comments);
+    const commentsWithHasLiked = mapCommentsForViewer(
+      post?.comments,
+      userId,
+      privilegedViewer
+    );
     const reactionSummary = buildReactionSummary(post?.postReactions ?? [], userId);
 
     res.send({

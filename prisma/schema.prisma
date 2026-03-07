@@ -124,6 +124,9 @@ model Post {
   content   String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  editedAt  DateTime?
+  deletedAt DateTime?
+  removedAt DateTime?
   sticky    Boolean  @default(false)
 
   // Relations
@@ -188,6 +191,9 @@ model Comment {
   content   String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  editedAt  DateTime?
+  deletedAt DateTime?
+  removedAt DateTime?
 
   // Relations
   post          Post?          @relation(fields: [postId], references: [id])

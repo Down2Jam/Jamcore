@@ -6,6 +6,7 @@ import getUser from "@middleware/getUser";
 import assertUserModOrUserTargetUser from "@middleware/assertUserModOrUserTargetUser";
 import db from "@helper/db";
 import rateLimit from "@middleware/rateLimit";
+import { notifyNewMentions } from "@helper/mentionNotifications";
 
 const router = Router();
 const PROD_ASSET_PATTERN =
@@ -341,6 +342,16 @@ router.put(
             },
           },
         },
+      });
+
+      await notifyNewMentions({
+        type: "profile",
+        actorId: res.locals.user.id,
+        actorName: res.locals.user.name,
+        actorSlug: res.locals.user.slug,
+        beforeContent: res.locals.targetUser?.bio ?? "",
+        afterContent: bio,
+        profileSlug: user.slug,
       });
 
       if (cleanedPrefix && cleanedPrefix !== oldPrefix) {

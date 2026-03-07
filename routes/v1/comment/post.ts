@@ -3,6 +3,10 @@ import rateLimit from "@middleware/rateLimit";
 import db from "@helper/db";
 import authUser from "@middleware/authUser";
 import getUser from "@middleware/getUser";
+import {
+  notifyNewMentions,
+  resolveCommentMentionContext,
+} from "@helper/mentionNotifications";
 import { UserType } from "types/UserType";
 
 const router = Router();
@@ -33,6 +37,7 @@ router.post(
 
     let post;
     let game;
+    let parentComment;
 
     if (postId) {
       post = await db.post.findUnique({
@@ -41,7 +46,7 @@ router.post(
         },
       });
 
-      if (!post) {
+      if (!post || post.deletedAt || post.removedAt) {
         res.status(401);
         res.send();
         return;
@@ -49,13 +54,33 @@ router.post(
     }
 
     if (commentId) {
-      const comment = await db.comment.findUnique({
+      parentComment = await db.comment.findUnique({
         where: {
           id: commentId,
         },
+        include: {
+          post: {
+            select: {
+              id: true,
+              slug: true,
+              title: true,
+            },
+          },
+          game: {
+            select: {
+              id: true,
+              slug: true,
+              name: true,
+            },
+          },
+        },
       });
 
-      if (!comment) {
+      if (
+        !parentComment ||
+        parentComment.deletedAt ||
+        parentComment.removedAt
+      ) {
         res.status(401);
         res.send();
         return;
@@ -93,7 +118,7 @@ router.post(
       },
     });
 
-    if (post) {
+    if (post && post.authorId !== res.locals.user.id) {
       await db.notification.create({
         data: {
           type: "POST_COMMENT",
@@ -105,8 +130,25 @@ router.post(
       });
     }
 
+    if (
+      parentComment &&
+      parentComment.authorId !== res.locals.user.id
+    ) {
+      await db.notification.create({
+        data: {
+          type: "COMMENT_REPLY",
+          recipientId: parentComment.authorId,
+          actorId: res.locals.user.id,
+          postId: parentComment.postId,
+          gameId: parentComment.gameId,
+          commentId: newcomment.id,
+        },
+      });
+    }
+
     if (game) {
       game.team.users.forEach(async (member) => {
+        if (member.id === res.locals.user.id) return;
         await db.notification.create({
           data: {
             type: "GAME_COMMENT",
@@ -118,6 +160,31 @@ router.post(
         });
       });
     }
+
+    const resolvedContext =
+      parentComment && !post && !game
+        ? await resolveCommentMentionContext(parentComment.id)
+        : {};
+
+    await notifyNewMentions({
+      type: "comment",
+      actorId: res.locals.user.id,
+      actorName: res.locals.user.name,
+      actorSlug: res.locals.user.slug,
+      beforeContent: "",
+      afterContent: content,
+      commentId: newcomment.id,
+      postId: post?.id ?? parentComment?.post?.id ?? resolvedContext.postId,
+      postSlug:
+        post?.slug ?? parentComment?.post?.slug ?? resolvedContext.postSlug,
+      postTitle:
+        post?.title ?? parentComment?.post?.title ?? resolvedContext.postTitle,
+      gameId: game?.id ?? parentComment?.game?.id ?? resolvedContext.gameId,
+      gameSlug:
+        game?.slug ?? parentComment?.game?.slug ?? resolvedContext.gameSlug,
+      gameName:
+        game?.name ?? parentComment?.game?.name ?? resolvedContext.gameName,
+    });
 
     res.send({ message: "Comment created" });
   }
