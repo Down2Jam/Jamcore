@@ -5,6 +5,7 @@ import { fileURLToPath } from "url";
 import { dirname } from "path";
 import fs from "fs";
 import { IsUsingS3, UploadS3File } from "./s3";
+import sharp from "sharp";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -120,13 +121,98 @@ const uploadHandler = (fileTypes: string[]) =>
 export const images = uploadHandler(allowedImageTypes);
 export const music = uploadHandler(allowedMusicTypes);
 
+type CropRect = {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+};
+
+function parseCropRect(body: Record<string, unknown>): CropRect | null {
+  const left = Number(body.cropLeft);
+  const top = Number(body.cropTop);
+  const width = Number(body.cropWidth);
+  const height = Number(body.cropHeight);
+
+  if ([left, top, width, height].some((value) => !Number.isFinite(value))) {
+    return null;
+  }
+
+  const normalized = {
+    left: Math.max(0, Math.floor(left)),
+    top: Math.max(0, Math.floor(top)),
+    width: Math.max(1, Math.floor(width)),
+    height: Math.max(1, Math.floor(height)),
+  };
+
+  return normalized;
+}
+
+async function applyImageCrop(
+  fileBuffer: Buffer,
+  mimeType: string,
+  cropRect: CropRect
+) {
+  const processor = sharp(fileBuffer, { animated: true, pages: -1 });
+  const metadata = await processor.metadata();
+  const width = metadata.width ?? 0;
+  const height = metadata.pageHeight ?? metadata.height ?? 0;
+
+  if (!width || !height) {
+    return { buffer: fileBuffer, mimeType };
+  }
+
+  const left = Math.min(cropRect.left, Math.max(0, width - 1));
+  const top = Math.min(cropRect.top, Math.max(0, height - 1));
+  const extractWidth = Math.max(1, Math.min(cropRect.width, width - left));
+  const extractHeight = Math.max(1, Math.min(cropRect.height, height - top));
+
+  let pipeline = sharp(fileBuffer, { animated: true, pages: -1 }).extract({
+    left,
+    top,
+    width: extractWidth,
+    height: extractHeight,
+  });
+
+  switch (mimeType) {
+    case "image/jpeg":
+      pipeline = pipeline.jpeg();
+      break;
+    case "image/png":
+    case "image/apng":
+      pipeline = pipeline.png();
+      mimeType = "image/png";
+      break;
+    case "image/gif":
+      pipeline = pipeline.gif();
+      break;
+    case "image/webp":
+      pipeline = pipeline.webp();
+      break;
+    default:
+      break;
+  }
+
+  return {
+    buffer: await pipeline.toBuffer(),
+    mimeType,
+  };
+}
+
 export async function UploadFile(req: any, res: any) {
   if (!req.file) {
     return res.status(400).json({ message: "No file uploaded" });
   }
 
   const file = req.file;
-  const uploadTarget = resolveUploadTarget(file.mimetype);
+  const cropRect =
+    file.mimetype in imageMimeToExt
+      ? parseCropRect(req.body ?? {})
+      : null;
+  const processed = cropRect
+    ? await applyImageCrop(file.buffer, file.mimetype, cropRect)
+    : { buffer: file.buffer, mimeType: file.mimetype };
+  const uploadTarget = resolveUploadTarget(processed.mimeType);
 
   if (!uploadTarget) {
     return res.status(400).json({ message: "Invalid file type" });
@@ -145,8 +231,8 @@ export async function UploadFile(req: any, res: any) {
     const success = await UploadS3File(
       folder,
       fileName,
-      file.buffer,
-      file.mimetype
+      processed.buffer,
+      processed.mimeType
     );
     if (success) {
       return res.json({
@@ -167,7 +253,7 @@ export async function UploadFile(req: any, res: any) {
       fs.mkdirSync(localDir, { recursive: true });
     }
     const localPath = path.join(localDir, fileName);
-    fs.writeFileSync(localPath, file.buffer, { mode: 0o600 });
+    fs.writeFileSync(localPath, processed.buffer, { mode: 0o600 });
 
     return res.json({
       message: "File uploaded",
