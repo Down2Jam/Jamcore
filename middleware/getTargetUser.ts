@@ -167,6 +167,8 @@ async function getTargetUser(
         },
         comments: {
           include: {
+            author: true,
+            likes: true,
             game: true,
             post: true,
             comment: true,
