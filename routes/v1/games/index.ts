@@ -515,6 +515,13 @@ router.get(
             },
           },
         },
+        gameEmotes: {
+          include: {
+            artistUser: true,
+            ownerGame: true,
+            uploaderUser: true,
+          },
+        },
         team: {
           include: {
             owner: true,
