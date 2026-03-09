@@ -284,6 +284,7 @@ model Game {
   screenshots         String[]         @default([])
   trailerUrl          String?
   itchEmbedUrl        String?
+  itchEmbedAspectRatio String?
   inputMethods        String[]         @default([])
   estOneRun           String?
   estAnyPercent       String?

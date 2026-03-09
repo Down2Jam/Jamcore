@@ -15,6 +15,19 @@ import { body } from "express-validator";
 const router = Router();
 const PREFIX_LENGTH = 6;
 const PREFIX_CHARS = "abcdefghijklmnopqrstuvwxyz0123456789";
+const ITCH_EMBED_ASPECT_RATIOS = new Set([
+  "16 / 9",
+  "16 / 10",
+  "21 / 9",
+  "4 / 3",
+  "5 / 4",
+  "1 / 1",
+  "3 / 2",
+  "2 / 3",
+  "3 / 4",
+  "9 / 16",
+  "10 / 16",
+]);
 
 const buildPrefix = (seed?: string | null) => {
   const normalized = (seed ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -54,6 +67,21 @@ router.post(
   body("leaderboards").isArray().withMessage({
     message: "Please enter a valid leaderboards array",
   }),
+  body("itchEmbedAspectRatio")
+    .optional({ nullable: true })
+    .isIn([
+      "16 / 9",
+      "16 / 10",
+      "21 / 9",
+      "4 / 3",
+      "5 / 4",
+      "1 / 1",
+      "3 / 2",
+      "2 / 3",
+      "3 / 4",
+      "9 / 16",
+      "10 / 16",
+    ]),
 
   authUser,
   getUser,
@@ -85,6 +113,7 @@ router.post(
       screenshots,
       trailerUrl,
       itchEmbedUrl,
+      itchEmbedAspectRatio,
       inputMethods,
       estOneRun,
       estAnyPercent,
@@ -103,6 +132,14 @@ router.post(
         }
       } else {
         cleanedPrefix = buildPrefix(slug);
+      }
+
+      if (
+        itchEmbedAspectRatio != null &&
+        !ITCH_EMBED_ASPECT_RATIOS.has(String(itchEmbedAspectRatio))
+      ) {
+        res.status(400).send({ message: "Invalid itch embed aspect ratio." });
+        return;
       }
 
       const game = await db.game.create({
@@ -140,6 +177,7 @@ router.post(
           screenshots: Array.isArray(screenshots) ? screenshots : [],
           trailerUrl,
           itchEmbedUrl,
+          itchEmbedAspectRatio,
           inputMethods: Array.isArray(inputMethods) ? inputMethods : [],
           estOneRun,
           estAnyPercent,
