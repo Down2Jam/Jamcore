@@ -845,6 +845,8 @@ router.get("/", async function (req: Request, res: Response) {
       jam: true,
       ratingCategories: true,
       downloadLinks: true,
+      tags: true,
+      flags: true,
       ratings: {
         include: {
           user: {
