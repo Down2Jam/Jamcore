@@ -8,6 +8,7 @@ const router = Router();
 
 router.post("/", rateLimit(), authUser, getUser, async (req, res) => {
   const { postId, postSlug, reactionId, reactionSlug } = req.body;
+  const userId = res.locals.user.id;
 
   if (!postId && !postSlug) {
     res.status(400).json({ message: "Post id or slug is required." });
@@ -40,42 +41,89 @@ router.post("/", rateLimit(), authUser, getUser, async (req, res) => {
       return;
     }
 
-    const existing = await db.postReaction.findUnique({
-      where: {
-        postId_reactionId_userId: {
-          postId: post.id,
-          reactionId: reaction.id,
-          userId: res.locals.user.id,
-        },
-      },
-    });
-
-    if (existing) {
-      await db.postReaction.delete({ where: { id: existing.id } });
-    } else {
-      await db.postReaction.create({
-        data: {
-          postId: post.id,
-          reactionId: reaction.id,
-          userId: res.locals.user.id,
-        },
-      });
-    }
-
-    const updated = await db.postReaction.findMany({
-      where: { postId: post.id },
-      include: {
-        reaction: true,
-        user: {
-          select: {
-            id: true,
-            slug: true,
-            name: true,
-            profilePicture: true,
+    const result = await db.$transaction(async (tx) => {
+      const existing = await tx.postReaction.findUnique({
+        where: {
+          postId_reactionId_userId: {
+            postId: post.id,
+            reactionId: reaction.id,
+            userId,
           },
         },
-      },
+      });
+
+      if (existing) {
+        await tx.postReaction.delete({ where: { id: existing.id } });
+      } else {
+        const postReactions = await tx.postReaction.findMany({
+          where: { postId: post.id },
+          select: {
+            id: true,
+            reactionId: true,
+            userId: true,
+            createdAt: true,
+          },
+          orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+        });
+
+        const reactionAlreadyExists = postReactions.some(
+          (entry) => entry.reactionId === reaction.id,
+        );
+
+        if (!reactionAlreadyExists) {
+          const firstReactorsByReaction = new Map<number, number>();
+
+          for (const entry of postReactions) {
+            if (!firstReactorsByReaction.has(entry.reactionId)) {
+              firstReactorsByReaction.set(entry.reactionId, entry.userId);
+            }
+          }
+
+          const ownedFirstReactionCount = Array.from(
+            firstReactorsByReaction.values(),
+          ).filter((firstUserId) => firstUserId === userId).length;
+
+          if (ownedFirstReactionCount >= 2) {
+            return { limited: true as const, updated: [] };
+          }
+        }
+
+        await tx.postReaction.create({
+          data: {
+            postId: post.id,
+            reactionId: reaction.id,
+            userId,
+          },
+        });
+      }
+
+      const updated = await tx.postReaction.findMany({
+        where: { postId: post.id },
+        include: {
+          reaction: true,
+          user: {
+            select: {
+              id: true,
+              slug: true,
+              name: true,
+              profilePicture: true,
+            },
+          },
+        },
+      });
+
+      return { limited: false as const, updated };
     });
+
+    if (result.limited) {
+      res.status(409).json({
+        message:
+          "You can only be the first reactor for two emojis on a post at a time.",
+      });
+      return;
+    }
+
+    const updated = result.updated;
 
     const summaryMap = new Map<
       number,
@@ -83,6 +131,8 @@ router.post("/", rateLimit(), authUser, getUser, async (req, res) => {
         reaction: any;
         count: number;
         reacted: boolean;
+        firstReactionAt: Date | null;
+        firstReactorUserId: number | null;
         users: Array<{
           id: number;
           slug: string;
@@ -97,11 +147,20 @@ router.post("/", rateLimit(), authUser, getUser, async (req, res) => {
         reaction: entry.reaction,
         count: 0,
         reacted: false,
+        firstReactionAt: null,
+        firstReactorUserId: null,
         users: [],
       };
       current.count += 1;
-      if (entry.userId === res.locals.user.id) {
+      if (entry.userId === userId) {
         current.reacted = true;
+      }
+      if (
+        !current.firstReactionAt ||
+        entry.createdAt < current.firstReactionAt
+      ) {
+        current.firstReactionAt = entry.createdAt;
+        current.firstReactorUserId = entry.userId;
       }
       if (entry.user) {
         current.users.push(entry.user);
@@ -111,11 +170,14 @@ router.post("/", rateLimit(), authUser, getUser, async (req, res) => {
 
     const reactions = Array.from(summaryMap.values())
       .map((summary) => ({
-        ...summary,
+        reaction: summary.reaction,
+        count: summary.count,
+        reacted: summary.reacted,
+        isFirstReactor: summary.firstReactorUserId === userId,
         users: summary.users
           .filter(
             (user, index, self) =>
-              self.findIndex((u) => u.id === user.id) === index
+            self.findIndex((u) => u.id === user.id) === index
           )
           .sort((a, b) => a.name.localeCompare(b.name)),
       }))

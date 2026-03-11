@@ -21,6 +21,7 @@ const buildReactionSummary = (
     reaction: any;
     userId: number;
     reactionId: number;
+    createdAt?: Date;
     user?: { id: number; slug: string; name: string; profilePicture?: string | null };
   }>,
   userId: number | null
@@ -31,6 +32,8 @@ const buildReactionSummary = (
       reaction: any;
       count: number;
       reacted: boolean;
+      firstReactionAt: Date | null;
+      firstReactorUserId: number | null;
       users: Array<{
         id: number;
         slug: string;
@@ -45,11 +48,20 @@ const buildReactionSummary = (
       reaction: entry.reaction,
       count: 0,
       reacted: false,
+      firstReactionAt: null,
+      firstReactorUserId: null,
       users: [],
     };
     current.count += 1;
     if (userId && entry.userId === userId) {
       current.reacted = true;
+    }
+    if (
+      !current.firstReactionAt ||
+      (entry.createdAt && entry.createdAt < current.firstReactionAt)
+    ) {
+      current.firstReactionAt = entry.createdAt ?? null;
+      current.firstReactorUserId = entry.userId;
     }
     if (entry.user) {
       current.users.push(entry.user);
@@ -59,7 +71,11 @@ const buildReactionSummary = (
 
   return Array.from(summaryMap.values())
     .map((summary) => ({
-      ...summary,
+      reaction: summary.reaction,
+      count: summary.count,
+      reacted: summary.reacted,
+      isFirstReactor:
+        Boolean(userId) && summary.firstReactorUserId === userId,
       users: summary.users
         .filter(
           (user, index, self) =>
