@@ -27,9 +27,10 @@ router.post(
       postId = null,
       commentId = null,
       gameId = null,
+      trackId = null,
     } = req.body;
 
-    if (!content || !(postId || commentId || gameId)) {
+    if (!content || !(postId || commentId || gameId || trackId)) {
       res.status(400);
       res.send();
       return;
@@ -37,6 +38,7 @@ router.post(
 
     let post;
     let game;
+    let track;
     let parentComment;
 
     if (postId) {
@@ -67,6 +69,13 @@ router.post(
             },
           },
           game: {
+            select: {
+              id: true,
+              slug: true,
+              name: true,
+            },
+          },
+          track: {
             select: {
               id: true,
               slug: true,
@@ -108,6 +117,31 @@ router.post(
       }
     }
 
+    if (trackId) {
+      track = await db.track.findUnique({
+        where: {
+          id: trackId,
+        },
+        include: {
+          game: {
+            include: {
+              team: {
+                include: {
+                  users: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      if (!track) {
+        res.status(401);
+        res.send();
+        return;
+      }
+    }
+
     const newcomment = await db.comment.create({
       data: {
         content,
@@ -115,6 +149,7 @@ router.post(
         postId: postId,
         commentId: commentId,
         gameId: gameId,
+        trackId: trackId,
       },
     });
 
@@ -161,6 +196,21 @@ router.post(
       });
     }
 
+    if (track) {
+      track.game.team.users.forEach(async (member) => {
+        if (member.id === res.locals.user.id) return;
+        await db.notification.create({
+          data: {
+            type: "TRACK_COMMENT",
+            recipientId: member.id,
+            actorId: res.locals.user.id,
+            trackId: track.id,
+            commentId: newcomment.id,
+          },
+        });
+      });
+    }
+
     const resolvedContext =
       parentComment && !post && !game
         ? await resolveCommentMentionContext(parentComment.id)
@@ -184,6 +234,12 @@ router.post(
         game?.slug ?? parentComment?.game?.slug ?? resolvedContext.gameSlug,
       gameName:
         game?.name ?? parentComment?.game?.name ?? resolvedContext.gameName,
+      trackId:
+        track?.id ?? parentComment?.track?.id ?? resolvedContext.trackId,
+      trackSlug:
+        track?.slug ?? parentComment?.track?.slug ?? resolvedContext.trackSlug,
+      trackName:
+        track?.name ?? parentComment?.track?.name ?? resolvedContext.trackName,
     });
 
     res.send({ message: "Comment created" });

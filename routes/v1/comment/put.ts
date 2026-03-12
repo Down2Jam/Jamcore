@@ -71,6 +71,9 @@ router.put("/", rateLimit(), authUser, getUser, async (req, res) => {
     gameId: resolvedContext.gameId,
     gameSlug: resolvedContext.gameSlug,
     gameName: resolvedContext.gameName,
+    trackId: resolvedContext.trackId,
+    trackSlug: resolvedContext.trackSlug,
+    trackName: resolvedContext.trackName,
   });
 
   return res.send({ message: "Comment updated", data: updated });

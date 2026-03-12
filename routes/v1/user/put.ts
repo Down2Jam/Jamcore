@@ -19,6 +19,9 @@ const DEV_STATIC_IMAGE_PATTERN =
   /^http:\/\/(localhost|127\.0\.0\.1):\d+\/images\/[A-Za-z0-9._/-]+$/;
 const RELATIVE_STATIC_IMAGE_PATTERN = /^\/images\/[A-Za-z0-9._/-]+$/;
 const PREFIX_CHARS = "abcdefghijklmnopqrstuvwxyz0123456789";
+const MIN_PREFIX_LENGTH = 4;
+const MAX_PREFIX_LENGTH = 8;
+const DEFAULT_PREFIX_LENGTH = 6;
 
 function buildPrefix(source?: string | null): string {
   const normalized = String(source ?? "")
@@ -26,13 +29,20 @@ function buildPrefix(source?: string | null): string {
     .toLowerCase()
     .replace(/[^a-z0-9]/g, "");
 
-  let prefix = normalized.slice(0, 6);
+  if (
+    normalized.length >= MIN_PREFIX_LENGTH &&
+    normalized.length <= MAX_PREFIX_LENGTH
+  ) {
+    return normalized;
+  }
+
+  let prefix = normalized.slice(0, DEFAULT_PREFIX_LENGTH);
   let seed = 0;
   const seedSource = normalized || "jamjar";
   for (let i = 0; i < seedSource.length; i++) {
     seed = (seed * 31 + seedSource.charCodeAt(i)) >>> 0;
   }
-  while (prefix.length < 6) {
+  while (prefix.length < DEFAULT_PREFIX_LENGTH) {
     seed = (seed * 1664525 + 1013904223) >>> 0;
     prefix += PREFIX_CHARS[seed % PREFIX_CHARS.length];
   }
@@ -78,8 +88,8 @@ router.put(
     .withMessage("Short must be at most 155 characters."),
   body("emotePrefix")
     .optional({ values: "falsy" })
-    .isLength({ min: 6, max: 6 })
-    .withMessage("Emote prefix must be exactly 6 characters.")
+    .isLength({ min: MIN_PREFIX_LENGTH, max: MAX_PREFIX_LENGTH })
+    .withMessage("Emote prefix must be 4 to 8 characters.")
     .matches(/^[a-z0-9]+$/)
     .withMessage("Emote prefix must be lowercase letters or numbers."),
   body("pronouns")

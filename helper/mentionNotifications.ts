@@ -74,6 +74,9 @@ type MentionNotificationContext =
       gameId?: number | null;
       gameSlug?: string | null;
       gameName?: string | null;
+      trackId?: number | null;
+      trackSlug?: string | null;
+      trackName?: string | null;
     }
   | {
       type: "game";
@@ -122,6 +125,16 @@ function buildMentionNotification(context: MentionNotificationContext) {
           body: `${context.actorName} mentioned you in a comment on game ${context.gameName ?? context.gameSlug}`,
           link: `/g/${context.gameSlug}?comment=${context.commentId}#comment-${context.commentId}`,
           gameId: context.gameId ?? undefined,
+          commentId: context.commentId,
+        };
+      }
+
+      if (context.trackSlug) {
+        return {
+          title: "Mention in comment",
+          body: `${context.actorName} mentioned you in a comment on track ${context.trackName ?? context.trackSlug}`,
+          link: `/m/${context.trackSlug}?comment=${context.commentId}#comment-${context.commentId}`,
+          trackId: context.trackId ?? undefined,
           commentId: context.commentId,
         };
       }
@@ -184,6 +197,8 @@ export async function notifyNewMentions(context: MentionNotificationContext) {
       commentId:
         "commentId" in notification ? notification.commentId ?? null : null,
       gameId: "gameId" in notification ? notification.gameId ?? null : null,
+      trackId:
+        "trackId" in notification ? notification.trackId ?? null : null,
     })),
   });
 }
@@ -199,6 +214,7 @@ export async function resolveCommentMentionContext(commentId: number) {
         commentId: true,
         postId: true,
         gameId: true,
+        trackId: true,
         post: {
           select: {
             id: true,
@@ -207,6 +223,13 @@ export async function resolveCommentMentionContext(commentId: number) {
           },
         },
         game: {
+          select: {
+            id: true,
+            slug: true,
+            name: true,
+          },
+        },
+        track: {
           select: {
             id: true,
             slug: true,
@@ -231,6 +254,14 @@ export async function resolveCommentMentionContext(commentId: number) {
         gameId: comment.game.id,
         gameSlug: comment.game.slug,
         gameName: comment.game.name,
+      };
+    }
+
+    if (comment.track) {
+      return {
+        trackId: comment.track.id,
+        trackSlug: comment.track.slug,
+        trackName: comment.track.name,
       };
     }
 

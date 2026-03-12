@@ -14,13 +14,22 @@ const sanitizeSlug = (value: string, maxLength: number) =>
     .replace(/[^a-z0-9_-]/g, "")
     .slice(0, maxLength);
 
-const PREFIX_LENGTH = 6;
+const MIN_PREFIX_LENGTH = 4;
+const MAX_PREFIX_LENGTH = 8;
+const DEFAULT_PREFIX_LENGTH = 6;
 
 const generatePrefix = (seed?: string | null): string => {
   const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
   const normalizedSeed = (seed ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
-  let prefix = normalizedSeed.slice(0, PREFIX_LENGTH);
-  for (let i = prefix.length; i < PREFIX_LENGTH; i += 1) {
+  if (
+    normalizedSeed.length >= MIN_PREFIX_LENGTH &&
+    normalizedSeed.length <= MAX_PREFIX_LENGTH
+  ) {
+    return normalizedSeed;
+  }
+
+  let prefix = normalizedSeed.slice(0, DEFAULT_PREFIX_LENGTH);
+  for (let i = prefix.length; i < DEFAULT_PREFIX_LENGTH; i += 1) {
     prefix += chars[Math.floor(Math.random() * chars.length)];
   }
   return prefix;

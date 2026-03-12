@@ -29,6 +29,13 @@ async function getUserOptional(
           categoryId: true,
         },
       },
+      trackRatings: {
+        select: {
+          value: true,
+          trackId: true,
+          categoryId: true,
+        },
+      },
       id: true,
       name: true,
       bio: true,

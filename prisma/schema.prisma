@@ -45,6 +45,8 @@ model User {
   themeVotes            ThemeVote[]       @relation(name: "VoteToUser")
   themeVotes2           ThemeVote2[]      @relation(name: "Vote2ToUser")
   tracks                Track[]           @relation(name: "TrackToComposer")
+  trackCredits          TrackCredit[]     @relation(name: "TrackCreditToUser")
+  trackTimestampComments TrackTimestampComment[] @relation(name: "TrackTimestampCommentToAuthor")
   scores                Score[]           @relation(name: "ScoreToUser")
   ghosts                Ghost[]           @relation(name: "GhostToUser")
   data                  Data[]            @relation(name: "DataToUser")
@@ -56,6 +58,7 @@ model User {
   teamApplications      TeamApplication[] @relation(name: "TeamApplicationsToUser")
   teamInvites           TeamInvite[]      @relation(name: "TeamInvitesToUser")
   ratings               Rating[]          @relation(name: "RatingToUser")
+  trackRatings          TrackRating[]     @relation(name: "TrackRatingToUser")
   achievements          Achievement[]     @relation(name: "AchievementToUsers")
   receivedNotifications Notification[]    @relation(name: "NotificationToRecipient")
   sentNotifications     Notification[]    @relation(name: "NotificationToActor")
@@ -202,6 +205,8 @@ model Comment {
   commentId     Int?
   game          Game?          @relation(fields: [gameId], references: [id], name: "CommentToGame")
   gameId        Int?
+  track         Track?         @relation(fields: [trackId], references: [id], name: "CommentToTrack")
+  trackId       Int?
   author        User           @relation(fields: [authorId], references: [id])
   authorId      Int
   likes         Like[]         @relation(name: "LikeToComment")
@@ -347,6 +352,52 @@ model RatingCategory {
   majContentGames Game[]   @relation("GameToMajorityContentRating")
 }
 
+model TrackRatingCategory {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String?
+  order       Int      @default(0)
+  always      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  ratings TrackRating[] @relation("TrackRatingToCategory")
+}
+
+model TrackTagCategory {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  priority  Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tags TrackTag[]
+}
+
+model TrackTag {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String?
+  icon        String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  category   TrackTagCategory @relation(fields: [categoryId], references: [id])
+  categoryId Int
+  tracks     Track[]
+}
+
+model TrackFlag {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String?
+  icon        String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tracks Track[]
+}
+
 model Rating {
   id        Int      @id @default(autoincrement())
   value     Int
@@ -369,15 +420,79 @@ model Track {
   name          String
   license       String?
   allowDownload Boolean  @default(false)
+  bpm           Int?
+  musicalKey    String?
+  softwareUsed  String[] @default([])
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  commentary    String?
 
   // Relations
   composer   User @relation(fields: [composerId], references: [id], name: "TrackToComposer")
   composerId Int
   game       Game @relation(fields: [gameId], references: [id], name: "TrackToGame")
   gameId     Int
+  tags       TrackTag[]
+  flags      TrackFlag[]
+  links      TrackLink[]         @relation(name: "TrackToLinks")
+  credits    TrackCredit[]       @relation(name: "TrackToCredits")
+  comments   Comment[]         @relation(name: "CommentToTrack")
+  ratings    TrackRating[]     @relation(name: "TrackRatingToTrack")
+  notifications Notification[] @relation(name: "NotificationToTrack")
+  timestampComments TrackTimestampComment[] @relation(name: "TrackTimestampCommentToTrack")
   recommendedByUsers User[] @relation(name: "UserRecommendedTracks")
+}
+
+model TrackLink {
+  id        Int      @id @default(autoincrement())
+  label     String
+  url       String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  track   Track @relation(fields: [trackId], references: [id], name: "TrackToLinks", onDelete: Cascade)
+  trackId Int
+}
+
+model TrackCredit {
+  id        Int      @id @default(autoincrement())
+  role      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  track   Track @relation(fields: [trackId], references: [id], name: "TrackToCredits", onDelete: Cascade)
+  trackId Int
+  user    User  @relation(fields: [userId], references: [id], name: "TrackCreditToUser")
+  userId  Int
+}
+
+model TrackRating {
+  id         Int      @id @default(autoincrement())
+  value      Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  category   TrackRatingCategory @relation(fields: [categoryId], references: [id], name: "TrackRatingToCategory")
+  categoryId Int
+  user       User           @relation(fields: [userId], references: [id], name: "TrackRatingToUser")
+  userId     Int
+  track      Track          @relation(fields: [trackId], references: [id], name: "TrackRatingToTrack")
+  trackId    Int
+
+  @@unique([trackId, categoryId, userId])
+}
+
+model TrackTimestampComment {
+  id        Int      @id @default(autoincrement())
+  content   String
+  timestamp Float
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  author   User  @relation(fields: [authorId], references: [id], name: "TrackTimestampCommentToAuthor")
+  authorId Int
+  track    Track @relation(fields: [trackId], references: [id], name: "TrackTimestampCommentToTrack")
+  trackId  Int
 }
 
 enum LeaderboardType {
@@ -514,6 +629,7 @@ model Report {
 enum NotificationType {
   GENERAL
   GAME_COMMENT
+  TRACK_COMMENT
   COMMENT_REPLY
   POST_COMMENT
   FOLLOW
@@ -548,6 +664,8 @@ model Notification {
   commentId         Int?
   game              Game?            @relation(name: "NotificationToGame", fields: [gameId], references: [id])
   gameId            Int?
+  track             Track?           @relation(name: "NotificationToTrack", fields: [trackId], references: [id])
+  trackId           Int?
   team              Team?            @relation(name: "team", fields: [teamId], references: [id])
   teamId            Int?
   teamInvite        TeamInvite?      @relation(name: "teamInvite", fields: [teamInviteId], references: [id])
@@ -559,6 +677,7 @@ model Notification {
   @@index([postId])
   @@index([commentId])
   @@index([gameId])
+  @@index([trackId])
   @@index([teamId])
 }
 

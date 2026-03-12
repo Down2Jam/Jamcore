@@ -13,7 +13,9 @@ import { Router } from "express";
 import { body } from "express-validator";
 
 const router = Router();
-const PREFIX_LENGTH = 6;
+const MIN_PREFIX_LENGTH = 4;
+const MAX_PREFIX_LENGTH = 8;
+const DEFAULT_PREFIX_LENGTH = 6;
 const PREFIX_CHARS = "abcdefghijklmnopqrstuvwxyz0123456789";
 const ITCH_EMBED_ASPECT_RATIOS = new Set([
   "16 / 9",
@@ -31,9 +33,16 @@ const ITCH_EMBED_ASPECT_RATIOS = new Set([
 
 const buildPrefix = (seed?: string | null) => {
   const normalized = (seed ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
-  const base = normalized.slice(0, PREFIX_LENGTH);
+  if (
+    normalized.length >= MIN_PREFIX_LENGTH &&
+    normalized.length <= MAX_PREFIX_LENGTH
+  ) {
+    return normalized;
+  }
+
+  const base = normalized.slice(0, DEFAULT_PREFIX_LENGTH);
   let prefix = base;
-  for (let i = prefix.length; i < PREFIX_LENGTH; i += 1) {
+  for (let i = prefix.length; i < DEFAULT_PREFIX_LENGTH; i += 1) {
     prefix += PREFIX_CHARS[Math.floor(Math.random() * PREFIX_CHARS.length)];
   }
   return prefix;
@@ -126,8 +135,10 @@ router.post(
         ? String(emotePrefix).trim().toLowerCase()
         : null;
       if (cleanedPrefix) {
-        if (!/^[a-z0-9]{6}$/.test(cleanedPrefix)) {
-          res.status(400).send({ message: "Emote prefix must be 6 characters." });
+        if (!/^[a-z0-9]{4,8}$/.test(cleanedPrefix)) {
+          res
+            .status(400)
+            .send({ message: "Emote prefix must be 4 to 8 characters." });
           return;
         }
       } else {
@@ -196,12 +207,79 @@ router.post(
               name: song.name,
               slug: song.slug,
               url: song.url,
+              commentary: song.commentary || null,
+              bpm:
+                typeof song.bpm === "number" && Number.isFinite(song.bpm)
+                  ? Math.max(1, Math.floor(song.bpm))
+                  : null,
+              musicalKey: song.musicalKey || null,
+              softwareUsed: Array.isArray(song.softwareUsed)
+                ? song.softwareUsed.filter(Boolean)
+                : [],
               license: song.license || null,
-              allowDownload: Boolean(song.allowDownload),
-              composer: {
-                connect: {
-                  id: song.composerId,
-                },
+            allowDownload: Boolean(song.allowDownload),
+            composer: {
+              connect: {
+                id:
+                  (Array.isArray(song.credits)
+                    ? song.credits
+                        .map((credit: { role?: string; userId?: number | string }) => ({
+                          role: String(credit?.role ?? "").trim(),
+                          userId: Number(credit?.userId),
+                        }))
+                        .find(
+                          (credit) =>
+                            credit.role.toLowerCase() === "composer" &&
+                            Number.isInteger(credit.userId),
+                        )?.userId ??
+                      song.credits
+                        .map((credit: { role?: string; userId?: number | string }) => ({
+                          role: String(credit?.role ?? "").trim(),
+                          userId: Number(credit?.userId),
+                        }))
+                        .find((credit) => Number.isInteger(credit.userId))
+                        ?.userId
+                    : null) ?? song.composerId,
+              },
+            },
+            tags: {
+              connect: Array.isArray(song.tagIds)
+                ? song.tagIds
+                      .map((id: number | string) => Number(id))
+                      .filter((id: number) => Number.isInteger(id))
+                      .map((id: number) => ({ id }))
+                  : [],
+              },
+              flags: {
+                connect: Array.isArray(song.flagIds)
+                  ? song.flagIds
+                      .map((id: number | string) => Number(id))
+                      .filter((id: number) => Number.isInteger(id))
+                      .map((id: number) => ({ id }))
+                  : [],
+              },
+              links: {
+                create: Array.isArray(song.links)
+                  ? song.links
+                      .map((link: { label?: string; url?: string }) => ({
+                        label: String(link?.label ?? "").trim(),
+                        url: String(link?.url ?? "").trim(),
+                      }))
+                      .filter((link) => link.label && link.url)
+                  : [],
+              },
+              credits: {
+                create: Array.isArray(song.credits)
+                  ? song.credits
+                      .map((credit: { role?: string; userId?: number | string }) => ({
+                        role: String(credit?.role ?? "").trim(),
+                        userId: Number(credit?.userId),
+                      }))
+                      .filter(
+                        (credit) =>
+                          credit.role.length > 0 && Number.isInteger(credit.userId),
+                      )
+                  : [],
               },
             })),
           },

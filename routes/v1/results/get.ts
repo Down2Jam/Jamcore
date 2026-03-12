@@ -40,6 +40,137 @@ router.get(
       }
     }
 
+    if (contentType === "MUSIC") {
+      if (jam === "all") {
+        return res.json({ data: [] });
+      }
+
+      const jamId = parseInt(jam as string);
+      const tracks = await db.track.findMany({
+        where: {
+          game: {
+            jamId,
+            published: true,
+          },
+        },
+        include: {
+          composer: true,
+          game: true,
+          ratings: {
+            select: {
+              value: true,
+              categoryId: true,
+              user: {
+                select: {
+                  teams: {
+                    select: {
+                      game: {
+                        select: {
+                          jamId: true,
+                          category: true,
+                          published: true,
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+
+      const trackCategories = await db.trackRatingCategory.findMany({
+        where: {
+          always: true,
+        },
+      });
+
+      let filteredTracks = tracks
+        .map((track) => {
+          const categoryAverages = trackCategories.map((category) => {
+            const categoryRatings = track.ratings.filter(
+              (rating) => rating.categoryId === category.id,
+            );
+            const rankedRatings = categoryRatings.filter((rating) =>
+              rating.user.teams.some((team) => {
+                const candidateGame = team.game;
+                return (
+                  candidateGame &&
+                  candidateGame.published &&
+                  candidateGame.jamId === jamId &&
+                  candidateGame.category !== "EXTRA"
+                );
+              }),
+            );
+
+            const averageUnrankedScore =
+              categoryRatings.length > 0
+                ? categoryRatings.reduce((sum, rating) => sum + rating.value, 0) /
+                  categoryRatings.length
+                : 0;
+
+            const averageScore =
+              rankedRatings.length > 0
+                ? rankedRatings.reduce((sum, rating) => sum + rating.value, 0) /
+                  rankedRatings.length
+                : 0;
+
+            return {
+              categoryId: category.id,
+              categoryName: category.name,
+              averageScore,
+              averageUnrankedScore,
+              ratingCount: categoryRatings.length,
+              rankedRatingCount: rankedRatings.length,
+              placement: -1,
+            };
+          });
+
+          return {
+            ...track,
+            categoryAverages,
+          };
+        })
+        .filter((track) => {
+          const overall = track.categoryAverages.find(
+            (avg) => avg.categoryName === "Overall",
+          );
+          return overall && overall.rankedRatingCount >= 5;
+        });
+
+      filteredTracks.forEach((track) => {
+        track.categoryAverages.forEach((category) => {
+          const rankedTracks = filteredTracks
+            .map((candidate) => ({
+              trackId: candidate.id,
+              score:
+                candidate.categoryAverages.find(
+                  (avg) => avg.categoryId === category.categoryId,
+                )?.averageScore ?? 0,
+            }))
+            .sort((a, b) => b.score - a.score);
+
+          const placement = rankedTracks.findIndex(
+            (candidate) => candidate.trackId === track.id,
+          );
+          category.placement = placement + 1;
+        });
+      });
+
+      filteredTracks.sort((a, b) => {
+        const aOverall =
+          a.categoryAverages.find((avg) => avg.categoryName === "Overall")
+            ?.averageScore ?? 0;
+        const bOverall =
+          b.categoryAverages.find((avg) => avg.categoryName === "Overall")
+            ?.averageScore ?? 0;
+        return bOverall - aOverall;
+      });
+
+      return res.json({ data: filteredTracks });
+    }
+
     let where = {
       category: category as GameCategory,
     };

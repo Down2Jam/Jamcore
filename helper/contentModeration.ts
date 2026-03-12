@@ -71,6 +71,15 @@ export async function collectPostCommentIds(postId: number) {
   return collectDescendantCommentIds(rootComments.map((comment) => comment.id));
 }
 
+export async function collectTrackCommentIds(trackId: number) {
+  const rootComments = await db.comment.findMany({
+    where: { trackId },
+    select: { id: true },
+  });
+
+  return collectDescendantCommentIds(rootComments.map((comment) => comment.id));
+}
+
 export async function collectCommentThreadIds(commentId: number) {
   return collectDescendantCommentIds([commentId]);
 }
@@ -82,6 +91,19 @@ export async function cleanupNotificationsForPost(postId: number) {
     where: {
       OR: [
         { postId },
+        ...(commentIds.length > 0 ? [{ commentId: { in: commentIds } }] : []),
+      ],
+    },
+  });
+}
+
+export async function cleanupNotificationsForTrack(trackId: number) {
+  const commentIds = await collectTrackCommentIds(trackId);
+
+  await db.notification.deleteMany({
+    where: {
+      OR: [
+        { trackId },
         ...(commentIds.length > 0 ? [{ commentId: { in: commentIds } }] : []),
       ],
     },

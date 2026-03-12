@@ -29,6 +29,13 @@ async function getUser(
           categoryId: true,
         },
       },
+      trackRatings: {
+        select: {
+          value: true,
+          trackId: true,
+          categoryId: true,
+        },
+      },
       id: true,
       name: true,
       bio: true,
@@ -62,8 +69,22 @@ async function getUser(
           comment: {
             include: {
               game: true,
+              track: {
+                include: {
+                  game: true,
+                  composer: true,
+                },
+              },
               post: true,
               author: true,
+            },
+          },
+          game: true,
+          post: true,
+          track: {
+            include: {
+              game: true,
+              composer: true,
             },
           },
         },
