@@ -1,5 +1,78 @@
 import db from "@helper/db";
 
+const buildCommentReactionSummary = (
+  reactions: Array<{
+    reaction: any;
+    userId: number;
+    reactionId: number;
+    createdAt?: Date;
+    user?: { id: number; slug: string; name: string; profilePicture?: string | null };
+  }>,
+  userId: number | null,
+) => {
+  const summaryMap = new Map<
+    number,
+    {
+      reaction: any;
+      count: number;
+      reacted: boolean;
+      firstReactionAt: Date | null;
+      firstReactorUserId: number | null;
+      users: Array<{
+        id: number;
+        slug: string;
+        name: string;
+        profilePicture?: string | null;
+      }>;
+    }
+  >();
+
+  for (const entry of reactions) {
+    const current = summaryMap.get(entry.reactionId) ?? {
+      reaction: entry.reaction,
+      count: 0,
+      reacted: false,
+      firstReactionAt: null,
+      firstReactorUserId: null,
+      users: [],
+    };
+    current.count += 1;
+    if (userId && entry.userId === userId) {
+      current.reacted = true;
+    }
+    if (
+      !current.firstReactionAt ||
+      (entry.createdAt && entry.createdAt < current.firstReactionAt)
+    ) {
+      current.firstReactionAt = entry.createdAt ?? null;
+      current.firstReactorUserId = entry.userId;
+    }
+    if (entry.user) {
+      current.users.push(entry.user);
+    }
+    summaryMap.set(entry.reactionId, current);
+  }
+
+  return Array.from(summaryMap.values())
+    .map((summary) => ({
+      reaction: summary.reaction,
+      count: summary.count,
+      reacted: summary.reacted,
+      isFirstReactor:
+        Boolean(userId) && summary.firstReactorUserId === userId,
+      users: summary.users
+        .filter(
+          (user, index, self) =>
+            self.findIndex((u) => u.id === user.id) === index,
+        )
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    }))
+    .sort((a, b) => {
+      if (b.count !== a.count) return b.count - a.count;
+      return a.reaction.slug.localeCompare(b.reaction.slug);
+    });
+};
+
 export function isPrivilegedViewer(
   user?: { mod?: boolean | null; admin?: boolean | null } | null
 ) {
@@ -22,6 +95,10 @@ export function mapCommentsForViewer(
       hasLiked: Boolean(
         viewerUserId &&
           comment.likes?.some((like: { userId: number }) => like.userId === viewerUserId)
+      ),
+      reactions: buildCommentReactionSummary(
+        comment.commentReactions ?? [],
+        viewerUserId,
       ),
       children,
     };

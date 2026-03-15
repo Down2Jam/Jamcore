@@ -1,5 +1,9 @@
 import { Request, Response, NextFunction } from "express";
 import db from "../helper/db";
+import {
+  applyRecommendationOverrides,
+  rankRecommendationCandidates,
+} from "../helper/recommendations";
 
 /**
  * Middleware to fetch the target user from the database.
@@ -26,6 +30,21 @@ async function getTargetUser(
     return;
   }
 
+  const overallGameCategory = await db.ratingCategory.findFirst({
+    where: { name: "RatingCategory.Overall.Title" },
+    select: { id: true },
+  });
+  const overallTrackCategory = await db.trackRatingCategory.findFirst({
+    where: { name: "Overall" },
+    select: { id: true },
+  });
+  const activeJam = await db.jam.findFirst({
+    where: { isActive: true },
+    orderBy: { id: "desc" },
+    select: { id: true },
+  });
+  const activeJamId = activeJam?.id ?? null;
+
   let user;
 
   if (userId && !isNaN(parseInt(userId as string))) {
@@ -47,17 +66,48 @@ async function getTargetUser(
         mod: true,
         admin: true,
         emotePrefix: true,
+        hideRatings: true,
+        autoHideRatingsWhileStreaming: true,
         jams: true,
         bannerPicture: true,
         pronouns: true,
         links: true,
         linkLabels: true,
-        recommendedGames: {
+        recommendedGameOverrideIds: true,
+        recommendedGameHiddenIds: true,
+        recommendedTrackOverrideIds: true,
+        recommendedTrackHiddenIds: true,
+        ratings: {
           select: {
-            id: true,
-            name: true,
-            slug: true,
-            thumbnail: true,
+            gameId: true,
+            categoryId: true,
+            value: true,
+            userId: true,
+            updatedAt: true,
+            game: {
+              select: {
+                jamId: true,
+                ratingCategories: { select: { id: true } },
+              },
+            },
+          },
+        },
+        trackRatings: {
+          select: {
+            trackId: true,
+            categoryId: true,
+            value: true,
+            userId: true,
+            updatedAt: true,
+            track: {
+              select: {
+                game: {
+                  select: {
+                    jamId: true,
+                  },
+                },
+              },
+            },
           },
         },
         recommendedPosts: {
@@ -65,15 +115,6 @@ async function getTargetUser(
             id: true,
             title: true,
             slug: true,
-          },
-        },
-        recommendedTracks: {
-          select: {
-            id: true,
-            name: true,
-            url: true,
-            composer: { select: { name: true } },
-            game: { select: { name: true, slug: true, thumbnail: true } },
           },
         },
         userEmotes: {
@@ -115,17 +156,48 @@ async function getTargetUser(
         mod: true,
         admin: true,
         emotePrefix: true,
+        hideRatings: true,
+        autoHideRatingsWhileStreaming: true,
         jams: true,
         bannerPicture: true,
         pronouns: true,
         links: true,
         linkLabels: true,
-        recommendedGames: {
+        recommendedGameOverrideIds: true,
+        recommendedGameHiddenIds: true,
+        recommendedTrackOverrideIds: true,
+        recommendedTrackHiddenIds: true,
+        ratings: {
           select: {
-            id: true,
-            name: true,
-            slug: true,
-            thumbnail: true,
+            gameId: true,
+            categoryId: true,
+            value: true,
+            userId: true,
+            updatedAt: true,
+            game: {
+              select: {
+                jamId: true,
+                ratingCategories: { select: { id: true } },
+              },
+            },
+          },
+        },
+        trackRatings: {
+          select: {
+            trackId: true,
+            categoryId: true,
+            value: true,
+            userId: true,
+            updatedAt: true,
+            track: {
+              select: {
+                game: {
+                  select: {
+                    jamId: true,
+                  },
+                },
+              },
+            },
           },
         },
         recommendedPosts: {
@@ -133,15 +205,6 @@ async function getTargetUser(
             id: true,
             title: true,
             slug: true,
-          },
-        },
-        recommendedTracks: {
-          select: {
-            id: true,
-            name: true,
-            url: true,
-            composer: { select: { name: true } },
-            game: { select: { name: true, slug: true, thumbnail: true } },
           },
         },
         userEmotes: {
@@ -232,7 +295,206 @@ async function getTargetUser(
     return;
   }
 
-  res.locals.targetUser = user;
+  const gameAverageById = user.ratings.reduce(
+    (acc: Map<number, { total: number; count: number }>, rating: any) => {
+      if (activeJamId != null && rating.game?.jamId !== activeJamId) return acc;
+      const current = acc.get(rating.gameId) ?? { total: 0, count: 0 };
+      current.total += rating.value;
+      current.count += 1;
+      acc.set(rating.gameId, current);
+      return acc;
+    },
+    new Map<number, { total: number; count: number }>(),
+  );
+  const trackAverageById = (user.trackRatings ?? []).reduce(
+    (acc: Map<number, { total: number; count: number }>, rating: any) => {
+      if (activeJamId != null && rating.track?.game?.jamId !== activeJamId)
+        return acc;
+      const current = acc.get(rating.trackId) ?? { total: 0, count: 0 };
+      current.total += rating.value;
+      current.count += 1;
+      acc.set(rating.trackId, current);
+      return acc;
+    },
+    new Map<number, { total: number; count: number }>(),
+  );
+
+  const gameRecommendationBase = rankRecommendationCandidates(
+  overallGameCategory
+      ? user.ratings
+          .filter(
+            (rating: any) =>
+              activeJamId == null || rating.game?.jamId === activeJamId,
+          )
+          .filter((rating: any) => rating.categoryId === overallGameCategory.id)
+          .map((rating: any) => ({
+            itemId: rating.gameId,
+            value: rating.value,
+            tieBreakerValue: (() => {
+              const aggregate = gameAverageById.get(rating.gameId);
+              return aggregate ? aggregate.total / aggregate.count : undefined;
+            })(),
+            updatedAt: rating.updatedAt,
+          }))
+      : [],
+  );
+  const trackRecommendationBase = rankRecommendationCandidates(
+    overallTrackCategory
+      ? (user.trackRatings ?? [])
+          .filter(
+            (rating: any) =>
+              activeJamId == null || rating.track?.game?.jamId === activeJamId,
+          )
+          .filter(
+            (rating: any) => rating.categoryId === overallTrackCategory.id,
+          )
+          .map((rating: any) => ({
+            itemId: rating.trackId,
+            value: rating.value,
+            tieBreakerValue: (() => {
+              const aggregate = trackAverageById.get(rating.trackId);
+              return aggregate ? aggregate.total / aggregate.count : undefined;
+            })(),
+            updatedAt: rating.updatedAt,
+          }))
+      : [],
+  );
+
+  const recommendedGameIds = gameRecommendationBase.eligible
+    ? applyRecommendationOverrides(
+        gameRecommendationBase.candidateIds,
+        user.recommendedGameOverrideIds ?? [],
+        user.recommendedGameHiddenIds ?? [],
+      )
+    : [];
+  const recommendedTrackIds = trackRecommendationBase.eligible
+    ? applyRecommendationOverrides(
+        trackRecommendationBase.candidateIds,
+        user.recommendedTrackOverrideIds ?? [],
+        user.recommendedTrackHiddenIds ?? [],
+      )
+    : [];
+
+  const [gameCandidates, recommendedGames, trackCandidates, recommendedTracks] =
+    await Promise.all([
+      gameRecommendationBase.candidateIds.length > 0
+        ? db.game.findMany({
+            where: { id: { in: gameRecommendationBase.candidateIds } },
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              short: true,
+              thumbnail: true,
+              itchEmbedUrl: true,
+              category: true,
+              downloadLinks: {
+                select: {
+                  id: true,
+                  url: true,
+                  platform: true,
+                },
+              },
+              jam: {
+                select: {
+                  id: true,
+                  name: true,
+                  color: true,
+                },
+              },
+            },
+          })
+        : Promise.resolve([]),
+      recommendedGameIds.length > 0
+        ? db.game.findMany({
+            where: { id: { in: recommendedGameIds } },
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              short: true,
+              thumbnail: true,
+              itchEmbedUrl: true,
+              category: true,
+              downloadLinks: {
+                select: {
+                  id: true,
+                  url: true,
+                  platform: true,
+                },
+              },
+              jam: {
+                select: {
+                  id: true,
+                  name: true,
+                  color: true,
+                },
+              },
+            },
+          })
+        : Promise.resolve([]),
+      trackRecommendationBase.candidateIds.length > 0
+        ? db.track.findMany({
+            where: { id: { in: trackRecommendationBase.candidateIds } },
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              url: true,
+              allowBackgroundUse: true,
+              allowBackgroundUseAttribution: true,
+              allowDownload: true,
+              license: true,
+              composer: { select: { name: true, slug: true } },
+              game: {
+                select: { name: true, slug: true, thumbnail: true, jamId: true },
+              },
+            },
+          })
+        : Promise.resolve([]),
+      recommendedTrackIds.length > 0
+        ? db.track.findMany({
+            where: { id: { in: recommendedTrackIds } },
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              url: true,
+              allowBackgroundUse: true,
+              allowBackgroundUseAttribution: true,
+              allowDownload: true,
+              license: true,
+              composer: { select: { name: true, slug: true } },
+              game: {
+                select: { name: true, slug: true, thumbnail: true, jamId: true },
+              },
+            },
+          })
+        : Promise.resolve([]),
+    ]);
+
+  const sortByIdOrder = <T extends { id: number }>(items: T[], ids: number[]) => {
+    const itemById = new Map(items.map((item) => [item.id, item]));
+    return ids
+      .map((id) => itemById.get(id))
+      .filter((item): item is T => Boolean(item));
+  };
+
+  res.locals.targetUser = {
+    ...user,
+    recommendedGames: sortByIdOrder(recommendedGames, recommendedGameIds),
+    recommendedTracks: sortByIdOrder(recommendedTracks, recommendedTrackIds),
+    recommendedGameCandidates: sortByIdOrder(
+      gameCandidates,
+      gameRecommendationBase.candidateIds,
+    ),
+    recommendedTrackCandidates: sortByIdOrder(
+      trackCandidates,
+      trackRecommendationBase.candidateIds,
+    ),
+    recommendedGameCandidateCount: gameRecommendationBase.ratedCount,
+    recommendedTrackCandidateCount: trackRecommendationBase.ratedCount,
+  };
   next();
 }
 

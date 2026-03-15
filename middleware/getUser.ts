@@ -47,6 +47,8 @@ async function getUser(
       mod: true,
       admin: true,
       emotePrefix: true,
+      hideRatings: true,
+      autoHideRatingsWhileStreaming: true,
       jams: true,
       receivedNotifications: {
         include: {
@@ -77,6 +79,32 @@ async function getUser(
               },
               post: true,
               author: true,
+              comment: {
+                include: {
+                  game: true,
+                  track: {
+                    include: {
+                      game: true,
+                      composer: true,
+                    },
+                  },
+                  post: true,
+                  author: true,
+                  comment: {
+                    include: {
+                      game: true,
+                      track: {
+                        include: {
+                          game: true,
+                          composer: true,
+                        },
+                      },
+                      post: true,
+                      author: true,
+                    },
+                  },
+                },
+              },
             },
           },
           game: true,

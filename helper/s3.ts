@@ -70,8 +70,6 @@ export async function GetS3File(folder: string, fileName: string) {
     const command = new GetObjectCommand(params);
     const data = await s3.send(command);
 
-    console.log(data);
-
     // Convert the stream to a buffer
     const streamToBuffer = (stream: any): Promise<Buffer> =>
       new Promise((resolve, reject) => {
@@ -82,7 +80,6 @@ export async function GetS3File(folder: string, fileName: string) {
       });
 
     const imageBuffer = await streamToBuffer(data.Body);
-    console.log(imageBuffer);
 
     // Return the image buffer or the image in a desired format (e.g., base64)
     return imageBuffer;

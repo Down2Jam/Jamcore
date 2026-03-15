@@ -59,6 +59,7 @@ model User {
   teamInvites           TeamInvite[]      @relation(name: "TeamInvitesToUser")
   ratings               Rating[]          @relation(name: "RatingToUser")
   trackRatings          TrackRating[]     @relation(name: "TrackRatingToUser")
+  commentReactions      CommentReaction[]
   achievements          Achievement[]     @relation(name: "AchievementToUsers")
   receivedNotifications Notification[]    @relation(name: "NotificationToRecipient")
   sentNotifications     Notification[]    @relation(name: "NotificationToActor")
@@ -70,6 +71,12 @@ model User {
   recommendedGames      Game[]            @relation(name: "UserRecommendedGames")
   recommendedPosts      Post[]            @relation(name: "UserRecommendedPosts")
   recommendedTracks     Track[]           @relation(name: "UserRecommendedTracks")
+  recommendedGameOverrideIds Int[]        @default([])
+  recommendedGameHiddenIds   Int[]        @default([])
+  recommendedTrackOverrideIds Int[]       @default([])
+  recommendedTrackHiddenIds   Int[]       @default([])
+  hideRatings               Boolean       @default(false)
+  autoHideRatingsWhileStreaming Boolean   @default(false)
 }
 
 enum Priority {
@@ -172,6 +179,7 @@ model Reaction {
   ownerGame     Game?          @relation(fields: [scopeGameId], references: [id], name: "ReactionToGameOwner")
   posts         Post[]         @relation(name: "PostToReactions")
   postReactions PostReaction[]
+  commentReactions CommentReaction[]
 }
 
 model PostReaction {
@@ -187,6 +195,20 @@ model PostReaction {
   userId     Int
 
   @@unique([postId, reactionId, userId])
+}
+
+model CommentReaction {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+
+  comment    Comment  @relation(fields: [commentId], references: [id])
+  commentId  Int
+  reaction   Reaction @relation(fields: [reactionId], references: [id])
+  reactionId Int
+  user       User     @relation(fields: [userId], references: [id])
+  userId     Int
+
+  @@unique([commentId, reactionId, userId])
 }
 
 model Comment {
@@ -210,6 +232,7 @@ model Comment {
   author        User           @relation(fields: [authorId], references: [id])
   authorId      Int
   likes         Like[]         @relation(name: "LikeToComment")
+  commentReactions CommentReaction[]
   reports       Report[]       @relation(name: "ReportToComment")
   children      Comment[]      @relation(name: "CommentToComments")
   notifications Notification[] @relation(name: "NotificationToComment")
@@ -420,6 +443,8 @@ model Track {
   name          String
   license       String?
   allowDownload Boolean  @default(false)
+  allowBackgroundUse Boolean @default(false)
+  allowBackgroundUseAttribution Boolean @default(false)
   bpm           Int?
   musicalKey    String?
   softwareUsed  String[] @default([])

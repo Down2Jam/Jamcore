@@ -4,6 +4,10 @@ import jwt from "jsonwebtoken";
 import { checkPasswordHash } from "../../../helper/password";
 import rateLimit from "@middleware/rateLimit";
 import db from "@helper/db";
+import {
+  REFRESH_TOKEN_EXPIRES_IN,
+  SESSION_DURATION_MS,
+} from "@helper/authCookies";
 
 const router = Router();
 
@@ -64,7 +68,7 @@ router.post(
       { name: user.slug },
       process.env.TOKEN_SECRET,
       {
-        expiresIn: "7d",
+        expiresIn: REFRESH_TOKEN_EXPIRES_IN,
       }
     );
 
@@ -72,7 +76,7 @@ router.post(
       .cookie("refreshToken", refreshToken, {
         httpOnly: true,
         sameSite: "strict",
-        maxAge: 7 * 24 * 60 * 60 * 1000,
+        maxAge: SESSION_DURATION_MS,
       })
       .header("Authorization", accessToken)
       .send({

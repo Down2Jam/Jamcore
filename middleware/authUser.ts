@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import { Request, Response, NextFunction } from "express";
+import { SESSION_DURATION_MS } from "@helper/authCookies";
 
 /**
  * Middleware to check if the user is authenticated and that the authentication is valid
@@ -56,6 +57,7 @@ function authUser(req: Request, res: Response, next: NextFunction): void {
         .cookie("refreshToken", refreshToken, {
           httpOnly: true,
           sameSite: "strict",
+          maxAge: SESSION_DURATION_MS,
         })
         .header("Authorization", newAccessToken);
 

@@ -2,6 +2,7 @@ import { Router } from "express";
 import db from "@helper/db";
 import { notifyNewMentions } from "@helper/mentionNotifications";
 import jwt from "jsonwebtoken";
+import { SESSION_DURATION_MS } from "@helper/authCookies";
 
 const router = Router();
 
@@ -62,6 +63,7 @@ router.post("/", async function (req, res) {
         .cookie("refreshToken", refreshToken, {
           httpOnly: true,
           sameSite: "strict",
+          maxAge: SESSION_DURATION_MS,
         })
         .header("Authorization", accessToken);
     } catch (error) {

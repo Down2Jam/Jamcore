@@ -113,8 +113,8 @@ router.put(
     .withMessage("Links must be non-empty strings."),
   body("recommendedGameIds")
     .optional()
-    .isArray({ max: 5 })
-    .withMessage("Recommended games must be an array of up to 5 items.")
+    .isArray({ max: 3 })
+    .withMessage("Recommended games must be an array of up to 3 items.")
     .custom((ids) =>
       Array.isArray(ids)
         ? ids.every((id) => Number.isInteger(Number(id)))
@@ -133,14 +133,34 @@ router.put(
     .withMessage("Recommended post ids must be numbers."),
   body("recommendedTrackIds")
     .optional()
-    .isArray({ max: 5 })
-    .withMessage("Recommended tracks must be an array of up to 5 items.")
+    .isArray({ max: 3 })
+    .withMessage("Recommended tracks must be an array of up to 3 items.")
     .custom((ids) =>
       Array.isArray(ids)
         ? ids.every((id) => Number.isInteger(Number(id)))
         : true,
     )
     .withMessage("Recommended track ids must be numbers."),
+  body("recommendedHiddenGameIds")
+    .optional()
+    .isArray()
+    .withMessage("Hidden recommended game ids must be an array.")
+    .custom((ids) =>
+      Array.isArray(ids)
+        ? ids.every((id) => Number.isInteger(Number(id)))
+        : true,
+    )
+    .withMessage("Hidden recommended game ids must be numbers."),
+  body("recommendedHiddenTrackIds")
+    .optional()
+    .isArray()
+    .withMessage("Hidden recommended track ids must be an array.")
+    .custom((ids) =>
+      Array.isArray(ids)
+        ? ids.every((id) => Number.isInteger(Number(id)))
+        : true,
+    )
+    .withMessage("Hidden recommended track ids must be numbers."),
   body("linkLabels")
     .optional()
     .isArray({ max: 8 })
@@ -162,6 +182,14 @@ router.put(
   body("bannerPicture")
     .custom((value) => isAllowedAssetUrl(value))
     .withMessage("Invalid banner picture URL."),
+  body("hideRatings")
+    .optional()
+    .isBoolean()
+    .withMessage("Hide ratings must be a boolean."),
+  body("autoHideRatingsWhileStreaming")
+    .optional()
+    .isBoolean()
+    .withMessage("Auto hide ratings while streaming must be a boolean."),
 
   authUser,
   getUser,
@@ -183,9 +211,13 @@ router.put(
       links,
       profileBackground,
       linkLabels,
+      hideRatings,
+      autoHideRatingsWhileStreaming,
       recommendedGameIds,
       recommendedPostIds,
       recommendedTrackIds,
+      recommendedHiddenGameIds,
+      recommendedHiddenTrackIds,
     } = req.body;
 
     const validation = validationResult(req);
@@ -231,11 +263,20 @@ router.put(
       const rawTrackIds = Array.isArray(recommendedTrackIds)
         ? recommendedTrackIds.map((id: number | string) => Number(id))
         : [];
+      const rawHiddenGameIds = Array.isArray(recommendedHiddenGameIds)
+        ? recommendedHiddenGameIds.map((id: number | string) => Number(id))
+        : [];
+      const rawHiddenTrackIds = Array.isArray(recommendedHiddenTrackIds)
+        ? recommendedHiddenTrackIds.map((id: number | string) => Number(id))
+        : [];
+
+      const allGameIds = [...new Set([...rawGameIds, ...rawHiddenGameIds])];
+      const allTrackIds = [...new Set([...rawTrackIds, ...rawHiddenTrackIds])];
 
       const [existingGames, existingPosts, existingTracks] = await Promise.all([
-        rawGameIds.length
+        allGameIds.length
           ? db.game.findMany({
-              where: { id: { in: rawGameIds } },
+              where: { id: { in: allGameIds } },
               select: { id: true },
             })
           : Promise.resolve([]),
@@ -245,9 +286,9 @@ router.put(
               select: { id: true },
             })
           : Promise.resolve([]),
-        rawTrackIds.length
+        allTrackIds.length
           ? db.track.findMany({
-              where: { id: { in: rawTrackIds } },
+              where: { id: { in: allTrackIds } },
               select: { id: true },
             })
           : Promise.resolve([]),
@@ -258,17 +299,19 @@ router.put(
       const existingTrackIds = new Set(existingTracks.map((t) => t.id));
 
       if (
-        (rawGameIds.length && existingGameIds.size !== rawGameIds.length) ||
-        (rawPostIds.length && existingPostIds.size !== rawPostIds.length) ||
-        (rawTrackIds.length && existingTrackIds.size !== rawTrackIds.length)
+        rawGameIds.some((id) => !existingGameIds.has(id)) ||
+        rawPostIds.some((id) => !existingPostIds.has(id)) ||
+        rawTrackIds.some((id) => !existingTrackIds.has(id)) ||
+        rawHiddenGameIds.some((id) => !existingGameIds.has(id)) ||
+        rawHiddenTrackIds.some((id) => !existingTrackIds.has(id))
       ) {
         res.status(400).send({ message: "Invalid recommendation ids." });
         return;
       }
 
-      const recommendedGames = existingGames.map((g) => ({ id: g.id }));
+      const recommendedGames = rawGameIds.map((id) => ({ id }));
       const recommendedPosts = existingPosts.map((p) => ({ id: p.id }));
-      const recommendedTracks = existingTracks.map((t) => ({ id: t.id }));
+      const recommendedTracks = rawTrackIds.map((id) => ({ id }));
 
       const user = await db.user.update({
         where: {
@@ -286,17 +329,41 @@ router.put(
           links: normalizedLinks,
           linkLabels: normalizedLabels,
           emotePrefix: cleanedPrefix,
+          ...(typeof hideRatings === "boolean" ? { hideRatings } : {}),
+          ...(typeof autoHideRatingsWhileStreaming === "boolean"
+            ? { autoHideRatingsWhileStreaming }
+            : {}),
           ...(Array.isArray(recommendedGameIds)
             ? {
-                recommendedGames: {
-                  set: recommendedGames,
-                },
+                recommendedGameOverrideIds: rawGameIds,
               }
             : {}),
           ...(Array.isArray(recommendedPostIds)
             ? {
                 recommendedPosts: {
                   set: recommendedPosts,
+                },
+              }
+            : {}),
+          ...(Array.isArray(recommendedTrackIds)
+            ? {
+                recommendedTrackOverrideIds: rawTrackIds,
+              }
+            : {}),
+          ...(Array.isArray(recommendedHiddenGameIds)
+            ? {
+                recommendedGameHiddenIds: rawHiddenGameIds,
+              }
+            : {}),
+          ...(Array.isArray(recommendedHiddenTrackIds)
+            ? {
+                recommendedTrackHiddenIds: rawHiddenTrackIds,
+              }
+            : {}),
+          ...(Array.isArray(recommendedGameIds)
+            ? {
+                recommendedGames: {
+                  set: recommendedGames,
                 },
               }
             : {}),
@@ -310,6 +377,7 @@ router.put(
         },
         select: {
           id: true,
+          email: true,
           name: true,
           bio: true,
           short: true,
@@ -319,12 +387,15 @@ router.put(
           slug: true,
           mod: true,
           admin: true,
+          twitch: true,
           jams: true,
           bannerPicture: true,
           pronouns: true,
           links: true,
           linkLabels: true,
           emotePrefix: true,
+          hideRatings: true,
+          autoHideRatingsWhileStreaming: true,
           primaryRoles: { select: { slug: true } },
           secondaryRoles: { select: { slug: true } },
           recommendedGames: {
@@ -332,7 +403,24 @@ router.put(
               id: true,
               name: true,
               slug: true,
+              short: true,
               thumbnail: true,
+              itchEmbedUrl: true,
+              category: true,
+              downloadLinks: {
+                select: {
+                  id: true,
+                  url: true,
+                  platform: true,
+                },
+              },
+              jam: {
+                select: {
+                  id: true,
+                  name: true,
+                  color: true,
+                },
+              },
             },
           },
           recommendedPosts: {

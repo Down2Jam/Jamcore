@@ -7,6 +7,10 @@ import checkUsernameConflict from "@middleware/checkUsernameConflict";
 import assertTokenSecret from "@middleware/assertTokenSecret";
 import rateLimit from "@middleware/rateLimit";
 import logger from "@helper/logger";
+import {
+  REFRESH_TOKEN_EXPIRES_IN,
+  SESSION_DURATION_MS,
+} from "@helper/authCookies";
 import fs from "fs";
 import path, { dirname } from "path";
 import { fileURLToPath } from "url";
@@ -84,7 +88,7 @@ router.post(
         { name: user.slug },
         process.env.TOKEN_SECRET as string,
         {
-          expiresIn: "1d",
+          expiresIn: REFRESH_TOKEN_EXPIRES_IN,
         }
       );
 
@@ -92,6 +96,7 @@ router.post(
         .cookie("refreshToken", refreshToken, {
           httpOnly: true,
           sameSite: "strict",
+          maxAge: SESSION_DURATION_MS,
         })
         .header("Authorization", accessToken)
         .send({

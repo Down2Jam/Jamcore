@@ -6,6 +6,10 @@ import {
   mapCommentsForViewer,
 } from "@helper/contentModeration";
 import { notifyNewMentions } from "@helper/mentionNotifications";
+import {
+  applyRecommendationOverrides,
+  rankRecommendationCandidates,
+} from "@helper/recommendations";
 import authUserOptional from "@middleware/authUserOptional";
 import getUserOptional from "@middleware/getUserOptional";
 
@@ -27,6 +31,20 @@ const ITCH_EMBED_ASPECT_RATIOS = new Set([
   "9 / 16",
   "10 / 16",
 ]);
+
+const backgroundUsageAllowedByDefault = (license?: string | null) => {
+  const normalized = (license ?? "").toUpperCase().replace(/\s+/g, " ").trim();
+
+  return normalized === "CC0" || normalized === "CC BY";
+};
+
+const backgroundUsageAttributionAllowedByDefault = (
+  license?: string | null,
+) => {
+  const normalized = (license ?? "").toUpperCase().replace(/\s+/g, " ").trim();
+
+  return normalized !== "CC0";
+};
 
 const buildPrefix = (seed?: string | null) => {
   const normalized = (seed ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -446,6 +464,14 @@ router.put("/:gameSlug", getJam, async function (req, res) {
               : [],
             license: song.license || null,
             allowDownload: Boolean(song.allowDownload),
+            allowBackgroundUse:
+              typeof song.allowBackgroundUse === "boolean"
+                ? song.allowBackgroundUse
+                : backgroundUsageAllowedByDefault(song.license),
+            allowBackgroundUseAttribution:
+              typeof song.allowBackgroundUseAttribution === "boolean"
+                ? song.allowBackgroundUseAttribution
+                : backgroundUsageAttributionAllowedByDefault(song.license),
             tags: {
               set: Array.isArray(song.tagIds)
                 ? song.tagIds
@@ -513,6 +539,14 @@ router.put("/:gameSlug", getJam, async function (req, res) {
               : [],
             license: song.license || null,
             allowDownload: Boolean(song.allowDownload),
+            allowBackgroundUse:
+              typeof song.allowBackgroundUse === "boolean"
+                ? song.allowBackgroundUse
+                : backgroundUsageAllowedByDefault(song.license),
+            allowBackgroundUseAttribution:
+              typeof song.allowBackgroundUseAttribution === "boolean"
+                ? song.allowBackgroundUseAttribution
+                : backgroundUsageAttributionAllowedByDefault(song.license),
             tags: {
               connect: Array.isArray(song.tagIds)
                 ? song.tagIds
@@ -721,14 +755,53 @@ router.get(
           include: {
             author: true,
             likes: true,
+            commentReactions: {
+              include: {
+                reaction: true,
+                user: {
+                  select: {
+                    id: true,
+                    slug: true,
+                    name: true,
+                    profilePicture: true,
+                  },
+                },
+              },
+            },
             children: {
               include: {
                 author: true,
                 likes: true,
+                commentReactions: {
+                  include: {
+                    reaction: true,
+                    user: {
+                      select: {
+                        id: true,
+                        slug: true,
+                        name: true,
+                        profilePicture: true,
+                      },
+                    },
+                  },
+                },
                 children: {
                   include: {
                     author: true,
                     likes: true,
+                    commentReactions: {
+                      include: {
+                        reaction: true,
+                        user: {
+                          select: {
+                            id: true,
+                            slug: true,
+                            name: true,
+                            profilePicture: true,
+                          },
+                        },
+                      },
+                    },
                     children: true,
                   },
                 },
@@ -754,7 +827,7 @@ router.get(
 
     let scores = {};
 
-    if (res.locals.jam.id !== game.jamId || res.locals.user?.id == 3) {
+    if (res.locals.jam.id !== game.jamId) {
       let games = await db.game.findMany({
         where: {
           category: game.category,
@@ -978,6 +1051,8 @@ router.get("/", async function (req: Request, res: Response) {
       break;
     case "random":
       orderBy = undefined;
+    case "recommended":
+      orderBy = undefined;
     case "ratingbalance":
       orderBy = undefined;
     case "karma":
@@ -1189,7 +1264,106 @@ router.get("/", async function (req: Request, res: Response) {
     game = game.sort((a, b) => diff(b) - diff(a));
   }
 
-  if (sort === "karma") {
+  if (sort === "karma" || sort === "recommended") {
+    const exponent = 0.73412;
+    const recommendationWeight = 0.2;
+    const recommendationSlots = 3;
+    const overallCategoryId =
+      ratingCategories.find(
+        (category) => category.name === "RatingCategory.Overall.Title"
+      )?.id ?? null;
+
+    const recommendedPointsByGameId = new Map<number, number>();
+
+    if (overallCategoryId) {
+      const ratingsByUser = new Map<
+        number,
+        Array<{
+          gameId: number;
+          value: number;
+          tieBreakerValue: number;
+          updatedAt: number;
+        }>
+      >();
+      const ratingAveragesByUserGame = new Map<
+        number,
+        Map<number, { total: number; count: number }>
+      >();
+
+      game.forEach((candidate) => {
+        candidate.ratings.forEach((rating) => {
+          if (!isAllowedRaterInJam(rating, candidate.jamId)) return;
+
+          const averagesForUser =
+            ratingAveragesByUserGame.get(rating.userId) ?? new Map();
+          const aggregate = averagesForUser.get(candidate.id) ?? {
+            total: 0,
+            count: 0,
+          };
+          aggregate.total += rating.value;
+          aggregate.count += 1;
+          averagesForUser.set(candidate.id, aggregate);
+          ratingAveragesByUserGame.set(rating.userId, averagesForUser);
+        });
+      });
+
+      game.forEach((candidate) => {
+        candidate.ratings.forEach((rating) => {
+          if (!isAllowedRaterInJam(rating, candidate.jamId)) return;
+          if (rating.categoryId !== overallCategoryId) return;
+
+          const existing = ratingsByUser.get(rating.userId) ?? [];
+          const averagesForUser = ratingAveragesByUserGame.get(rating.userId);
+          const average = averagesForUser?.get(candidate.id);
+          existing.push({
+            gameId: candidate.id,
+            value: rating.value,
+            tieBreakerValue: average
+              ? average.total / average.count
+              : rating.value,
+            updatedAt: rating.updatedAt.getTime(),
+          });
+          ratingsByUser.set(rating.userId, existing);
+        });
+      });
+
+      const recommendationUsers = await db.user.findMany({
+        where: { id: { in: [...ratingsByUser.keys()] } },
+        select: {
+          id: true,
+          recommendedGameOverrideIds: true,
+          recommendedGameHiddenIds: true,
+        },
+      });
+      const recommendationUserMap = new Map(
+        recommendationUsers.map((user) => [user.id, user]),
+      );
+
+      ratingsByUser.forEach((entries, userId) => {
+        const ranking = rankRecommendationCandidates(
+          entries.map((entry) => ({
+            itemId: entry.gameId,
+            value: entry.value,
+            tieBreakerValue: entry.tieBreakerValue,
+            updatedAt: entry.updatedAt,
+          })),
+        );
+        if (!ranking.eligible) return;
+
+        const recommendationUser = recommendationUserMap.get(userId);
+        applyRecommendationOverrides(
+          ranking.candidateIds,
+          recommendationUser?.recommendedGameOverrideIds ?? [],
+          recommendationUser?.recommendedGameHiddenIds ?? [],
+          recommendationSlots,
+        )
+          .forEach((entry) => {
+            const current = recommendedPointsByGameId.get(entry) ?? 0;
+            recommendedPointsByGameId.set(entry, current + 1);
+          });
+      });
+    }
+
     const karmaScore = (g: (typeof game)[number]) => {
       const given = g.team.users.reduce(
         (prev, cur) =>
@@ -1270,17 +1444,29 @@ router.get("/", async function (req: Request, res: Response) {
         0
       );
 
-      const exponent = 0.73412;
-      const ratingScore = given ^ exponent;
-      const heartScore = 1 ^ exponent;
-      const achScore = 0.3333 * (achievements ^ exponent);
-      const scScore = 0.3333 * (scores ^ exponent);
+      const ratingScore = given ** exponent;
+      const heartScore = likes ** exponent;
+      const achScore = 0.3333 * (achievements ** exponent);
+      const scScore = 0.3333 * (scores ** exponent);
       const ratingsReceived = gotten;
 
       return ratingScore + heartScore + achScore + scScore - ratingsReceived;
     };
 
-    game = game.sort((a, b) => karmaScore(b) - karmaScore(a));
+    const recommendedBoost = (g: (typeof game)[number]) => {
+      const points = recommendedPointsByGameId.get(g.id) ?? 0;
+      if (points <= 0) return 0;
+      return recommendationWeight * points ** exponent;
+    };
+
+    game = game.sort((a, b) => {
+      const aScore =
+        karmaScore(a) + (sort === "recommended" ? recommendedBoost(a) : 0);
+      const bScore =
+        karmaScore(b) + (sort === "recommended" ? recommendedBoost(b) : 0);
+
+      return bScore - aScore;
+    });
   }
 
   res.json(game);

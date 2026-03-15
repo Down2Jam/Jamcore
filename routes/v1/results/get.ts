@@ -33,9 +33,8 @@ router.get(
 
       const endTs = startMs + jammingMs + submissionMs + ratingMs;
       const isOver = Date.now() >= endTs;
-      const isOverride = res.locals.user?.id === 3;
 
-      if (!isOver && !isOverride) {
+      if (!isOver) {
         return res.json({ data: [] });
       }
     }
@@ -55,7 +54,31 @@ router.get(
         },
         include: {
           composer: true,
-          game: true,
+          game: {
+            include: {
+              team: {
+                select: {
+                  users: {
+                    select: {
+                      trackRatings: {
+                        select: {
+                          track: {
+                            select: {
+                              game: {
+                                select: {
+                                  jamId: true,
+                                },
+                              },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
           ratings: {
             select: {
               value: true,
@@ -130,6 +153,17 @@ router.get(
           return {
             ...track,
             categoryAverages,
+            ratingsCount: track.game.team.users.reduce((totalRatings, user) => {
+              const userRatingCount = user.trackRatings.reduce(
+                (count, rating) =>
+                  count +
+                  (rating.track?.game.jamId === jamId
+                    ? 1 / trackCategories.length
+                    : 0),
+                0,
+              );
+              return totalRatings + userRatingCount;
+            }, 0),
           };
         })
         .filter((track) => {
@@ -137,7 +171,8 @@ router.get(
             (avg) => avg.categoryName === "Overall",
           );
           return overall && overall.rankedRatingCount >= 5;
-        });
+        })
+        .filter((track) => track.ratingsCount >= 4.99);
 
       filteredTracks.forEach((track) => {
         track.categoryAverages.forEach((category) => {

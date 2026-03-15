@@ -6,6 +6,10 @@ import {
   isPrivilegedViewer,
   mapCommentsForViewer,
 } from "@helper/contentModeration";
+import {
+  applyRecommendationOverrides,
+  rankRecommendationCandidates,
+} from "@helper/recommendations";
 
 const router = express.Router();
 
@@ -38,6 +42,7 @@ router.get("/", async (req, res) => {
       case "danger":
       case "ratingbalance":
       case "karma":
+      case "recommended":
         orderBy = undefined;
         break;
       case "oldest":
@@ -212,7 +217,7 @@ router.get("/", async (req, res) => {
         });
     }
 
-    if (sort === "ratingbalance" || sort === "karma") {
+    if (sort === "ratingbalance" || sort === "karma" || sort === "recommended") {
       const ratingsGiven = (track: (typeof tracks)[number]) =>
         track.game.team.users.reduce(
           (sum, user) =>
@@ -239,7 +244,105 @@ router.get("/", async (req, res) => {
         );
       }
 
-      if (sort === "karma") {
+      if (sort === "karma" || sort === "recommended") {
+        const exponent = 0.73412;
+        const recommendationWeight = 0.2;
+        const recommendationSlots = 3;
+        const overallCategoryId =
+          trackCategories.find((category) => category.name === "Overall")?.id ??
+          null;
+        const recommendedPointsByTrackId = new Map<number, number>();
+
+        if (overallCategoryId) {
+          const ratingsByUser = new Map<
+            number,
+            Array<{
+              trackId: number;
+              value: number;
+              tieBreakerValue: number;
+              updatedAt: number;
+            }>
+          >();
+          const ratingAveragesByUserTrack = new Map<
+            number,
+            Map<number, { total: number; count: number }>
+          >();
+
+          tracks.forEach((candidate) => {
+            candidate.ratings.forEach((rating) => {
+              if (!isAllowedRaterInJam(rating, candidate.game.jamId)) return;
+
+              const averagesForUser =
+                ratingAveragesByUserTrack.get(rating.userId) ?? new Map();
+              const aggregate = averagesForUser.get(candidate.id) ?? {
+                total: 0,
+                count: 0,
+              };
+              aggregate.total += rating.value;
+              aggregate.count += 1;
+              averagesForUser.set(candidate.id, aggregate);
+              ratingAveragesByUserTrack.set(rating.userId, averagesForUser);
+            });
+          });
+
+          tracks.forEach((candidate) => {
+            candidate.ratings.forEach((rating) => {
+              if (!isAllowedRaterInJam(rating, candidate.game.jamId)) return;
+              if (rating.categoryId !== overallCategoryId) return;
+
+              const existing = ratingsByUser.get(rating.userId) ?? [];
+              const averagesForUser = ratingAveragesByUserTrack.get(
+                rating.userId,
+              );
+              const average = averagesForUser?.get(candidate.id);
+              existing.push({
+                trackId: candidate.id,
+                value: rating.value,
+                tieBreakerValue: average
+                  ? average.total / average.count
+                  : rating.value,
+                updatedAt: rating.updatedAt.getTime(),
+              });
+              ratingsByUser.set(rating.userId, existing);
+            });
+          });
+
+          const recommendationUsers = await db.user.findMany({
+            where: { id: { in: [...ratingsByUser.keys()] } },
+            select: {
+              id: true,
+              recommendedTrackOverrideIds: true,
+              recommendedTrackHiddenIds: true,
+            },
+          });
+          const recommendationUserMap = new Map(
+            recommendationUsers.map((user) => [user.id, user]),
+          );
+
+          ratingsByUser.forEach((entries, userId) => {
+            const ranking = rankRecommendationCandidates(
+              entries.map((entry) => ({
+                itemId: entry.trackId,
+                value: entry.value,
+                tieBreakerValue: entry.tieBreakerValue,
+                updatedAt: entry.updatedAt,
+              })),
+            );
+            if (!ranking.eligible) return;
+
+            const recommendationUser = recommendationUserMap.get(userId);
+            applyRecommendationOverrides(
+              ranking.candidateIds,
+              recommendationUser?.recommendedTrackOverrideIds ?? [],
+              recommendationUser?.recommendedTrackHiddenIds ?? [],
+              recommendationSlots,
+            ).forEach((trackId) => {
+              const current = recommendedPointsByTrackId.get(trackId) ?? 0;
+              recommendedPointsByTrackId.set(trackId, current + 1);
+            });
+          });
+        }
+
         const karmaScore = (track: (typeof tracks)[number]) => {
           const given = ratingsGiven(track);
           const gotten = ratingsGotten(track);
@@ -267,14 +370,28 @@ router.get("/", async (req, res) => {
             0,
           );
 
-          const exponent = 0.73412;
-          const ratingScore = given ^ exponent;
-          const heartScore = likes ^ exponent;
+          const ratingScore = given ** exponent;
+          const heartScore = likes ** exponent;
 
           return ratingScore + heartScore - gotten;
         };
 
-        tracks = tracks.sort((a, b) => karmaScore(b) - karmaScore(a));
+        const recommendedBoost = (track: (typeof tracks)[number]) => {
+          const points = recommendedPointsByTrackId.get(track.id) ?? 0;
+          if (points <= 0) return 0;
+          return recommendationWeight * points ** exponent;
+        };
+
+        tracks = tracks.sort((a, b) => {
+          const aScore =
+            karmaScore(a) +
+            (sort === "recommended" ? recommendedBoost(a) : 0);
+          const bScore =
+            karmaScore(b) +
+            (sort === "recommended" ? recommendedBoost(b) : 0);
+
+          return bScore - aScore;
+        });
       }
     }
 
@@ -337,14 +454,53 @@ router.get(
             include: {
               author: true,
               likes: true,
+              commentReactions: {
+                include: {
+                  reaction: true,
+                  user: {
+                    select: {
+                      id: true,
+                      slug: true,
+                      name: true,
+                      profilePicture: true,
+                    },
+                  },
+                },
+              },
               children: {
                 include: {
                   author: true,
                   likes: true,
+                  commentReactions: {
+                    include: {
+                      reaction: true,
+                      user: {
+                        select: {
+                          id: true,
+                          slug: true,
+                          name: true,
+                          profilePicture: true,
+                        },
+                      },
+                    },
+                  },
                   children: {
                     include: {
                       author: true,
                       likes: true,
+                      commentReactions: {
+                        include: {
+                          reaction: true,
+                          user: {
+                            select: {
+                              id: true,
+                              slug: true,
+                              name: true,
+                              profilePicture: true,
+                            },
+                          },
+                        },
+                      },
                       children: true,
                     },
                   },
@@ -427,6 +583,31 @@ router.get(
           },
         },
         include: {
+          game: {
+            include: {
+              team: {
+                select: {
+                  users: {
+                    select: {
+                      trackRatings: {
+                        select: {
+                          track: {
+                            select: {
+                              game: {
+                                select: {
+                                  jamId: true,
+                                },
+                              },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
           ratings: {
             include: {
               category: true,
@@ -499,6 +680,17 @@ router.get(
         return {
           ...candidate,
           categoryAverages,
+          ratingsCount: candidate.game.team.users.reduce((totalRatings, user) => {
+            const userRatingCount = user.trackRatings.reduce(
+              (count, rating) =>
+                count +
+                (rating.track?.game.jamId === track.game.jamId
+                  ? 1 / trackCategories.length
+                  : 0),
+              0,
+            );
+            return totalRatings + userRatingCount;
+          }, 0),
         };
       });
 
@@ -506,7 +698,11 @@ router.get(
         const overallCategory = candidate.categoryAverages.find(
           (avg) => avg.categoryName === "Overall",
         );
-        return overallCategory && overallCategory.rankedRatingCount >= 5;
+        return (
+          overallCategory &&
+          overallCategory.rankedRatingCount >= 5 &&
+          candidate.ratingsCount >= 4.99
+        );
       });
 
       rankedTracks.forEach((candidate) => {

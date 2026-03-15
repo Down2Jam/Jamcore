@@ -2,6 +2,7 @@ import { Router } from "express";
 import { cleanupNotificationsForPost } from "@helper/contentModeration";
 import db from "@helper/db";
 import jwt from "jsonwebtoken";
+import { SESSION_DURATION_MS } from "@helper/authCookies";
 
 const router = Router();
 
@@ -58,6 +59,7 @@ router.delete("/", async function (req, res) {
         .cookie("refreshToken", refreshToken, {
           httpOnly: true,
           sameSite: "strict",
+          maxAge: SESSION_DURATION_MS,
         })
         .header("Authorization", accessToken);
     } catch (error) {

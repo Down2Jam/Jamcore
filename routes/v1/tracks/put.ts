@@ -6,6 +6,20 @@ import getUser from "@middleware/getUser";
 
 const router = express.Router();
 
+const backgroundUsageAllowedByDefault = (license?: string | null) => {
+  const normalized = (license ?? "").toUpperCase().replace(/\s+/g, " ").trim();
+
+  return normalized === "CC0" || normalized === "CC BY";
+};
+
+const backgroundUsageAttributionAllowedByDefault = (
+  license?: string | null,
+) => {
+  const normalized = (license ?? "").toUpperCase().replace(/\s+/g, " ").trim();
+
+  return normalized !== "CC0";
+};
+
 router.put("/:trackSlug", rateLimit(), authUser, getUser, async (req, res) => {
   try {
     const { trackSlug } = req.params;
@@ -21,6 +35,8 @@ router.put("/:trackSlug", rateLimit(), authUser, getUser, async (req, res) => {
       credits,
       composerId,
       allowDownload,
+      allowBackgroundUse,
+      allowBackgroundUseAttribution,
       license,
     } = req.body;
 
@@ -97,6 +113,21 @@ router.put("/:trackSlug", rateLimit(), authUser, getUser, async (req, res) => {
             }
           : {}),
         ...(typeof allowDownload === "boolean" ? { allowDownload } : {}),
+        ...(typeof allowBackgroundUse === "boolean"
+          ? { allowBackgroundUse }
+          : typeof license === "string" && license !== track.license
+            ? {
+                allowBackgroundUse: backgroundUsageAllowedByDefault(license),
+              }
+            : {}),
+        ...(typeof allowBackgroundUseAttribution === "boolean"
+          ? { allowBackgroundUseAttribution }
+          : typeof license === "string" && license !== track.license
+            ? {
+                allowBackgroundUseAttribution:
+                  backgroundUsageAttributionAllowedByDefault(license),
+              }
+            : {}),
         ...(typeof license === "string" ? { license: license || null } : {}),
         ...(primaryCreditUserId ? { composerId: primaryCreditUserId }
           : {}),

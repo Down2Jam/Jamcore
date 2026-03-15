@@ -165,6 +165,11 @@ router.post(
       });
     }
 
+    const resolvedContext =
+      parentComment && !post && !game && !track
+        ? await resolveCommentMentionContext(parentComment.id)
+        : {};
+
     if (
       parentComment &&
       parentComment.authorId !== res.locals.user.id
@@ -174,8 +179,9 @@ router.post(
           type: "COMMENT_REPLY",
           recipientId: parentComment.authorId,
           actorId: res.locals.user.id,
-          postId: parentComment.postId,
-          gameId: parentComment.gameId,
+          postId: parentComment.postId ?? resolvedContext.postId ?? null,
+          gameId: parentComment.gameId ?? resolvedContext.gameId ?? null,
+          trackId: parentComment.trackId ?? resolvedContext.trackId ?? null,
           commentId: newcomment.id,
         },
       });
@@ -210,11 +216,6 @@ router.post(
         });
       });
     }
-
-    const resolvedContext =
-      parentComment && !post && !game
-        ? await resolveCommentMentionContext(parentComment.id)
-        : {};
 
     await notifyNewMentions({
       type: "comment",

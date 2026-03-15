@@ -164,14 +164,53 @@ router.get("/", async function (req, res) {
           include: {
             author: true,
             likes: true,
+            commentReactions: {
+              include: {
+                reaction: true,
+                user: {
+                  select: {
+                    id: true,
+                    slug: true,
+                    name: true,
+                    profilePicture: true,
+                  },
+                },
+              },
+            },
             children: {
               include: {
                 author: true,
                 likes: true,
+                commentReactions: {
+                  include: {
+                    reaction: true,
+                    user: {
+                      select: {
+                        id: true,
+                        slug: true,
+                        name: true,
+                        profilePicture: true,
+                      },
+                    },
+                  },
+                },
                 children: {
                   include: {
                     author: true,
                     likes: true,
+                    commentReactions: {
+                      include: {
+                        reaction: true,
+                        user: {
+                          select: {
+                            id: true,
+                            slug: true,
+                            name: true,
+                            profilePicture: true,
+                          },
+                        },
+                      },
+                    },
                     children: true,
                   },
                 },

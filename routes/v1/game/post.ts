@@ -31,6 +31,20 @@ const ITCH_EMBED_ASPECT_RATIOS = new Set([
   "10 / 16",
 ]);
 
+const backgroundUsageAllowedByDefault = (license?: string | null) => {
+  const normalized = (license ?? "").toUpperCase().replace(/\s+/g, " ").trim();
+
+  return normalized === "CC0" || normalized === "CC BY";
+};
+
+const backgroundUsageAttributionAllowedByDefault = (
+  license?: string | null,
+) => {
+  const normalized = (license ?? "").toUpperCase().replace(/\s+/g, " ").trim();
+
+  return normalized !== "CC0";
+};
+
 const buildPrefix = (seed?: string | null) => {
   const normalized = (seed ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
   if (
@@ -217,31 +231,39 @@ router.post(
                 ? song.softwareUsed.filter(Boolean)
                 : [],
               license: song.license || null,
-            allowDownload: Boolean(song.allowDownload),
-            composer: {
-              connect: {
-                id:
-                  (Array.isArray(song.credits)
-                    ? song.credits
-                        .map((credit: { role?: string; userId?: number | string }) => ({
-                          role: String(credit?.role ?? "").trim(),
-                          userId: Number(credit?.userId),
-                        }))
-                        .find(
-                          (credit) =>
-                            credit.role.toLowerCase() === "composer" &&
-                            Number.isInteger(credit.userId),
-                        )?.userId ??
-                      song.credits
-                        .map((credit: { role?: string; userId?: number | string }) => ({
-                          role: String(credit?.role ?? "").trim(),
-                          userId: Number(credit?.userId),
-                        }))
-                        .find((credit) => Number.isInteger(credit.userId))
-                        ?.userId
-                    : null) ?? song.composerId,
+              allowDownload: Boolean(song.allowDownload),
+              allowBackgroundUse:
+                typeof song.allowBackgroundUse === "boolean"
+                  ? song.allowBackgroundUse
+                  : backgroundUsageAllowedByDefault(song.license),
+              allowBackgroundUseAttribution:
+                typeof song.allowBackgroundUseAttribution === "boolean"
+                  ? song.allowBackgroundUseAttribution
+                  : backgroundUsageAttributionAllowedByDefault(song.license),
+              composer: {
+                connect: {
+                  id:
+                    (Array.isArray(song.credits)
+                      ? song.credits
+                          .map((credit: { role?: string; userId?: number | string }) => ({
+                            role: String(credit?.role ?? "").trim(),
+                            userId: Number(credit?.userId),
+                          }))
+                          .find(
+                            (credit) =>
+                              credit.role.toLowerCase() === "composer" &&
+                              Number.isInteger(credit.userId),
+                          )?.userId ??
+                        song.credits
+                          .map((credit: { role?: string; userId?: number | string }) => ({
+                            role: String(credit?.role ?? "").trim(),
+                            userId: Number(credit?.userId),
+                          }))
+                          .find((credit) => Number.isInteger(credit.userId))
+                          ?.userId
+                      : null) ?? song.composerId,
+                },
               },
-            },
             tags: {
               connect: Array.isArray(song.tagIds)
                 ? song.tagIds

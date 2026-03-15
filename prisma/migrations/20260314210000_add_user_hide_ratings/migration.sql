@@ -1,0 +1,2 @@
+ALTER TABLE "User"
+ADD COLUMN "hideRatings" BOOLEAN NOT NULL DEFAULT false;

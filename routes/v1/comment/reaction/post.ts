@@ -1,0 +1,191 @@
+import { Router } from "express";
+import db from "@helper/db";
+import rateLimit from "@middleware/rateLimit";
+import authUser from "@middleware/authUser";
+import getUser from "@middleware/getUser";
+
+const router = Router();
+
+router.post("/", rateLimit(), authUser, getUser, async (req, res) => {
+  const { commentId, reactionId, reactionSlug } = req.body;
+  const userId = res.locals.user.id;
+
+  if (!commentId) {
+    res.status(400).json({ message: "Comment id is required." });
+    return;
+  }
+
+  if (!reactionId && !reactionSlug) {
+    res.status(400).json({ message: "Reaction id or slug is required." });
+    return;
+  }
+
+  try {
+    const comment = await db.comment.findUnique({
+      where: { id: Number(commentId) },
+    });
+
+    if (!comment) {
+      res.status(404).json({ message: "Comment not found." });
+      return;
+    }
+
+    const reaction = await db.reaction.findUnique({
+      where: reactionId
+        ? { id: Number(reactionId) }
+        : { slug: String(reactionSlug) },
+    });
+
+    if (!reaction) {
+      res.status(404).json({ message: "Reaction not found." });
+      return;
+    }
+
+    const result = await db.$transaction(async (tx) => {
+      const existing = await tx.commentReaction.findUnique({
+        where: {
+          commentId_reactionId_userId: {
+            commentId: comment.id,
+            reactionId: reaction.id,
+            userId,
+          },
+        },
+      });
+
+      if (existing) {
+        await tx.commentReaction.delete({ where: { id: existing.id } });
+      } else {
+        const commentReactions = await tx.commentReaction.findMany({
+          where: { commentId: comment.id },
+          select: {
+            id: true,
+            reactionId: true,
+            userId: true,
+            createdAt: true,
+          },
+          orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+        });
+
+        const reactionAlreadyExists = commentReactions.some(
+          (entry) => entry.reactionId === reaction.id,
+        );
+
+        if (!reactionAlreadyExists) {
+          const firstReactorsByReaction = new Map<number, number>();
+
+          for (const entry of commentReactions) {
+            if (!firstReactorsByReaction.has(entry.reactionId)) {
+              firstReactorsByReaction.set(entry.reactionId, entry.userId);
+            }
+          }
+
+          const ownedFirstReactionCount = Array.from(
+            firstReactorsByReaction.values(),
+          ).filter((firstUserId) => firstUserId === userId).length;
+
+          if (ownedFirstReactionCount >= 2) {
+            return { limited: true as const, updated: [] };
+          }
+        }
+
+        await tx.commentReaction.create({
+          data: {
+            commentId: comment.id,
+            reactionId: reaction.id,
+            userId,
+          },
+        });
+      }
+
+      const updated = await tx.commentReaction.findMany({
+        where: { commentId: comment.id },
+        include: {
+          reaction: true,
+          user: {
+            select: {
+              id: true,
+              slug: true,
+              name: true,
+              profilePicture: true,
+            },
+          },
+        },
+      });
+
+      return { limited: false as const, updated };
+    });
+
+    if (result.limited) {
+      res.status(409).json({
+        message:
+          "You can only be the first reactor for two emojis on a comment at a time.",
+      });
+      return;
+    }
+
+    const summaryMap = new Map<
+      number,
+      {
+        reaction: any;
+        count: number;
+        reacted: boolean;
+        firstReactionAt: Date | null;
+        firstReactorUserId: number | null;
+        users: Array<{
+          id: number;
+          slug: string;
+          name: string;
+          profilePicture?: string | null;
+        }>;
+      }
+    >();
+
+    for (const entry of result.updated) {
+      const current = summaryMap.get(entry.reactionId) ?? {
+        reaction: entry.reaction,
+        count: 0,
+        reacted: false,
+        firstReactionAt: null,
+        firstReactorUserId: null,
+        users: [],
+      };
+      current.count += 1;
+      if (entry.userId === userId) {
+        current.reacted = true;
+      }
+      if (!current.firstReactionAt || entry.createdAt < current.firstReactionAt) {
+        current.firstReactionAt = entry.createdAt;
+        current.firstReactorUserId = entry.userId;
+      }
+      if (entry.user) {
+        current.users.push(entry.user);
+      }
+      summaryMap.set(entry.reactionId, current);
+    }
+
+    const reactions = Array.from(summaryMap.values())
+      .map((summary) => ({
+        reaction: summary.reaction,
+        count: summary.count,
+        reacted: summary.reacted,
+        isFirstReactor: summary.firstReactorUserId === userId,
+        users: summary.users
+          .filter(
+            (user, index, self) =>
+              self.findIndex((u) => u.id === user.id) === index,
+          )
+          .sort((a, b) => a.name.localeCompare(b.name)),
+      }))
+      .sort((a, b) => {
+        if (b.count !== a.count) return b.count - a.count;
+        return a.reaction.slug.localeCompare(b.reaction.slug);
+      });
+
+    res.json({ message: "Reaction updated", data: reactions });
+  } catch (error) {
+    console.error("Failed to update comment reaction", error);
+    res.status(500).json({ message: "Failed to update comment reaction" });
+  }
+});
+
+export default router;
