@@ -217,7 +217,11 @@ router.get("/", async (req, res) => {
         });
     }
 
-    if (sort === "ratingbalance" || sort === "karma" || sort === "recommended") {
+    if (
+      sort === "ratingbalance" ||
+      sort === "karma" ||
+      sort === "recommended"
+    ) {
       const ratingsGiven = (track: (typeof tracks)[number]) =>
         track.game.team.users.reduce(
           (sum, user) =>
@@ -240,13 +244,16 @@ router.get("/", async (req, res) => {
 
       if (sort === "ratingbalance") {
         tracks = tracks.sort(
-          (a, b) => ratingsGiven(b) - ratingsGotten(b) - (ratingsGiven(a) - ratingsGotten(a)),
+          (a, b) =>
+            ratingsGiven(b) -
+            ratingsGotten(b) -
+            (ratingsGiven(a) - ratingsGotten(a)),
         );
       }
 
       if (sort === "karma" || sort === "recommended") {
         const exponent = 0.73412;
-        const recommendationWeight = 0.2;
+        const recommendationWeight = 2;
         const recommendationSlots = 3;
         const overallCategoryId =
           trackCategories.find((category) => category.name === "Overall")?.id ??
@@ -384,11 +391,9 @@ router.get("/", async (req, res) => {
 
         tracks = tracks.sort((a, b) => {
           const aScore =
-            karmaScore(a) +
-            (sort === "recommended" ? recommendedBoost(a) : 0);
+            karmaScore(a) + (sort === "recommended" ? recommendedBoost(a) : 0);
           const bScore =
-            karmaScore(b) +
-            (sort === "recommended" ? recommendedBoost(b) : 0);
+            karmaScore(b) + (sort === "recommended" ? recommendedBoost(b) : 0);
 
           return bScore - aScore;
         });
@@ -680,17 +685,20 @@ router.get(
         return {
           ...candidate,
           categoryAverages,
-          ratingsCount: candidate.game.team.users.reduce((totalRatings, user) => {
-            const userRatingCount = user.trackRatings.reduce(
-              (count, rating) =>
-                count +
-                (rating.track?.game.jamId === track.game.jamId
-                  ? 1 / trackCategories.length
-                  : 0),
-              0,
-            );
-            return totalRatings + userRatingCount;
-          }, 0),
+          ratingsCount: candidate.game.team.users.reduce(
+            (totalRatings, user) => {
+              const userRatingCount = user.trackRatings.reduce(
+                (count, rating) =>
+                  count +
+                  (rating.track?.game.jamId === track.game.jamId
+                    ? 1 / trackCategories.length
+                    : 0),
+                0,
+              );
+              return totalRatings + userRatingCount;
+            },
+            0,
+          ),
         };
       });
 
@@ -724,11 +732,14 @@ router.get(
         });
       });
 
-      const target = trackWithScores.find((candidate) => candidate.id === track.id);
+      const target = trackWithScores.find(
+        (candidate) => candidate.id === track.id,
+      );
       if (target) {
         target.categoryAverages.forEach((category) => {
           scores[category.categoryName] = {
-            placement: category.rankedRatingCount >= 5 ? category.placement : -1,
+            placement:
+              category.rankedRatingCount >= 5 ? category.placement : -1,
             averageScore: category.averageScore,
             averageUnrankedScore: category.averageUnrankedScore,
             ratingCount: category.ratingCount,

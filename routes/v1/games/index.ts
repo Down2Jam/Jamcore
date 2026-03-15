@@ -161,37 +161,37 @@ router.put("/:gameSlug", getJam, async function (req, res) {
 
     const currentRatingCategories = existingGame.ratingCategories;
     const disconnectRatingCategories = currentRatingCategories.filter(
-      (category) => !ratingCategories.includes(category.id)
+      (category) => !ratingCategories.includes(category.id),
     );
     const newRatingCategories = ratingCategories.filter(
       (category: number) =>
         currentRatingCategories.filter(
-          (ratingCategory) => ratingCategory.id == category
-        ).length == 0
+          (ratingCategory) => ratingCategory.id == category,
+        ).length == 0,
     );
 
     const currentMajRatingCategories = existingGame.majRatingCategories;
     const disconnectMajRatingCategories = currentMajRatingCategories.filter(
-      (category) => !majRatingCategories.includes(category.id)
+      (category) => !majRatingCategories.includes(category.id),
     );
     const newMajRatingCategories = majRatingCategories.filter(
       (category: number) =>
         currentMajRatingCategories.filter(
-          (ratingCategory) => ratingCategory.id == category
-        ).length == 0
+          (ratingCategory) => ratingCategory.id == category,
+        ).length == 0,
     );
 
     const curTags = existingGame.tags;
     const disTags = curTags.filter((curTag) => !tags.includes(curTag.id));
     const newTags = tags.filter(
-      (tag: number) => curTags.filter((curTag) => curTag.id == tag).length == 0
+      (tag: number) => curTags.filter((curTag) => curTag.id == tag).length == 0,
     );
 
     const curFlags = existingGame.flags;
     const disFlags = curFlags.filter((curFlag) => !flags.includes(curFlag.id));
     const newFlags = flags.filter(
       (tag: number) =>
-        curFlags.filter((curFlag) => curFlag.id == tag).length == 0
+        curFlags.filter((curFlag) => curFlag.id == tag).length == 0,
     );
 
     // Update the game
@@ -272,7 +272,7 @@ router.put("/:gameSlug", getJam, async function (req, res) {
             (link: { url: string; platform: string }) => ({
               url: link.url,
               platform: link.platform,
-            })
+            }),
           ),
         },
         ratingCategories: {
@@ -343,15 +343,15 @@ router.put("/:gameSlug", getJam, async function (req, res) {
           db.reaction.update({
             where: { id: update.id },
             data: { slug: update.slug },
-          })
-        )
+          }),
+        ),
       );
     }
 
     for (const leaderboard of leaderboards) {
       if (
         existingGame.leaderboards.filter(
-          (curLeaderboard) => curLeaderboard.id == leaderboard.id
+          (curLeaderboard) => curLeaderboard.id == leaderboard.id,
         ).length > 0
       ) {
         await db.leaderboard.update({
@@ -414,7 +414,7 @@ router.put("/:gameSlug", getJam, async function (req, res) {
       .map((s: any) => s?.id)
       .filter(
         (id: unknown): id is number =>
-          Number.isInteger(id) && existingIds.has(id)
+          Number.isInteger(id) && existingIds.has(id),
       );
 
     // remove tracks that were deleted client-side
@@ -427,7 +427,7 @@ router.put("/:gameSlug", getJam, async function (req, res) {
     for (const song of songs) {
       const hasRealId = Number.isInteger(song?.id) && existingIds.has(song.id);
       const primaryCreditUserId = Array.isArray(song.credits)
-        ? song.credits
+        ? (song.credits
             .map((credit: { role?: string; userId?: number | string }) => ({
               role: String(credit?.role ?? "").trim(),
               userId: Number(credit?.userId),
@@ -443,7 +443,7 @@ router.put("/:gameSlug", getJam, async function (req, res) {
               userId: Number(credit?.userId),
             }))
             .find((credit) => Number.isInteger(credit.userId))?.userId ??
-          null
+          null)
         : null;
 
       if (hasRealId) {
@@ -503,13 +503,19 @@ router.put("/:gameSlug", getJam, async function (req, res) {
               deleteMany: {},
               create: Array.isArray(song.credits)
                 ? song.credits
-                    .map((credit: { role?: string; userId?: number | string }) => ({
-                      role: String(credit?.role ?? "").trim(),
-                      userId: Number(credit?.userId),
-                    }))
+                    .map(
+                      (credit: {
+                        role?: string;
+                        userId?: number | string;
+                      }) => ({
+                        role: String(credit?.role ?? "").trim(),
+                        userId: Number(credit?.userId),
+                      }),
+                    )
                     .filter(
                       (credit) =>
-                        credit.role.length > 0 && Number.isInteger(credit.userId),
+                        credit.role.length > 0 &&
+                        Number.isInteger(credit.userId),
                     )
                 : [],
             },
@@ -576,13 +582,19 @@ router.put("/:gameSlug", getJam, async function (req, res) {
             credits: {
               create: Array.isArray(song.credits)
                 ? song.credits
-                    .map((credit: { role?: string; userId?: number | string }) => ({
-                      role: String(credit?.role ?? "").trim(),
-                      userId: Number(credit?.userId),
-                    }))
+                    .map(
+                      (credit: {
+                        role?: string;
+                        userId?: number | string;
+                      }) => ({
+                        role: String(credit?.role ?? "").trim(),
+                        userId: Number(credit?.userId),
+                      }),
+                    )
                     .filter(
                       (credit) =>
-                        credit.role.length > 0 && Number.isInteger(credit.userId),
+                        credit.role.length > 0 &&
+                        Number.isInteger(credit.userId),
                     )
                 : [],
             },
@@ -600,7 +612,7 @@ router.put("/:gameSlug", getJam, async function (req, res) {
     for (const achievement of achievements) {
       if (
         existingGame.achievements.filter(
-          (curAchievement) => curAchievement.id == achievement.id
+          (curAchievement) => curAchievement.id == achievement.id,
         ).length > 0
       ) {
         await db.achievement.update({
@@ -820,7 +832,7 @@ router.get(
     const commentsWithHasLiked = mapCommentsForViewer(
       game?.comments,
       res.locals.user?.id ?? null,
-      isPrivilegedViewer(res.locals.user)
+      isPrivilegedViewer(res.locals.user),
     );
 
     // Ratings info
@@ -888,17 +900,17 @@ router.get(
       let filteredGames = games.map((game2) => {
         const categories = [...game2.ratingCategories, ...ratingCategories];
         const categoryIds = categories.map(
-          (ratingCategory) => ratingCategory.id
+          (ratingCategory) => ratingCategory.id,
         );
 
         // Filter out ratings in categories the game has opted out of (in case they opt out later)
         const filteredRatings = game2.ratings.filter((rating) =>
-          categoryIds.includes(rating.categoryId)
+          categoryIds.includes(rating.categoryId),
         );
 
         const publishedRatings = filteredRatings.filter(
           (rating) =>
-            rating.user.teams.filter((team) => team.game?.published).length > 0
+            rating.user.teams.filter((team) => team.game?.published).length > 0,
         );
 
         const categoryAverages = categories
@@ -909,21 +921,21 @@ router.get(
               game.majRatingCategories.filter((maj) => maj.id == category.id)
                 .length == 0 ||
               game2.majRatingCategories.filter((maj) => maj.id == category.id)
-                .length > 0
+                .length > 0,
           )
           .map((category) => {
             const categoryRatings = filteredRatings.filter(
-              (rating) => rating.categoryId === category.id
+              (rating) => rating.categoryId === category.id,
             );
             const categoryPublishedRatings = publishedRatings.filter(
-              (rating) => rating.categoryId === category.id
+              (rating) => rating.categoryId === category.id,
             );
 
             const averageRating =
               categoryRatings.length > 0
                 ? categoryRatings.reduce(
                     (sum, rating) => sum + rating.value,
-                    0
+                    0,
                   ) / categoryRatings.length
                 : 0;
 
@@ -931,7 +943,7 @@ router.get(
               categoryPublishedRatings.length > 0
                 ? categoryPublishedRatings.reduce(
                     (sum, rating) => sum + rating.value,
-                    0
+                    0,
                   ) / categoryPublishedRatings.length
                 : 0;
 
@@ -965,7 +977,7 @@ router.get(
       const newfilteredgames = filteredGames
         .filter((game) => {
           const overallCategory = game.categoryAverages.find(
-            (avg) => avg.categoryName === "RatingCategory.Overall.Title"
+            (avg) => avg.categoryName === "RatingCategory.Overall.Title",
           );
           return overallCategory && overallCategory.ratingCount >= 5;
         })
@@ -978,7 +990,7 @@ router.get(
             const rankedGamesInCategory = newfilteredgames
               .map((g) => {
                 const categoryAvg = g.categoryAverages.find(
-                  (cat) => cat.categoryId === category.categoryId
+                  (cat) => cat.categoryId === category.categoryId,
                 );
                 return {
                   gameId: g.id,
@@ -988,7 +1000,7 @@ router.get(
               .sort((a, b) => b.score - a.score);
 
             const gamePlacement = rankedGamesInCategory.findIndex(
-              (rankedGame) => rankedGame.gameId === game.id
+              (rankedGame) => rankedGame.gameId === game.id,
             );
 
             category.placement = gamePlacement + 1;
@@ -1029,7 +1041,7 @@ router.get(
       comments: commentsWithHasLiked,
       scores,
     });
-  }
+  },
 );
 
 router.get("/", async function (req: Request, res: Response) {
@@ -1181,13 +1193,14 @@ router.get("/", async function (req: Request, res: Response) {
       (a, b) =>
         a.ratings.length /
           (a.ratingCategories.length + ratingCategories.length) -
-        b.ratings.length / (b.ratingCategories.length + ratingCategories.length)
+        b.ratings.length /
+          (b.ratingCategories.length + ratingCategories.length),
     );
   }
 
   const isAllowedRaterInJam = (
     r: (typeof game)[number]["ratings"][number],
-    jamId: number
+    jamId: number,
   ) =>
     r.user.teams.some((t) => {
       const tg = t.game;
@@ -1204,19 +1217,19 @@ router.get("/", async function (req: Request, res: Response) {
     game = game.filter((g) =>
       g.ratingCategories.some((cat) => {
         const allowedCount = g.ratings.filter(
-          (r) => r.categoryId === cat.id && isAllowedRaterInJam(r, g.jamId)
+          (r) => r.categoryId === cat.id && isAllowedRaterInJam(r, g.jamId),
         ).length;
         return allowedCount < 5;
-      })
+      }),
     );
 
     // Sort by normalized count
     game = game.sort((a, b) => {
       const allowedA = a.ratings.filter((r) =>
-        isAllowedRaterInJam(r, a.jamId)
+        isAllowedRaterInJam(r, a.jamId),
       ).length;
       const allowedB = b.ratings.filter((r) =>
-        isAllowedRaterInJam(r, b.jamId)
+        isAllowedRaterInJam(r, b.jamId),
       ).length;
 
       const normA =
@@ -1240,9 +1253,9 @@ router.get("/", async function (req: Request, res: Response) {
                 ? 1 /
                   (cur2.game.ratingCategories.length + ratingCategories.length)
                 : 0),
-            0
+            0,
           ),
-        0
+        0,
       );
 
       const gotten =
@@ -1253,8 +1266,8 @@ router.get("/", async function (req: Request, res: Response) {
                 team.game &&
                 team.game.jamId == g.jamId &&
                 team.game.published &&
-                team.game.category !== "EXTRA"
-            ).length > 0
+                team.game.category !== "EXTRA",
+            ).length > 0,
         ).length /
         (g.ratingCategories.length + ratingCategories.length);
 
@@ -1266,11 +1279,11 @@ router.get("/", async function (req: Request, res: Response) {
 
   if (sort === "karma" || sort === "recommended") {
     const exponent = 0.73412;
-    const recommendationWeight = 0.2;
+    const recommendationWeight = 2;
     const recommendationSlots = 3;
     const overallCategoryId =
       ratingCategories.find(
-        (category) => category.name === "RatingCategory.Overall.Title"
+        (category) => category.name === "RatingCategory.Overall.Title",
       )?.id ?? null;
 
     const recommendedPointsByGameId = new Map<number, number>();
@@ -1356,11 +1369,10 @@ router.get("/", async function (req: Request, res: Response) {
           recommendationUser?.recommendedGameOverrideIds ?? [],
           recommendationUser?.recommendedGameHiddenIds ?? [],
           recommendationSlots,
-        )
-          .forEach((entry) => {
-            const current = recommendedPointsByGameId.get(entry) ?? 0;
-            recommendedPointsByGameId.set(entry, current + 1);
-          });
+        ).forEach((entry) => {
+          const current = recommendedPointsByGameId.get(entry) ?? 0;
+          recommendedPointsByGameId.set(entry, current + 1);
+        });
       });
     }
 
@@ -1375,9 +1387,9 @@ router.get("/", async function (req: Request, res: Response) {
                 ? 1 /
                   (cur2.game.ratingCategories.length + ratingCategories.length)
                 : 0),
-            0
+            0,
           ),
-        0
+        0,
       );
 
       const gotten =
@@ -1388,8 +1400,8 @@ router.get("/", async function (req: Request, res: Response) {
                 team.game &&
                 team.game.jamId == g.jamId &&
                 team.game.published &&
-                team.game.category !== "EXTRA"
-            ).length > 0
+                team.game.category !== "EXTRA",
+            ).length > 0,
         ).length /
         (g.ratingCategories.length + ratingCategories.length);
 
@@ -1402,7 +1414,7 @@ router.get("/", async function (req: Request, res: Response) {
                 comment.gameId &&
                 comment.game &&
                 comment.gameId !== g.id &&
-                comment.game.jamId === g.jamId
+                comment.game.jamId === g.jamId,
             )
             .reduce(
               (prev2, cur2) =>
@@ -1411,11 +1423,11 @@ router.get("/", async function (req: Request, res: Response) {
                   (like) =>
                     g.team.users
                       .map((user) => user.id)
-                      .filter((user) => user === like.userId).length === 0
+                      .filter((user) => user === like.userId).length === 0,
                 ).length,
-              0
+              0,
             ),
-        0
+        0,
       );
 
       const scores = g.team.users.reduce(
@@ -1425,10 +1437,10 @@ router.get("/", async function (req: Request, res: Response) {
             ...new Set(
               cur.scores
                 .filter((sc) => sc.leaderboard.game.jamId === g.jamId)
-                .map((sc) => sc.leaderboard.gameId)
+                .map((sc) => sc.leaderboard.gameId),
             ),
           ].length,
-        0
+        0,
       );
 
       const achievements = g.team.users.reduce(
@@ -1438,16 +1450,16 @@ router.get("/", async function (req: Request, res: Response) {
             ...new Set(
               cur.achievements
                 .filter((ach) => ach.game.jamId === g.jamId)
-                .map((ach) => ach.gameId)
+                .map((ach) => ach.gameId),
             ),
           ].length,
-        0
+        0,
       );
 
       const ratingScore = given ** exponent;
       const heartScore = likes ** exponent;
-      const achScore = 0.3333 * (achievements ** exponent);
-      const scScore = 0.3333 * (scores ** exponent);
+      const achScore = 0.3333 * achievements ** exponent;
+      const scScore = 0.3333 * scores ** exponent;
       const ratingsReceived = gotten;
 
       return ratingScore + heartScore + achScore + scScore - ratingsReceived;

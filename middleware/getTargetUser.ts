@@ -129,6 +129,7 @@ async function getTargetUser(
         secondaryRoles: true,
         teams: {
           select: {
+            jamId: true,
             game: {
               include: {
                 jam: true,
@@ -278,6 +279,7 @@ async function getTargetUser(
         },
         teams: {
           select: {
+            jamId: true,
             game: {
               include: {
                 jam: true,
