@@ -1281,6 +1281,7 @@ router.get("/", async function (req: Request, res: Response) {
     const exponent = 0.73412;
     const recommendationWeight = 2;
     const recommendationSlots = 3;
+    const jamIds = [...new Set(game.map((entry) => entry.jamId))];
     const overallCategoryId =
       ratingCategories.find(
         (category) => category.name === "RatingCategory.Overall.Title",
@@ -1288,11 +1289,46 @@ router.get("/", async function (req: Request, res: Response) {
 
     const recommendedPointsByGameId = new Map<number, number>();
 
-    if (overallCategoryId) {
+    if (overallCategoryId && jamIds.length > 0) {
+      const recommendationRatings = await db.rating.findMany({
+        where: {
+          game: {
+            jamId: { in: jamIds },
+          },
+        },
+        select: {
+          gameId: true,
+          userId: true,
+          categoryId: true,
+          value: true,
+          updatedAt: true,
+          game: {
+            select: {
+              jamId: true,
+            },
+          },
+          user: {
+            select: {
+              teams: {
+                select: {
+                  game: {
+                    select: {
+                      published: true,
+                      jamId: true,
+                      category: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
       const ratingsByUser = new Map<
         number,
         Array<{
           gameId: number;
+          jamId: number;
           value: number;
           tieBreakerValue: number;
           updatedAt: number;
@@ -1303,41 +1339,38 @@ router.get("/", async function (req: Request, res: Response) {
         Map<number, { total: number; count: number }>
       >();
 
-      game.forEach((candidate) => {
-        candidate.ratings.forEach((rating) => {
-          if (!isAllowedRaterInJam(rating, candidate.jamId)) return;
+      recommendationRatings.forEach((rating) => {
+        if (!isAllowedRaterInJam(rating, rating.game.jamId)) return;
 
-          const averagesForUser =
-            ratingAveragesByUserGame.get(rating.userId) ?? new Map();
-          const aggregate = averagesForUser.get(candidate.id) ?? {
-            total: 0,
-            count: 0,
-          };
-          aggregate.total += rating.value;
-          aggregate.count += 1;
-          averagesForUser.set(candidate.id, aggregate);
-          ratingAveragesByUserGame.set(rating.userId, averagesForUser);
-        });
+        const averagesForUser =
+          ratingAveragesByUserGame.get(rating.userId) ?? new Map();
+        const aggregate = averagesForUser.get(rating.gameId) ?? {
+          total: 0,
+          count: 0,
+        };
+        aggregate.total += rating.value;
+        aggregate.count += 1;
+        averagesForUser.set(rating.gameId, aggregate);
+        ratingAveragesByUserGame.set(rating.userId, averagesForUser);
       });
 
-      game.forEach((candidate) => {
-        candidate.ratings.forEach((rating) => {
-          if (!isAllowedRaterInJam(rating, candidate.jamId)) return;
-          if (rating.categoryId !== overallCategoryId) return;
+      recommendationRatings.forEach((rating) => {
+        if (!isAllowedRaterInJam(rating, rating.game.jamId)) return;
+        if (rating.categoryId !== overallCategoryId) return;
 
-          const existing = ratingsByUser.get(rating.userId) ?? [];
-          const averagesForUser = ratingAveragesByUserGame.get(rating.userId);
-          const average = averagesForUser?.get(candidate.id);
-          existing.push({
-            gameId: candidate.id,
-            value: rating.value,
-            tieBreakerValue: average
-              ? average.total / average.count
-              : rating.value,
-            updatedAt: rating.updatedAt.getTime(),
-          });
-          ratingsByUser.set(rating.userId, existing);
+        const existing = ratingsByUser.get(rating.userId) ?? [];
+        const averagesForUser = ratingAveragesByUserGame.get(rating.userId);
+        const average = averagesForUser?.get(rating.gameId);
+        existing.push({
+          gameId: rating.gameId,
+          jamId: rating.game.jamId,
+          value: rating.value,
+          tieBreakerValue: average
+            ? average.total / average.count
+            : rating.value,
+          updatedAt: rating.updatedAt.getTime(),
         });
+        ratingsByUser.set(rating.userId, existing);
       });
 
       const recommendationUsers = await db.user.findMany({
@@ -1369,10 +1402,16 @@ router.get("/", async function (req: Request, res: Response) {
           recommendationUser?.recommendedGameOverrideIds ?? [],
           recommendationUser?.recommendedGameHiddenIds ?? [],
           recommendationSlots,
-        ).forEach((entry) => {
-          const current = recommendedPointsByGameId.get(entry) ?? 0;
-          recommendedPointsByGameId.set(entry, current + 1);
-        });
+        )
+          .filter((gameId) =>
+            entries.some(
+              (entry) => entry.gameId === gameId && jamIds.includes(entry.jamId),
+            ),
+          )
+          .forEach((entry) => {
+            const current = recommendedPointsByGameId.get(entry) ?? 0;
+            recommendedPointsByGameId.set(entry, current + 1);
+          });
       });
     }
 
