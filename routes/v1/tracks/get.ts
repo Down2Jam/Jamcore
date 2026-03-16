@@ -577,6 +577,7 @@ router.get(
           averageUnrankedScore: number;
           ratingCount: number;
           rankedRatingCount: number;
+          ratingsGivenCount: number;
         }
       > = {};
 
@@ -707,6 +708,7 @@ router.get(
           (avg) => avg.categoryName === "Overall",
         );
         return (
+          candidate.game.category !== "EXTRA" &&
           overallCategory &&
           overallCategory.rankedRatingCount >= 5 &&
           candidate.ratingsCount >= 4.99
@@ -737,13 +739,18 @@ router.get(
       );
       if (target) {
         target.categoryAverages.forEach((category) => {
+          const canBeRanked =
+            target.game.category !== "EXTRA" &&
+            category.rankedRatingCount >= 5 &&
+            target.ratingsCount >= 4.99;
+
           scores[category.categoryName] = {
-            placement:
-              category.rankedRatingCount >= 5 ? category.placement : -1,
+            placement: canBeRanked ? category.placement : -1,
             averageScore: category.averageScore,
             averageUnrankedScore: category.averageUnrankedScore,
             ratingCount: category.ratingCount,
             rankedRatingCount: category.rankedRatingCount,
+            ratingsGivenCount: target.ratingsCount,
           };
         });
       }

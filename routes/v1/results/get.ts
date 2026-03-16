@@ -22,7 +22,7 @@ router.get(
   getJam,
 
   async (req, res) => {
-    const { category, contentType, sort, jam } = req.query;
+    const { category, contentType, sort, jam, preview } = req.query;
 
     if (res.locals?.jam && res.locals?.jam.id == jam) {
       const startMs = new Date(res.locals.jam.startTime).getTime();
@@ -33,8 +33,10 @@ router.get(
 
       const endTs = startMs + jammingMs + submissionMs + ratingMs;
       const isOver = Date.now() >= endTs;
+      const canPreviewResults =
+        preview === "1" && Boolean(res.locals.user?.admin);
 
-      if (!isOver) {
+      if (!isOver && !canPreviewResults) {
         return res.json({ data: [] });
       }
     }
@@ -45,11 +47,16 @@ router.get(
       }
 
       const jamId = parseInt(jam as string);
+      const trackCategory =
+        category === "REGULAR" || category === "ODA"
+          ? (category as GameCategory)
+          : undefined;
       const tracks = await db.track.findMany({
         where: {
           game: {
             jamId,
             published: true,
+            ...(trackCategory ? { category: trackCategory } : {}),
           },
         },
         include: {
@@ -170,7 +177,11 @@ router.get(
           const overall = track.categoryAverages.find(
             (avg) => avg.categoryName === "Overall",
           );
-          return overall && overall.rankedRatingCount >= 5;
+          return (
+            track.game.category !== "EXTRA" &&
+            overall &&
+            overall.rankedRatingCount >= 5
+          );
         })
         .filter((track) => track.ratingsCount >= 4.99);
 
