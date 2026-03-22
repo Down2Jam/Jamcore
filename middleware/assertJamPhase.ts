@@ -13,6 +13,9 @@ function assertJamPhase(
     | "Jamming"
     | "Submission"
     | "Rating"
+    | "Post-Jam Refinement"
+    | "Post-Jam Rating"
+    | "No Active Jams"
 ) {
   return (_req: Request, res: Response, next: NextFunction): void => {
     if (!res.locals.jamPhase) {

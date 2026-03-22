@@ -839,7 +839,7 @@ router.get(
 
     let scores = {};
 
-    if (res.locals.jam.id !== game.jamId) {
+    if (res.locals.jam.id !== game.jamId || req.query.recap === "1") {
       let games = await db.game.findMany({
         where: {
           category: game.category,

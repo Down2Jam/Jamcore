@@ -22,7 +22,7 @@ router.get(
   getJam,
 
   async (req, res) => {
-    const { category, contentType, sort, jam, preview } = req.query;
+    const { category, contentType, sort, jam, preview, recap } = req.query;
 
     if (res.locals?.jam && res.locals?.jam.id == jam) {
       const startMs = new Date(res.locals.jam.startTime).getTime();
@@ -35,8 +35,9 @@ router.get(
       const isOver = Date.now() >= endTs;
       const canPreviewResults =
         preview === "1" && Boolean(res.locals.user?.admin);
+      const canViewRecapResults = recap === "1";
 
-      if (!isOver && !canPreviewResults) {
+      if (!isOver && !canPreviewResults && !canViewRecapResults) {
         return res.json({ data: [] });
       }
     }

@@ -1,6 +1,9 @@
 import db from "@helper/db";
 
 export const getCurrentActiveJam = async () => {
+  const POST_JAM_REFINEMENT_HOURS = 14 * 24;
+  const POST_JAM_RATING_HOURS = 14 * 24;
+
   const jams = await db.jam.findMany({
     where: { isActive: true },
     include: {
@@ -64,6 +67,15 @@ export const getCurrentActiveJam = async () => {
       new Date(submissionEnd).getTime() + jam.ratingHours * 60 * 60 * 1000
     ).toISOString();
 
+    const postJamRefinementEnd = new Date(
+      new Date(ratingEnd).getTime() + POST_JAM_REFINEMENT_HOURS * 60 * 60 * 1000
+    ).toISOString();
+
+    const postJamRatingEnd = new Date(
+      new Date(postJamRefinementEnd).getTime() +
+        POST_JAM_RATING_HOURS * 60 * 60 * 1000
+    ).toISOString();
+
     // console.log("Phase times (UTC):");
     // console.log("Start of Suggestions:", startOfSuggestionsTime);
     // console.log("End of Suggestions:", suggestionEnd);
@@ -76,7 +88,7 @@ export const getCurrentActiveJam = async () => {
 
     i++;
     //console.log(i);
-    if (now < ratingEnd) {
+    if (now < postJamRatingEnd) {
       //console.log("checking  " + jam.id);
       if (!futureJam || jam.startTime < futureJam.startTime) {
         //if (futureJam) console.log("from " + futureJam.id);
@@ -97,6 +109,10 @@ export const getCurrentActiveJam = async () => {
       return { phase: "Submission", futureJam };
     if (now >= submissionEnd && now < ratingEnd)
       return { phase: "Rating", futureJam };
+    if (now >= ratingEnd && now < postJamRefinementEnd)
+      return { phase: "Post-Jam Refinement", futureJam };
+    if (now >= postJamRefinementEnd && now < postJamRatingEnd)
+      return { phase: "Post-Jam Rating", futureJam };
   }
 
   if (futureJam) {
