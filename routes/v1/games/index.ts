@@ -839,7 +839,29 @@ router.get(
 
     let scores = {};
 
-    if (res.locals.jam.id !== game.jamId || req.query.recap === "1") {
+    const currentJamMatches = res.locals.jam?.id === game.jamId;
+    const canViewRecapScores = req.query.recap === "1";
+    const canPreviewScores =
+      req.query.preview === "1" && Boolean(res.locals.user?.admin);
+    const jamStartMs = res.locals.jam?.startTime
+      ? new Date(res.locals.jam.startTime).getTime()
+      : null;
+    const jamDurationMs =
+      ((res.locals.jam?.jammingHours ?? 0) +
+        (res.locals.jam?.submissionHours ?? 0) +
+        (res.locals.jam?.ratingHours ?? 0)) *
+      60 *
+      60 *
+      1000;
+    const isJamOver =
+      jamStartMs != null ? Date.now() >= jamStartMs + jamDurationMs : true;
+
+    if (
+      !currentJamMatches ||
+      isJamOver ||
+      canViewRecapScores ||
+      canPreviewScores
+    ) {
       let games = await db.game.findMany({
         where: {
           category: game.category,
