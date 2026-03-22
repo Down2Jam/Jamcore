@@ -1,5 +1,6 @@
 import { Router } from "express";
 import path from "path";
+import process from "process";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
 import { promises as fs } from "fs";
@@ -36,11 +37,7 @@ router.get(
     const usingS3 = await IsUsingS3();
 
     const imageDir = path.resolve(
-      __dirname,
-      "..",
-      "..",
-      "..",
-      "..",
+      process.cwd(),
       "public",
       "images"
     );

@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from "uuid";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
 import fs from "fs";
+import process from "process";
 import { IsUsingS3, UploadS3File } from "./s3";
 import sharp from "sharp";
 
@@ -248,7 +249,7 @@ export async function UploadFile(req: any, res: any) {
     }
   } else {
     // Save locally
-    const localDir = path.resolve(__dirname, "..", "public", folder);
+    const localDir = path.resolve(process.cwd(), "public", folder);
     if (!fs.existsSync(localDir)) {
       fs.mkdirSync(localDir, { recursive: true });
     }
@@ -280,7 +281,7 @@ res.status(200).send({
 /*
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    const dir = path.resolve(__dirname, "..", "public", "images");
+    const dir = path.resolve(process.cwd(), "public", "images");
 
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });

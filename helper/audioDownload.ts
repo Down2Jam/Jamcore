@@ -2,6 +2,7 @@ import { existsSync } from "fs";
 import { readFile } from "fs/promises";
 import mime from "mime-types";
 import path from "path";
+import process from "process";
 import { dirname } from "path";
 import { fileURLToPath } from "url";
 import { GetS3File } from "./s3";
@@ -627,7 +628,7 @@ export function extractMusicFilenameFromUrl(url: string) {
 export async function getMusicFileBuffer(filename: string) {
   if (!SAFE_MUSIC_FILE.test(filename)) return null;
 
-  const musicPath = path.join(__dirname, "..", "public", "music", filename);
+  const musicPath = path.join(process.cwd(), "public", "music", filename);
   if (existsSync(musicPath)) {
     return readFile(musicPath);
   }
@@ -636,7 +637,7 @@ export async function getMusicFileBuffer(filename: string) {
 }
 
 async function getImageFileBuffer(filename: string) {
-  const imagePath = path.join(__dirname, "..", "public", "images", filename);
+  const imagePath = path.join(process.cwd(), "public", "images", filename);
   if (existsSync(imagePath)) {
     return readFile(imagePath);
   }

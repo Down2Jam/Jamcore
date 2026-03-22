@@ -1,6 +1,7 @@
 import { Router } from "express";
 import rateLimit from "@middleware/rateLimit";
 import path from "path";
+import process from "process";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
 import { existsSync } from "fs";
@@ -28,10 +29,7 @@ router.get("/:filename", rateLimit(9999), async (req, res, next) => {
     return res.status(400).send("Invalid filename");
   }
   const musicPath = path.join(
-    __dirname,
-    "..",
-    "..",
-    "..",
+    process.cwd(),
     "public",
     "music",
     filename

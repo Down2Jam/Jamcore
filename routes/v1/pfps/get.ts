@@ -1,14 +1,10 @@
 import { Router } from "express";
 import rateLimit from "@middleware/rateLimit";
 import path from "path";
+import process from "process";
 
 const router = Router();
-import { fileURLToPath } from "url";
-import { dirname } from "path";
-import { existsSync, readdir } from "fs";
-import { GetS3File } from "@helper/s3";
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
+import { readdir } from "fs";
 
 /**
  * Route to get all pfps
@@ -18,7 +14,7 @@ router.get(
   rateLimit(),
 
   (_req, res) => {
-    const dir = path.join(__dirname, "..", "..", "..", "public", "pfps");
+    const dir = path.join(process.cwd(), "public", "pfps");
 
     readdir(dir, (err, files) => {
       if (err) return res.status(500).json({ message: "Failed to read pfps" });

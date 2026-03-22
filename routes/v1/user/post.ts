@@ -12,6 +12,7 @@ import {
   SESSION_DURATION_MS,
 } from "@helper/authCookies";
 import fs from "fs";
+import process from "process";
 import path, { dirname } from "path";
 import { fileURLToPath } from "url";
 
@@ -20,7 +21,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const router = Router();
 
 function getRandomPfp(): string | null {
-  const pfpsPath = path.join(__dirname, "..", "..", "..", "public", "pfps");
+  const pfpsPath = path.join(process.cwd(), "public", "pfps");
 
   if (!fs.existsSync(pfpsPath)) return null;
 

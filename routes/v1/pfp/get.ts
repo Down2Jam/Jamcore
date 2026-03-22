@@ -1,15 +1,12 @@
 import { Router } from "express";
 import rateLimit from "@middleware/rateLimit";
 import path from "path";
+import process from "process";
 
 const router = Router();
-import { fileURLToPath } from "url";
-import { dirname } from "path";
 import { existsSync } from "fs";
 import { GetS3File } from "@helper/s3";
 import mime from "mime-types";
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
 const SAFE_PFP_FILE = /^[A-Za-z0-9._-]+\.(png|jpe?g|gif|webp)$/i;
 
 /**
@@ -26,10 +23,7 @@ router.get(
     }
 
     const imagePath = path.join(
-      __dirname,
-      "..",
-      "..",
-      "..",
+      process.cwd(),
       "public",
       "pfps",
       `${filename}`
