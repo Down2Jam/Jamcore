@@ -20,7 +20,14 @@ function loadRoutes(dir: string, routePath: string) {
     if (file.isDirectory()) {
       loadRoutes(filePath, routePath + "/" + file.name);
     } else {
-      if (file.name == "v1.ts" || file.name == "index.ts") {
+      const extension = path.extname(file.name);
+      const basename = path.basename(file.name, extension);
+
+      if (basename === "v1" || basename === "index") {
+        continue;
+      }
+
+      if (![".ts", ".js"].includes(extension)) {
         continue;
       }
 
@@ -33,7 +40,7 @@ function loadRoutes(dir: string, routePath: string) {
             return;
           }
 
-          const method = file.name.replace(".ts", "").toLowerCase();
+          const method = basename.toLowerCase();
 
           if (!["get", "post", "put", "delete"].includes(method)) {
             console.log(

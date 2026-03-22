@@ -148,16 +148,12 @@ router.get(
         };
       }
 
-      console.log(includeTags);
-
       if (excludeTags.length > 0) {
         where["tags"] = {
           ...where["tags"],
           none: { id: { in: excludeTags } },
         };
       }
-
-      console.log(excludeTags);
     }
 
     // Handle sort filters
@@ -278,8 +274,6 @@ router.get(
       reactions: buildReactionSummary(post.postReactions, userId),
       comments: mapCommentsForViewer(post.comments, userId, privilegedViewer),
     }));
-
-    console.log(postsWithLikes[0]?.comments);
 
     res.send(postsWithLikes);
   }

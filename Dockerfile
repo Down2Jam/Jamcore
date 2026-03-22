@@ -9,6 +9,7 @@ RUN npm ci
 
 COPY . .
 RUN npx prisma generate
+RUN npm run build
 RUN chown -R node:node /usr/src/app
 
 EXPOSE 3005

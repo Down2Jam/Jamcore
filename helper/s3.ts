@@ -84,6 +84,15 @@ export async function GetS3File(folder: string, fileName: string) {
     // Return the image buffer or the image in a desired format (e.g., base64)
     return imageBuffer;
   } catch (error) {
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "Code" in error &&
+      error.Code === "NoSuchKey"
+    ) {
+      return null;
+    }
+
     console.error("Error getting image from S3", error);
     return null;
   }

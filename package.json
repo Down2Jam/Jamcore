@@ -7,7 +7,9 @@
     "npm": ">=10"
   },
   "scripts": {
-    "start": "npx tsx main.ts",
+    "dev": "npx tsx main.ts",
+    "build": "tsc -p tsconfig.json --noCheck && node scripts/rewire-aliases.mjs",
+    "start": "node dist/main.js",
     "seed-users": "npx tsx prisma/seedUsers.ts",
     "seed-suggestions": "npx tsx prisma/seedSuggestions.ts",
     "seed-slaughter-votes": "npx tsx prisma/seedSlaughterVotes.ts",
