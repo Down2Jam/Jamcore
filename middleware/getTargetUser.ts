@@ -475,6 +475,214 @@ async function getTargetUser(
         : Promise.resolve([]),
     ]);
 
+  const ownedGameIds = (user.teams ?? [])
+    .map((team: any) => team.game?.id)
+    .filter((id: unknown): id is number => Number.isInteger(id));
+  const ownedTrackIds = (user.tracks ?? [])
+    .map((track: any) => track.id)
+    .filter((id: unknown): id is number => Number.isInteger(id));
+
+  const recommendationUsers =
+    ownedGameIds.length > 0 || ownedTrackIds.length > 0
+      ? await db.user.findMany({
+          where: {
+            id: { not: user.id },
+          },
+          select: {
+            id: true,
+            slug: true,
+            name: true,
+            profilePicture: true,
+            recommendedGameOverrideIds: true,
+            recommendedGameHiddenIds: true,
+            recommendedTrackOverrideIds: true,
+            recommendedTrackHiddenIds: true,
+            ratings: {
+              where:
+                activeJamId != null
+                  ? {
+                      game: {
+                        jamId: activeJamId,
+                      },
+                    }
+                  : undefined,
+              select: {
+                gameId: true,
+                categoryId: true,
+                value: true,
+                updatedAt: true,
+              },
+            },
+            trackRatings: {
+              where:
+                activeJamId != null
+                  ? {
+                      track: {
+                        game: {
+                          jamId: activeJamId,
+                        },
+                      },
+                    }
+                  : undefined,
+              select: {
+                trackId: true,
+                categoryId: true,
+                value: true,
+                updatedAt: true,
+              },
+            },
+          },
+        })
+      : [];
+
+  const favoriteGameCountMap = new Map(
+    ownedGameIds.map((gameId) => [
+      gameId,
+      {
+        count: 0,
+        users: [] as Array<{
+          id: number;
+          slug: string;
+          name: string;
+          profilePicture: string | null;
+        }>,
+      },
+    ]),
+  );
+  const favoriteTrackCountMap = new Map(
+    ownedTrackIds.map((trackId) => [
+      trackId,
+      {
+        count: 0,
+        users: [] as Array<{
+          id: number;
+          slug: string;
+          name: string;
+          profilePicture: string | null;
+        }>,
+      },
+    ]),
+  );
+
+  recommendationUsers.forEach((recommendationUser) => {
+    if (overallGameCategory) {
+      const gameAverageById = recommendationUser.ratings.reduce(
+        (acc: Map<number, { total: number; count: number }>, rating: any) => {
+          const current = acc.get(rating.gameId) ?? { total: 0, count: 0 };
+          current.total += rating.value;
+          current.count += 1;
+          acc.set(rating.gameId, current);
+          return acc;
+        },
+        new Map<number, { total: number; count: number }>(),
+      );
+
+      const gameRecommendationBase = rankRecommendationCandidates(
+        recommendationUser.ratings
+          .filter((rating: any) => rating.categoryId === overallGameCategory.id)
+          .map((rating: any) => ({
+            itemId: rating.gameId,
+            value: rating.value,
+            tieBreakerValue: (() => {
+              const aggregate = gameAverageById.get(rating.gameId);
+              return aggregate ? aggregate.total / aggregate.count : undefined;
+            })(),
+            updatedAt: rating.updatedAt,
+          })),
+      );
+
+      const effectiveGameIds = gameRecommendationBase.eligible
+        ? applyRecommendationOverrides(
+            gameRecommendationBase.candidateIds,
+            recommendationUser.recommendedGameOverrideIds ?? [],
+            recommendationUser.recommendedGameHiddenIds ?? [],
+          )
+        : [];
+
+      effectiveGameIds.forEach((gameId) => {
+        if (favoriteGameCountMap.has(gameId)) {
+          const current = favoriteGameCountMap.get(gameId);
+          if (!current) return;
+          current.count += 1;
+          if (current.users.length < 5) {
+            current.users.push({
+              id: recommendationUser.id,
+              slug: recommendationUser.slug,
+              name: recommendationUser.name,
+              profilePicture: recommendationUser.profilePicture,
+            });
+          }
+        }
+      });
+    }
+
+    if (overallTrackCategory) {
+      const trackAverageById = (recommendationUser.trackRatings ?? []).reduce(
+        (acc: Map<number, { total: number; count: number }>, rating: any) => {
+          const current = acc.get(rating.trackId) ?? { total: 0, count: 0 };
+          current.total += rating.value;
+          current.count += 1;
+          acc.set(rating.trackId, current);
+          return acc;
+        },
+        new Map<number, { total: number; count: number }>(),
+      );
+
+      const trackRecommendationBase = rankRecommendationCandidates(
+        (recommendationUser.trackRatings ?? [])
+          .filter((rating: any) => rating.categoryId === overallTrackCategory.id)
+          .map((rating: any) => ({
+            itemId: rating.trackId,
+            value: rating.value,
+            tieBreakerValue: (() => {
+              const aggregate = trackAverageById.get(rating.trackId);
+              return aggregate ? aggregate.total / aggregate.count : undefined;
+            })(),
+            updatedAt: rating.updatedAt,
+          })),
+      );
+
+      const effectiveTrackIds = trackRecommendationBase.eligible
+        ? applyRecommendationOverrides(
+            trackRecommendationBase.candidateIds,
+            recommendationUser.recommendedTrackOverrideIds ?? [],
+            recommendationUser.recommendedTrackHiddenIds ?? [],
+          )
+        : [];
+
+      effectiveTrackIds.forEach((trackId) => {
+        if (favoriteTrackCountMap.has(trackId)) {
+          const current = favoriteTrackCountMap.get(trackId);
+          if (!current) return;
+          current.count += 1;
+          if (current.users.length < 5) {
+            current.users.push({
+              id: recommendationUser.id,
+              slug: recommendationUser.slug,
+              name: recommendationUser.name,
+              profilePicture: recommendationUser.profilePicture,
+            });
+          }
+        }
+      });
+    }
+  });
+
+  const favoriteGameCounts = [...favoriteGameCountMap.entries()].map(
+    ([gameId, value]) => ({
+      gameId,
+      count: value.count,
+      users: value.users,
+    }),
+  );
+  const favoriteTrackCounts = [...favoriteTrackCountMap.entries()].map(
+    ([trackId, value]) => ({
+      trackId,
+      count: value.count,
+      users: value.users,
+    }),
+  );
+
   const sortByIdOrder = <T extends { id: number }>(items: T[], ids: number[]) => {
     const itemById = new Map(items.map((item) => [item.id, item]));
     return ids
@@ -496,6 +704,8 @@ async function getTargetUser(
     ),
     recommendedGameCandidateCount: gameRecommendationBase.ratedCount,
     recommendedTrackCandidateCount: trackRecommendationBase.ratedCount,
+    favoriteGameCounts,
+    favoriteTrackCounts,
   };
   next();
 }
