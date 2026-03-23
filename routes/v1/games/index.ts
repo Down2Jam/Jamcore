@@ -17,6 +17,8 @@ var router = express.Router();
 const MIN_PREFIX_LENGTH = 4;
 const MAX_PREFIX_LENGTH = 8;
 const DEFAULT_PREFIX_LENGTH = 6;
+const SCORE_SORT_RATING_GOAL = 5;
+const SCORE_SORT_MIDPOINT = 6;
 const PREFIX_CHARS = "abcdefghijklmnopqrstuvwxyz0123456789";
 const ITCH_EMBED_ASPECT_RATIOS = new Set([
   "16 / 9",
@@ -1083,6 +1085,9 @@ router.get("/", async function (req: Request, res: Response) {
     case "danger":
       orderBy = undefined;
       break;
+    case "score":
+      orderBy = undefined;
+      break;
     case "random":
       orderBy = undefined;
     case "recommended":
@@ -1112,7 +1117,16 @@ router.get("/", async function (req: Request, res: Response) {
       tags: true,
       flags: true,
       ratings: {
-        include: {
+        select: {
+          id: true,
+          value: true,
+          categoryId: true,
+          category: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
           user: {
             select: {
               teams: {
@@ -1210,16 +1224,6 @@ router.get("/", async function (req: Request, res: Response) {
     game = game.sort(() => Math.random() - 0.5);
   }
 
-  if (sort === "leastratings") {
-    game = game.sort(
-      (a, b) =>
-        a.ratings.length /
-          (a.ratingCategories.length + ratingCategories.length) -
-        b.ratings.length /
-          (b.ratingCategories.length + ratingCategories.length),
-    );
-  }
-
   const isAllowedRaterInJam = (
     r: (typeof game)[number]["ratings"][number],
     jamId: number,
@@ -1230,6 +1234,58 @@ router.get("/", async function (req: Request, res: Response) {
         tg && tg.published && tg.jamId === jamId && tg.category !== "EXTRA"
       );
     });
+
+  if (sort === "score") {
+    const getOverallRatings = (g: (typeof game)[number]) =>
+      g.ratings.filter((rating) => {
+        const numericValue = Number(rating.value);
+        return (
+          rating.category?.name === "RatingCategory.Overall.Title" &&
+          Number.isFinite(numericValue) &&
+          isAllowedRaterInJam(rating, g.jamId)
+        );
+      });
+
+    const getScoreSortAverage = (g: (typeof game)[number]) => {
+      const overallRatings = getOverallRatings(g);
+      if (overallRatings.length === 0) return SCORE_SORT_MIDPOINT;
+
+      return (
+        overallRatings.reduce((sum, rating) => sum + Number(rating.value), 0) /
+        overallRatings.length
+      );
+    };
+
+    const getScoreSortAdjusted = (g: (typeof game)[number]) => {
+      const count = getOverallRatings(g).length;
+      const average = getScoreSortAverage(g);
+      const weight = Math.min(count, SCORE_SORT_RATING_GOAL) / SCORE_SORT_RATING_GOAL;
+
+      return SCORE_SORT_MIDPOINT + (average - SCORE_SORT_MIDPOINT) * weight;
+    };
+
+    const getScoreSortCount = (g: (typeof game)[number]) =>
+      getOverallRatings(g).length;
+
+    game = game.sort((a, b) => {
+      return (
+        getScoreSortAdjusted(b) - getScoreSortAdjusted(a) ||
+        getScoreSortAverage(b) - getScoreSortAverage(a) ||
+        getScoreSortCount(b) - getScoreSortCount(a) ||
+        b.id - a.id
+      );
+    });
+  }
+
+  if (sort === "leastratings") {
+    game = game.sort(
+      (a, b) =>
+        a.ratings.length /
+          (a.ratingCategories.length + ratingCategories.length) -
+        b.ratings.length /
+          (b.ratingCategories.length + ratingCategories.length),
+    );
+  }
 
   if (sort === "danger") {
     // Only non extra games

@@ -10,6 +10,26 @@ import { GameCategory } from "@prisma/client";
 import authUserOptional from "@middleware/authUserOptional";
 import getUserOptional from "@middleware/getUserOptional";
 
+const gameSortCategoryName = (sort?: string | string[]) => {
+  switch (sort) {
+    case "GAMEPLAY":
+      return "RatingCategory.Gameplay.Title";
+    case "AUDIO":
+      return "RatingCategory.Audio.Title";
+    case "GRAPHICS":
+      return "RatingCategory.Graphics.Title";
+    case "CREATIVITY":
+      return "RatingCategory.Creativity.Title";
+    case "EMOTIONALDELIVERY":
+      return "RatingCategory.Emotional.Title";
+    case "THEME":
+      return "RatingCategory.Theme.Title";
+    case "OVERALL":
+    default:
+      return "RatingCategory.Overall.Title";
+  }
+};
+
 /**
  * Route to get the results
  */
@@ -117,7 +137,7 @@ router.get(
         },
       });
 
-      let filteredTracks = tracks
+      const computedTracks = tracks
         .map((track) => {
           const categoryAverages = trackCategories.map((category) => {
             const categoryRatings = track.ratings.filter(
@@ -174,6 +194,9 @@ router.get(
             }, 0),
           };
         })
+        .filter((track) => track.game.category !== "EXTRA");
+
+      const qualifiedTracks = computedTracks
         .filter((track) => {
           const overall = track.categoryAverages.find(
             (avg) => avg.categoryName === "Overall",
@@ -186,9 +209,9 @@ router.get(
         })
         .filter((track) => track.ratingsCount >= 4.99);
 
-      filteredTracks.forEach((track) => {
+      qualifiedTracks.forEach((track) => {
         track.categoryAverages.forEach((category) => {
-          const rankedTracks = filteredTracks
+          const rankedTracks = qualifiedTracks
             .map((candidate) => ({
               trackId: candidate.id,
               score:
@@ -205,7 +228,7 @@ router.get(
         });
       });
 
-      filteredTracks.sort((a, b) => {
+      qualifiedTracks.sort((a, b) => {
         const aOverall =
           a.categoryAverages.find((avg) => avg.categoryName === "Overall")
             ?.averageScore ?? 0;
@@ -215,7 +238,7 @@ router.get(
         return bOverall - aOverall;
       });
 
-      return res.json({ data: filteredTracks });
+      return res.json({ data: qualifiedTracks });
     }
 
     let where = {
@@ -284,7 +307,7 @@ router.get(
       },
     });
 
-    let filteredGames = games
+    const computedGames = games
       .map((game) => {
         let categories = [...game.ratingCategories, ...ratingCategories];
         if (contentType == "MAJORITYCONTENT" && game.category == "REGULAR") {
@@ -296,21 +319,6 @@ router.get(
                 .includes(category.id)
           );
         }
-        categories = categories.filter(
-          (category) =>
-            game.ratings
-              .filter((rating) =>
-                categories
-                  .map((ratingCategory) => ratingCategory.id)
-                  .includes(rating.categoryId)
-              )
-              .filter(
-                (rating) =>
-                  rating.categoryId === category.id &&
-                  rating.user.teams.filter((team) => team.game?.published)
-                    .length > 0
-              ).length >= 5
-        );
         const categoryIds = categories.map(
           (ratingCategory) => ratingCategory.id
         );
@@ -358,7 +366,9 @@ router.get(
             return totalRatings + userRatingCount;
           }, 0),
         };
-      })
+      });
+
+    const qualifiedGames = computedGames
       .filter((game) => {
         const overallCategory = game.categoryAverages.find(
           (avg) => avg.categoryName === "RatingCategory.Overall.Title"
@@ -367,10 +377,10 @@ router.get(
       })
       .filter((game) => game.ratingsCount >= 4.99);
 
-    filteredGames.forEach((game) => {
+    qualifiedGames.forEach((game) => {
       game.categoryAverages.forEach((category) => {
         // Rank games within each category by averageScore
-        const rankedGamesInCategory = filteredGames
+        const rankedGamesInCategory = qualifiedGames
           .map((g) => {
             const categoryAvg = g.categoryAverages.find(
               (cat) => cat.categoryId === category.categoryId
@@ -390,65 +400,31 @@ router.get(
       });
     });
 
-    filteredGames.sort((a, b) => {
+    const sortCategoryName = gameSortCategoryName(sort);
+
+    qualifiedGames.forEach((game) => {
+      game.categoryAverages = game.categoryAverages.filter(
+        (category) => category.ratingCount >= 5,
+      );
+    });
+
+    qualifiedGames.sort((a, b) => {
       const aOverall =
         a.categoryAverages.find(
-          (avg) =>
-            avg.categoryName ===
-            (sort == "OVERALL"
-              ? "RatingCategory.Overall.Title"
-              : sort == "GAMEPLAY"
-              ? "RatingCategory.Gameplay.Title"
-              : sort == "AUDIO"
-              ? "RatingCategory.Audio.Title"
-              : sort == "GRAPHICS"
-              ? "RatingCategory.Graphics.Title"
-              : sort == "CREATIVITY"
-              ? "RatingCategory.Creativity.Title"
-              : sort == "EMOTIONALDELIVERY"
-              ? "RatingCategory.Emotional.Title"
-              : "RatingCategory.Theme.Title")
+          (avg) => avg.categoryName === sortCategoryName
         )?.averageScore || 0;
 
       const bOverall =
         b.categoryAverages.find(
-          (avg) =>
-            avg.categoryName ===
-            (sort == "OVERALL"
-              ? "RatingCategory.Overall.Title"
-              : sort == "GAMEPLAY"
-              ? "RatingCategory.Gameplay.Title"
-              : sort == "AUDIO"
-              ? "RatingCategory.Audio.Title"
-              : sort == "GRAPHICS"
-              ? "RatingCategory.Graphics.Title"
-              : sort == "CREATIVITY"
-              ? "RatingCategory.Creativity.Title"
-              : sort == "EMOTIONALDELIVERY"
-              ? "RatingCategory.Emotional.Title"
-              : "RatingCategory.Theme.Title")
+          (avg) => avg.categoryName === sortCategoryName
         )?.averageScore || 0;
 
       return bOverall - aOverall;
     });
 
-    filteredGames = filteredGames.filter((game) => {
+    const filteredGames = qualifiedGames.filter((game) => {
       const overallCategory = game.categoryAverages.find(
-        (avg) =>
-          avg.categoryName ===
-          (sort == "OVERALL"
-            ? "RatingCategory.Overall.Title"
-            : sort == "GAMEPLAY"
-            ? "RatingCategory.Gameplay.Title"
-            : sort == "AUDIO"
-            ? "RatingCategory.Audio.Title"
-            : sort == "GRAPHICS"
-            ? "RatingCategory.Graphics.Title"
-            : sort == "CREATIVITY"
-            ? "RatingCategory.Creativity.Title"
-            : sort == "EMOTIONALDELIVERY"
-            ? "RatingCategory.Emotional.Title"
-            : "RatingCategory.Theme.Title")
+        (avg) => avg.categoryName === sortCategoryName
       );
       return overallCategory && overallCategory.ratingCount >= 5;
     });

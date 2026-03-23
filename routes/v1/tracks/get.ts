@@ -12,6 +12,8 @@ import {
 } from "@helper/recommendations";
 
 const router = express.Router();
+const SCORE_SORT_RATING_GOAL = 5;
+const SCORE_SORT_MIDPOINT = 6;
 
 router.get("/", async (req, res) => {
   try {
@@ -40,6 +42,7 @@ router.get("/", async (req, res) => {
       case "random":
       case "leastratings":
       case "danger":
+      case "score":
       case "ratingbalance":
       case "karma":
       case "recommended":
@@ -121,6 +124,12 @@ router.get("/", async (req, res) => {
         },
         ratings: {
           include: {
+            category: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
             user: {
               select: {
                 teams: {
@@ -169,7 +178,6 @@ router.get("/", async (req, res) => {
         always: true,
       },
     });
-
     const categoryCount = Math.max(trackCategories.length, 1);
     const isAllowedRaterInJam = (
       rating: (typeof tracks)[number]["ratings"][number],
@@ -187,6 +195,48 @@ router.get("/", async (req, res) => {
 
     if (sort === "random") {
       tracks = tracks.sort(() => Math.random() - 0.5);
+    }
+
+    if (sort === "score") {
+      const getOverallRatings = (track: (typeof tracks)[number]) =>
+        track.ratings.filter((rating) => {
+          const numericValue = Number(rating.value);
+          return (
+            rating.category?.name === "Overall" &&
+            Number.isFinite(numericValue) &&
+            isAllowedRaterInJam(rating, track.game.jamId)
+          );
+        });
+
+      const getScoreSortAverage = (track: (typeof tracks)[number]) => {
+        const overallRatings = getOverallRatings(track);
+        if (overallRatings.length === 0) return SCORE_SORT_MIDPOINT;
+
+        return (
+          overallRatings.reduce((sum, rating) => sum + Number(rating.value), 0) /
+          overallRatings.length
+        );
+      };
+
+      const getScoreSortAdjusted = (track: (typeof tracks)[number]) => {
+        const count = getOverallRatings(track).length;
+        const average = getScoreSortAverage(track);
+        const weight = Math.min(count, SCORE_SORT_RATING_GOAL) / SCORE_SORT_RATING_GOAL;
+
+        return SCORE_SORT_MIDPOINT + (average - SCORE_SORT_MIDPOINT) * weight;
+      };
+
+      const getScoreSortCount = (track: (typeof tracks)[number]) =>
+        getOverallRatings(track).length;
+
+      tracks = tracks.sort((a, b) => {
+        return (
+          getScoreSortAdjusted(b) - getScoreSortAdjusted(a) ||
+          getScoreSortAverage(b) - getScoreSortAverage(a) ||
+          getScoreSortCount(b) - getScoreSortCount(a) ||
+          b.id - a.id
+        );
+      });
     }
 
     if (sort === "leastratings") {
