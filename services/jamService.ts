@@ -1,9 +1,6 @@
 import db from "@helper/db";
 
 export const getCurrentActiveJam = async () => {
-  const POST_JAM_REFINEMENT_HOURS = 14 * 24;
-  const POST_JAM_RATING_HOURS = 14 * 24;
-
   const jams = await db.jam.findMany({
     where: { isActive: true },
     include: {
@@ -31,6 +28,9 @@ export const getCurrentActiveJam = async () => {
 
   let i = 0;
   for (const jam of jams) {
+    const postJamRefinementHours = jam.postJamRefinementHours ?? 14 * 24;
+    const postJamRatingHours = jam.postJamRatingHours ?? 14 * 24;
+
     // Convert jam.startTime to UTC if it isn't already
     const startTimeUTC = new Date(jam.startTime).toISOString();
 
@@ -68,12 +68,12 @@ export const getCurrentActiveJam = async () => {
     ).toISOString();
 
     const postJamRefinementEnd = new Date(
-      new Date(ratingEnd).getTime() + POST_JAM_REFINEMENT_HOURS * 60 * 60 * 1000
+      new Date(ratingEnd).getTime() + postJamRefinementHours * 60 * 60 * 1000
     ).toISOString();
 
     const postJamRatingEnd = new Date(
       new Date(postJamRefinementEnd).getTime() +
-        POST_JAM_RATING_HOURS * 60 * 60 * 1000
+        postJamRatingHours * 60 * 60 * 1000
     ).toISOString();
 
     // console.log("Phase times (UTC):");
