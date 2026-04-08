@@ -19,7 +19,11 @@ router.get(
     res.locals.jam && logger.info(`Jam with id ${res.locals.jam.id} fetched`);
     res.send({
       message: "Jam fetched",
-      data: { jam: res.locals.jam, phase: res.locals.jamPhase },
+      data: {
+        jam: res.locals.jam,
+        nextJam: res.locals.nextJam ?? null,
+        phase: res.locals.jamPhase,
+      },
     });
   }
 );

@@ -28,7 +28,7 @@ router.get(
 
     // Get current active jam
     const activeJam = await getCurrentActiveJam();
-    if (!activeJam || !activeJam.futureJam) {
+    if (!activeJam || !activeJam.jam) {
       return res.status(404).send({ message: "No active jam found." });
     }
 
@@ -37,7 +37,7 @@ router.get(
       const suggestions = await db.themeSuggestion.findMany({
         where: {
           userId: user.id,
-          jamId: activeJam.futureJam.id,
+          jamId: activeJam.jam.id,
         },
       });
 
@@ -118,23 +118,23 @@ router.post(
     // Get the current active jam
     const activeJam = await getCurrentActiveJam();
 
-    if (!activeJam || !activeJam.futureJam) {
+    if (!activeJam || !activeJam.jam) {
       return res.status(404).send("No active jam found.");
     }
 
-    if (activeJam && activeJam.futureJam && activeJam.phase != "Suggestion") {
+    if (activeJam && activeJam.jam && activeJam.phase != "Suggestion") {
       return res.status(404).send("It's not suggestion phase.");
     }
 
     // Check if themePerUser is set and enforce the limit
-    const themeLimit = activeJam.futureJam.themePerUser || Infinity; // Default to no limit if themePerUser is not set
+    const themeLimit = activeJam.jam.themePerUser || Infinity; // Default to no limit if themePerUser is not set
 
     try {
       // Count existing suggestions by the user for this jam
       const userSuggestionsCount = await db.themeSuggestion.count({
         where: {
           userId: user.id,
-          jamId: activeJam.futureJam.id,
+          jamId: activeJam.jam.id,
         },
       });
 
@@ -149,7 +149,7 @@ router.post(
         data: {
           suggestion: suggestionText,
           userId: user.id,
-          jamId: activeJam.futureJam.id,
+          jamId: activeJam.jam.id,
           description: description,
         },
       });
@@ -313,7 +313,7 @@ router.get(
     }
 
     const activeJam = await getCurrentActiveJam();
-    if (!activeJam || !activeJam.futureJam) {
+    if (!activeJam || !activeJam.jam) {
       return res.status(404).send("No active jam found.");
     }
 
@@ -321,7 +321,7 @@ router.get(
       const votes = await db.themeVote.findMany({
         where: {
           userId: user.id,
-          jamId: activeJam.futureJam.id,
+          jamId: activeJam.jam.id,
         },
         select: {
           themeSuggestionId: true,
@@ -365,7 +365,7 @@ router.post(
 
     // Get the current active jam
     const activeJam = await getCurrentActiveJam();
-    if (!activeJam || !activeJam.futureJam) {
+    if (!activeJam || !activeJam.jam) {
       return res.status(404).send("No active jam found.");
     }
 
@@ -374,7 +374,7 @@ router.post(
       let existingVote = await db.themeVote.findFirst({
         where: {
           userId: user.id,
-          jamId: activeJam.futureJam.id,
+          jamId: activeJam.jam.id,
           themeSuggestionId: suggestionId,
         },
       });
@@ -407,7 +407,7 @@ router.post(
           data: {
             votingScore,
             userId: user.id,
-            jamId: activeJam.futureJam.id,
+            jamId: activeJam.jam.id,
             themeSuggestionId: suggestionId,
           },
         });

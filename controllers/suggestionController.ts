@@ -6,13 +6,13 @@ export const getSuggestions = async (req: Request, res: Response) => {
   try {
     // Get the current active jam
     const activeJam = await getCurrentActiveJam();
-    if (!activeJam || !activeJam.futureJam) {
+    if (!activeJam || !activeJam.jam) {
       return res.status(404).json({ message: "No active jam found" });
     }
 
     // Fetch all suggestions for the current jam
     const suggestions = await db.themeSuggestion.findMany({
-      where: { jamId: activeJam.futureJam.id },
+      where: { jamId: activeJam.jam.id },
     });
 
     return res.json(suggestions);
@@ -33,7 +33,7 @@ export const postSuggestion = async (req: Request, res: Response) => {
 
     // Get the current active jam
     const activeJam = await getCurrentActiveJam();
-    if (!activeJam || !activeJam.futureJam) {
+    if (!activeJam || !activeJam.jam) {
       return res.status(404).json({ message: "No active jam found" });
     }
 
@@ -43,7 +43,7 @@ export const postSuggestion = async (req: Request, res: Response) => {
         suggestion: suggestionText,
         description: description,
         userId,
-        jamId: activeJam.futureJam.id,
+        jamId: activeJam.jam.id,
       },
     });
 

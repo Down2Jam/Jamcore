@@ -19,15 +19,22 @@ export const getCurrentActiveJam = async () => {
     },
   });
 
-  // Get current time in UTC
+  const sortedJams = [...jams].sort(
+    (a, b) =>
+      new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+  );
+
   const now = new Date().toISOString();
-  // console.log("Current UTC time:", now);
-  // console.log("Number of active jams:", jams.length);
 
-  let futureJam = null;
+  function getNextJamAfter(jamId: number) {
+    const currentIndex = sortedJams.findIndex((jam) => jam.id === jamId);
+    if (currentIndex < 0) return null;
+    return sortedJams[currentIndex + 1] ?? null;
+  }
 
-  let i = 0;
-  for (const jam of jams) {
+  let upcomingJam = null;
+
+  for (const jam of sortedJams) {
     const postJamRefinementHours = jam.postJamRefinementHours ?? 14 * 24;
     const postJamRatingHours = jam.postJamRatingHours ?? 14 * 24;
 
@@ -86,37 +93,40 @@ export const getCurrentActiveJam = async () => {
     // console.log("End of Rating:", ratingEnd);
     // console.log("=======");
 
-    i++;
-    //console.log(i);
     if (now < postJamRatingEnd) {
-      //console.log("checking  " + jam.id);
-      if (!futureJam || jam.startTime < futureJam.startTime) {
-        //if (futureJam) console.log("from " + futureJam.id);
-        futureJam = jam;
-        //console.log("future jam changed to " + jam.id);
-      } else continue;
+      if (!upcomingJam) {
+        upcomingJam = jam;
+      }
     }
 
     if (now >= startOfSuggestionsTime && now < suggestionEnd)
-      return { phase: "Suggestion", futureJam };
+      return { phase: "Suggestion", jam, nextJam: getNextJamAfter(jam.id) };
     if (now >= suggestionEnd && now < slaughterEnd)
-      return { phase: "Elimination", futureJam };
+      return { phase: "Elimination", jam, nextJam: getNextJamAfter(jam.id) };
     if (now >= slaughterEnd && now < votingEnd)
-      return { phase: "Voting", futureJam };
+      return { phase: "Voting", jam, nextJam: getNextJamAfter(jam.id) };
     if (now >= votingEnd && now < jammingEnd)
-      return { phase: "Jamming", futureJam };
+      return { phase: "Jamming", jam, nextJam: getNextJamAfter(jam.id) };
     if (now >= jammingEnd && now < submissionEnd)
-      return { phase: "Submission", futureJam };
+      return { phase: "Submission", jam, nextJam: getNextJamAfter(jam.id) };
     if (now >= submissionEnd && now < ratingEnd)
-      return { phase: "Rating", futureJam };
+      return { phase: "Rating", jam, nextJam: getNextJamAfter(jam.id) };
     if (now >= ratingEnd && now < postJamRefinementEnd)
-      return { phase: "Post-Jam Refinement", futureJam };
+      return {
+        phase: "Post-Jam Refinement",
+        jam,
+        nextJam: getNextJamAfter(jam.id),
+      };
     if (now >= postJamRefinementEnd && now < postJamRatingEnd)
-      return { phase: "Post-Jam Rating", futureJam };
+      return {
+        phase: "Post-Jam Rating",
+        jam,
+        nextJam: getNextJamAfter(jam.id),
+      };
   }
 
-  if (futureJam) {
-    return { phase: "Upcoming Jam", futureJam };
+  if (upcomingJam) {
+    return { phase: "Upcoming Jam", jam: upcomingJam, nextJam: getNextJamAfter(upcomingJam.id) };
   }
 
   return { phase: "No Active Jams" };
@@ -128,14 +138,14 @@ export const checkJamParticipation = async (req, res, next) => {
   try {
     // Get active jam
     const activeJam = await getCurrentActiveJam();
-    if (!activeJam || !activeJam.futureJam) {
+    if (!activeJam || !activeJam.jam) {
       return res.status(404).send("No active jam found.");
     }
 
     // Check if user has joined this jam
     const hasJoined = await db.jam.findFirst({
       where: {
-        id: activeJam.futureJam.id,
+        id: activeJam.jam.id,
         users: {
           some: {
             slug: username,

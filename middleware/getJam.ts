@@ -21,7 +21,8 @@ async function getJam(
       return;
     }
 
-    res.locals.jam = activeJam.futureJam;
+    res.locals.jam = activeJam.jam;
+    res.locals.nextJam = activeJam.nextJam ?? null;
     res.locals.jamPhase = activeJam.phase;
     next();
     return;

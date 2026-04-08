@@ -8,6 +8,14 @@ const __dirname = path.dirname(__filename);
 
 import games from "./games/index.js";
 import themes from "./themes/index.js";
+import documentationDocumentGet from "./documentation-document/get.js";
+import documentationDocumentPost from "./documentation-document/post.js";
+import documentationDocumentPut from "./documentation-document/put.js";
+import documentationDocumentDelete from "./documentation-document/delete.js";
+import documentationDocumentsGet from "./documentation-documents/get.js";
+import pressKitMediaGet from "./press-kit-media/get.js";
+import pressKitMediaPost from "./press-kit-media/post.js";
+import pressKitMediaDelete from "./press-kit-media/delete.js";
 
 var router = express.Router();
 
@@ -62,6 +70,14 @@ function loadRoutes(dir: string, routePath: string) {
 
 router.use("/games", games);
 router.use("/themes", themes);
+router.use("/documentation-document", documentationDocumentGet);
+router.use("/documentation-document", documentationDocumentPost);
+router.use("/documentation-document", documentationDocumentPut);
+router.use("/documentation-document", documentationDocumentDelete);
+router.use("/documentation-documents", documentationDocumentsGet);
+router.use("/press-kit-media", pressKitMediaGet);
+router.use("/press-kit-media", pressKitMediaPost);
+router.use("/press-kit-media", pressKitMediaDelete);
 
 loadRoutes(__dirname, "");
 

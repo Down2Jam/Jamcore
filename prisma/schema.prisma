@@ -71,6 +71,8 @@ model User {
   recommendedGames      Game[]            @relation(name: "UserRecommendedGames")
   recommendedPosts      Post[]            @relation(name: "UserRecommendedPosts")
   recommendedTracks     Track[]           @relation(name: "UserRecommendedTracks")
+  documentationDocuments DocumentationDocument[]
+  pressKitMedia         PressKitMedia[]
   recommendedGameOverrideIds Int[]        @default([])
   recommendedGameHiddenIds   Int[]        @default([])
   recommendedTrackOverrideIds Int[]       @default([])
@@ -151,6 +153,38 @@ model Post {
   postReactions PostReaction[]
   notifications Notification[] @relation(name: "post")
   recommendedByUsers User[]     @relation(name: "UserRecommendedPosts")
+}
+
+enum DocumentationSection {
+  DOCS
+  PRESS_KIT
+}
+
+model DocumentationDocument {
+  id        Int                  @id @default(autoincrement())
+  slug      String               @unique
+  title     String
+  content   String
+  icon      String               @default("book")
+  order     Int                  @default(0)
+  section   DocumentationSection
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+  editedAt  DateTime?
+
+  author   User @relation(fields: [authorId], references: [id])
+  authorId Int
+}
+
+model PressKitMedia {
+  id        Int      @id @default(autoincrement())
+  image     String
+  altText   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  author   User @relation(fields: [authorId], references: [id])
+  authorId Int
 }
 
 enum ReactionScope {
