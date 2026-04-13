@@ -177,7 +177,9 @@ function buildPostJamBodyFromGame(game: any) {
 
   return {
     ...jamPage,
-    ratingCategories: (jamPage.ratingCategories ?? []).map((entry: any) => entry.id),
+    ratingCategories: (jamPage.ratingCategories ?? []).map(
+      (entry: any) => entry.id,
+    ),
     majRatingCategories: (jamPage.majRatingCategories ?? []).map(
       (entry: any) => entry.id,
     ),
@@ -221,16 +223,14 @@ function buildPostJamBodyFromGame(game: any) {
       license: song.license ?? null,
       allowDownload: Boolean(song.allowDownload),
       allowBackgroundUse: Boolean(song.allowBackgroundUse),
-      allowBackgroundUseAttribution: Boolean(song.allowBackgroundUseAttribution),
+      allowBackgroundUseAttribution: Boolean(
+        song.allowBackgroundUseAttribution,
+      ),
     })),
   };
 }
 
-async function upsertGamePage(
-  gameId: number,
-  version: PageVersion,
-  body: any,
-) {
+async function upsertGamePage(gameId: number, version: PageVersion, body: any) {
   const existingPage = await db.gamePage.findFirst({
     where: {
       gameId,
@@ -413,10 +413,14 @@ async function upsertGamePage(
       });
     }
   };
-  
+
   const relationData = {
-    ratingCategories: (body.ratingCategories ?? []).map((id: number) => ({ id })),
-    majRatingCategories: (body.majRatingCategories ?? []).map((id: number) => ({ id })),
+    ratingCategories: (body.ratingCategories ?? []).map((id: number) => ({
+      id,
+    })),
+    majRatingCategories: (body.majRatingCategories ?? []).map((id: number) => ({
+      id,
+    })),
     flags: (body.flags ?? []).map((id: number) => ({ id })),
     tags: (body.tags ?? []).map((id: number) => ({ id })),
   };
@@ -688,7 +692,9 @@ async function buildVersionScores({
   });
 
   const allCategories = await db.ratingCategory.findMany();
-  const categoriesById = new Map(allCategories.map((entry) => [entry.id, entry]));
+  const categoriesById = new Map(
+    allCategories.map((entry) => [entry.id, entry]),
+  );
   const alwaysCategories = allCategories.filter((entry) => entry.always);
 
   const filteredGames = games.map((game2) => {
@@ -785,9 +791,7 @@ async function buildVersionScores({
             ratedGamePage?.ratingCategories?.length ??
             ratedGamePage?.game?.ratingCategories?.length ??
             0;
-          return (
-            count + 1 / (ratedCategoryCount + alwaysCategories.length)
-          );
+          return count + 1 / (ratedCategoryCount + alwaysCategories.length);
         }, 0);
         return totalRatings + userRatingCount;
       }, 0),
@@ -983,8 +987,7 @@ router.put("/:gameSlug", getJam, async function (req, res) {
     }
 
     const existingPostJamPage = getPostJamPage(existingGame);
-    const currentVersionCategory =
-      existingGame.category;
+    const currentVersionCategory = existingGame.category;
 
     if (
       targetPageVersion === PageVersion.JAM &&
@@ -1629,10 +1632,7 @@ router.get(
           gameId: rating.gamePage?.gameId ?? null,
           gamePageId: rating.gamePage?.id ?? null,
           pageVersion: getRatingPageVersion(rating),
-          game:
-            rating.gamePage?.game ??
-            rating.game ??
-            null,
+          game: rating.gamePage?.game ?? rating.game ?? null,
         })),
       })),
     };
@@ -1909,7 +1909,8 @@ router.get("/", async function (req: Request, res: Response) {
     const getScoreSortAdjusted = (g: (typeof game)[number]) => {
       const count = getOverallRatings(g).length;
       const average = getScoreSortAverage(g);
-      const weight = Math.min(count, SCORE_SORT_RATING_GOAL) / SCORE_SORT_RATING_GOAL;
+      const weight =
+        Math.min(count, SCORE_SORT_RATING_GOAL) / SCORE_SORT_RATING_GOAL;
 
       return SCORE_SORT_MIDPOINT + (average - SCORE_SORT_MIDPOINT) * weight;
     };

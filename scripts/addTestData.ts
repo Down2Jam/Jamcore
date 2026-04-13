@@ -84,7 +84,7 @@ async function main() {
   // Create JAM GamePage
   const rawGamePageJam = await prisma.$queryRaw`
     INSERT INTO "GamePage" ("version", "name", "description", "short", "category", "gameId", "createdAt", "updatedAt")
-    VALUES ('JAM', ${'Test Game (JAM Version)' as any}, ${'Test game during the jam' as any}, ${'Test JAM' as any}, 'REGULAR', ${game.id}, NOW(), NOW())
+    VALUES ('JAM', ${"Test Game (JAM Version)" as any}, ${"Test game during the jam" as any}, ${"Test JAM" as any}, 'REGULAR', ${game.id}, NOW(), NOW())
     RETURNING *
   `;
 
@@ -92,7 +92,7 @@ async function main() {
 
   const postJamGamePage = await prisma.$queryRaw`
     INSERT INTO "GamePage" ("version", "name", "description", "short", "category", "gameId", "createdAt", "updatedAt")
-    VALUES ('POST_JAM', ${'Test Game (Post-JAM Version)' as any}, ${'Test game after the jam' as any}, ${'Test POST_JAM' as any}, 'REGULAR', ${game.id}, NOW(), NOW())
+    VALUES ('POST_JAM', ${"Test Game (Post-JAM Version)" as any}, ${"Test game after the jam" as any}, ${"Test POST_JAM" as any}, 'REGULAR', ${game.id}, NOW(), NOW())
     RETURNING *
   `;
 
@@ -103,7 +103,7 @@ async function main() {
   // Create test tracks
   const track1 = await prisma.$queryRaw`
     INSERT INTO "GamePageTrack" ("slug", "name", "url", "license", "composerId", "gamePageId", "createdAt", "updatedAt")
-    VALUES (${'background-music' as any}, ${'Background Music' as any}, ${'https://example.com/music1.mp3' as any}, ${'CC0' as any}, ${user3.id}, ${jamGamePageId}, NOW(), NOW())
+    VALUES (${"background-music" as any}, ${"Background Music" as any}, ${"https://example.com/music1.mp3" as any}, ${"CC0" as any}, ${user3.id}, ${jamGamePageId}, NOW(), NOW())
     RETURNING *
   `;
 
@@ -111,7 +111,7 @@ async function main() {
 
   const track2 = await prisma.$queryRaw`
     INSERT INTO "GamePageTrack" ("slug", "name", "url", "license", "composerId", "gamePageId", "createdAt", "updatedAt")
-    VALUES (${'menu-theme' as any}, ${'Menu Theme' as any}, ${'https://example.com/music2.mp3' as any}, ${'CC-BY' as any}, ${user3.id}, ${jamGamePageId}, NOW(), NOW())
+    VALUES (${"menu-theme" as any}, ${"Menu Theme" as any}, ${"https://example.com/music2.mp3" as any}, ${"CC-BY" as any}, ${user3.id}, ${jamGamePageId}, NOW(), NOW())
     RETURNING *
   `;
 
