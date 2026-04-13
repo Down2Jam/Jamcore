@@ -29,8 +29,11 @@ router.get("/", rateLimit(), async (_req, res) => {
           select: {
             id: true,
             slug: true,
-            name: true,
-            thumbnail: true,
+            pages: {
+              where: { version: "JAM" },
+              select: { name: true, thumbnail: true },
+              take: 1,
+            },
           },
         },
         uploaderUser: {
@@ -44,7 +47,19 @@ router.get("/", rateLimit(), async (_req, res) => {
       },
     });
 
-    res.json({ message: "Emojis fetched", data: emojis });
+    res.json({
+      message: "Emojis fetched",
+      data: emojis.map((emoji) => ({
+        ...emoji,
+        ownerGame: emoji.ownerGame
+          ? {
+              ...emoji.ownerGame,
+              name: emoji.ownerGame.pages?.[0]?.name ?? emoji.ownerGame.slug,
+              thumbnail: emoji.ownerGame.pages?.[0]?.thumbnail ?? null,
+            }
+          : null,
+      })),
+    });
   } catch (error) {
     console.error("Failed to fetch emojis", error);
     res.status(500).json({ message: "Failed to fetch emojis" });

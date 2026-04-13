@@ -93,11 +93,23 @@ router.get(
       (team) => team.game?.published && team.game.jamId === jamId,
     )?.game;
 
-    const visibilityRows = ownerGame
+    const jamPage = ownerGame
+      ? await db.gamePage.findFirst({
+          where: {
+            gameId: ownerGame.id,
+            version: "JAM",
+          },
+          select: {
+            id: true,
+          },
+        })
+      : null;
+
+    const visibilityRows = jamPage
       ? await db.data.findMany({
           where: {
             userId: targetUser.id,
-            gameId: ownerGame.id,
+            gamePageId: jamPage.id,
           },
           select: {
             data: true,

@@ -15,15 +15,19 @@ router.post("/", authUser, getUser, async (req, res) => {
   try {
     const { trackId, categoryId, value } = req.body;
 
-    const track = await db.track.findUnique({
+    const track = await db.gamePageTrack.findUnique({
       where: { id: Number(trackId) },
       include: {
-        game: {
+        gamePage: {
           include: {
-            team: {
+            game: {
               include: {
-                users: {
-                  select: { id: true },
+                team: {
+                  include: {
+                    users: {
+                      select: { id: true },
+                    },
+                  },
                 },
               },
             },
@@ -32,7 +36,10 @@ router.post("/", authUser, getUser, async (req, res) => {
       },
     });
 
-    if (!track || !track.game?.published) {
+    if (
+      !track ||
+      !track.gamePage?.game?.published
+    ) {
       return res.status(404).json({ message: "Track not found" });
     }
 
@@ -44,7 +51,7 @@ router.post("/", authUser, getUser, async (req, res) => {
       return res.status(404).json({ message: "Rating category not found" });
     }
 
-    const isOwnTeam = track.game.team.users.some(
+    const isOwnTeam = track.gamePage.game.team.users.some(
       (member) => member.id === res.locals.user.id,
     );
     if (isOwnTeam) {

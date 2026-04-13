@@ -27,10 +27,11 @@ router.post(
       postId = null,
       commentId = null,
       gameId = null,
+      gamePageId = null,
       trackId = null,
     } = req.body;
 
-    if (!content || !(postId || commentId || gameId || trackId)) {
+    if (!content || !(postId || commentId || gameId || gamePageId || trackId)) {
       res.status(400);
       res.send();
       return;
@@ -38,6 +39,7 @@ router.post(
 
     let post;
     let game;
+    let gamePage;
     let track;
     let parentComment;
 
@@ -72,7 +74,28 @@ router.post(
             select: {
               id: true,
               slug: true,
-              name: true,
+              pages: {
+                where: { version: "JAM" },
+                select: { name: true },
+                take: 1,
+              },
+            },
+          },
+          gamePage: {
+            select: {
+              id: true,
+              version: true,
+              game: {
+                select: {
+                  id: true,
+                  slug: true,
+                  pages: {
+                    where: { version: "JAM" },
+                    select: { name: true },
+                    take: 1,
+                  },
+                },
+              },
             },
           },
           track: {
@@ -102,6 +125,11 @@ router.post(
           id: gameId,
         },
         include: {
+          pages: {
+            where: { version: "JAM" },
+            select: { name: true },
+            take: 1,
+          },
           team: {
             include: {
               users: true,
@@ -117,17 +145,51 @@ router.post(
       }
     }
 
-    if (trackId) {
-      track = await db.track.findUnique({
+    if (gamePageId) {
+      gamePage = await db.gamePage.findUnique({
         where: {
-          id: trackId,
+          id: gamePageId,
         },
         include: {
           game: {
             include: {
+              pages: {
+                where: { version: "JAM" },
+                select: { name: true },
+                take: 1,
+              },
               team: {
                 include: {
                   users: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      if (!gamePage) {
+        res.status(401);
+        res.send();
+        return;
+      }
+    }
+
+    if (trackId) {
+      track = await db.gamePageTrack.findUnique({
+        where: {
+          id: trackId,
+        },
+        include: {
+          gamePage: {
+            include: {
+              game: {
+                include: {
+                  team: {
+                    include: {
+                      users: true,
+                    },
+                  },
                 },
               },
             },
@@ -149,6 +211,7 @@ router.post(
         postId: postId,
         commentId: commentId,
         gameId: gameId,
+        gamePageId: gamePageId,
         trackId: trackId,
       },
     });
@@ -166,7 +229,7 @@ router.post(
     }
 
     const resolvedContext =
-      parentComment && !post && !game && !track
+      parentComment && !post && !game && !gamePage && !track
         ? await resolveCommentMentionContext(parentComment.id)
         : {};
 
@@ -180,7 +243,11 @@ router.post(
           recipientId: parentComment.authorId,
           actorId: res.locals.user.id,
           postId: parentComment.postId ?? resolvedContext.postId ?? null,
-          gameId: parentComment.gameId ?? resolvedContext.gameId ?? null,
+          gameId:
+            parentComment.gameId ??
+            parentComment.gamePage?.game?.id ??
+            resolvedContext.gameId ??
+            null,
           trackId: parentComment.trackId ?? resolvedContext.trackId ?? null,
           commentId: newcomment.id,
         },
@@ -202,8 +269,23 @@ router.post(
       });
     }
 
+    if (gamePage) {
+      gamePage.game.team.users.forEach(async (member) => {
+        if (member.id === res.locals.user.id) return;
+        await db.notification.create({
+          data: {
+            type: "GAME_COMMENT",
+            recipientId: member.id,
+            actorId: res.locals.user.id,
+            gameId: gamePage.game.id,
+            commentId: newcomment.id,
+          },
+        });
+      });
+    }
+
     if (track) {
-      track.game.team.users.forEach(async (member) => {
+      track.gamePage.game.team.users.forEach(async (member) => {
         if (member.id === res.locals.user.id) return;
         await db.notification.create({
           data: {
@@ -230,11 +312,25 @@ router.post(
         post?.slug ?? parentComment?.post?.slug ?? resolvedContext.postSlug,
       postTitle:
         post?.title ?? parentComment?.post?.title ?? resolvedContext.postTitle,
-      gameId: game?.id ?? parentComment?.game?.id ?? resolvedContext.gameId,
+      gameId:
+        game?.id ??
+        gamePage?.game?.id ??
+        parentComment?.game?.id ??
+        parentComment?.gamePage?.game?.id ??
+        resolvedContext.gameId,
       gameSlug:
-        game?.slug ?? parentComment?.game?.slug ?? resolvedContext.gameSlug,
+        game?.slug ??
+        gamePage?.game?.slug ??
+        parentComment?.game?.slug ??
+        parentComment?.gamePage?.game?.slug ??
+        resolvedContext.gameSlug,
       gameName:
-        game?.name ?? parentComment?.game?.name ?? resolvedContext.gameName,
+        game?.pages?.[0]?.name ??
+        gamePage?.name ??
+        gamePage?.game?.pages?.[0]?.name ??
+        parentComment?.game?.pages?.[0]?.name ??
+        parentComment?.gamePage?.game?.pages?.[0]?.name ??
+        resolvedContext.gameName,
       trackId:
         track?.id ?? parentComment?.track?.id ?? resolvedContext.trackId,
       trackSlug:

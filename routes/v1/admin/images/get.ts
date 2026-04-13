@@ -55,7 +55,7 @@ router.get(
 
     const [
       users,
-      games,
+      gamePages,
       achievements,
       reactions,
       events,
@@ -72,7 +72,7 @@ router.get(
           profileBackground: true,
         },
       }),
-      db.game.findMany({
+      db.gamePage.findMany({
         select: {
           thumbnail: true,
           banner: true,
@@ -96,10 +96,10 @@ router.get(
         user.profileBackground,
       ])
     );
-    games.forEach((game) => {
-      trackAll([game.thumbnail, game.banner]);
-      if (Array.isArray(game.screenshots)) {
-        trackAll(game.screenshots);
+    gamePages.forEach((page) => {
+      trackAll([page.thumbnail, page.banner]);
+      if (Array.isArray(page.screenshots)) {
+        trackAll(page.screenshots);
       }
     });
     achievements.forEach((ach) => track(ach.image));

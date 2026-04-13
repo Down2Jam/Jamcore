@@ -71,16 +71,6 @@ router.delete(
           }
         }
 
-        if (res.locals.targetTeam.game.tracks) {
-          for (const track of res.locals.targetTeam.game.tracks) {
-            await db.track.delete({
-              where: {
-                id: track.id,
-              },
-            });
-          }
-        }
-
         if (res.locals.targetTeam.game.ghosts) {
           for (const ghost of res.locals.targetTeam.game.ghosts) {
             await db.ghost.delete({

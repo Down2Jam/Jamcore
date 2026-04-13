@@ -214,6 +214,7 @@ export async function resolveCommentMentionContext(commentId: number) {
         commentId: true,
         postId: true,
         gameId: true,
+        gamePageId: true,
         trackId: true,
         post: {
           select: {
@@ -226,7 +227,36 @@ export async function resolveCommentMentionContext(commentId: number) {
           select: {
             id: true,
             slug: true,
-            name: true,
+            pages: {
+              where: {
+                version: "JAM",
+              },
+              select: {
+                name: true,
+              },
+              take: 1,
+            },
+          },
+        },
+        gamePage: {
+          select: {
+            id: true,
+            version: true,
+            game: {
+              select: {
+                id: true,
+                slug: true,
+                pages: {
+                  where: {
+                    version: "JAM",
+                  },
+                  select: {
+                    name: true,
+                  },
+                  take: 1,
+                },
+              },
+            },
           },
         },
         track: {
@@ -253,7 +283,16 @@ export async function resolveCommentMentionContext(commentId: number) {
       return {
         gameId: comment.game.id,
         gameSlug: comment.game.slug,
-        gameName: comment.game.name,
+        gameName: comment.game.pages?.[0]?.name ?? comment.game.slug,
+      };
+    }
+
+    if (comment.gamePage?.game) {
+      return {
+        gameId: comment.gamePage.game.id,
+        gameSlug: comment.gamePage.game.slug,
+        gameName:
+          comment.gamePage.game.pages?.[0]?.name ?? comment.gamePage.game.slug,
       };
     }
 

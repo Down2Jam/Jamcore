@@ -10,15 +10,30 @@ import {
   applyRecommendationOverrides,
   rankRecommendationCandidates,
 } from "@helper/recommendations";
+import { materializeTrackPage } from "@helper/trackPages";
+import { PageVersion } from "@prisma/client";
 
 const router = express.Router();
 const SCORE_SORT_RATING_GOAL = 5;
 const SCORE_SORT_MIDPOINT = 6;
 
+type ListingPageVersion = PageVersion | "ALL";
+
+function parseListingPageVersion(value: unknown): ListingPageVersion {
+  return value === "POST_JAM" || value === "ALL" ? value : PageVersion.JAM;
+}
+
+function parseRequestedPageVersion(value: unknown): PageVersion | undefined {
+  if (value === "POST_JAM") return PageVersion.POST_JAM;
+  if (value === "JAM") return PageVersion.JAM;
+  return undefined;
+}
+
 router.get("/", async (req, res) => {
   try {
     const jamIdParam = (req.query.jamId as string | undefined)?.trim();
     const sort = (req.query.sort as string | undefined)?.trim() ?? "random";
+    const listingPageVersion = parseListingPageVersion(req.query.pageVersion);
 
     if (
       jamIdParam &&
@@ -29,11 +44,19 @@ router.get("/", async (req, res) => {
     }
 
     const where = {
-      game: {
-        published: true,
-        ...(jamIdParam && jamIdParam !== "all"
-          ? { jamId: Number(jamIdParam) }
-          : {}),
+      gamePage: {
+        version:
+          listingPageVersion === "ALL"
+            ? {
+                in: [PageVersion.JAM, PageVersion.POST_JAM],
+              }
+            : listingPageVersion,
+        game: {
+          published: true,
+          ...(jamIdParam && jamIdParam !== "all"
+            ? { jamId: Number(jamIdParam) }
+            : {}),
+        },
       },
     };
 
@@ -59,45 +82,92 @@ router.get("/", async (req, res) => {
         break;
     }
 
-    let tracks = await db.track.findMany({
+    let tracks = await db.gamePageTrack.findMany({
       where,
       include: {
         composer: true,
-        game: {
+        gamePage: {
           include: {
-            team: {
-              select: {
-                users: {
+            game: {
+              include: {
+                team: {
                   select: {
-                    id: true,
-                    comments: {
+                    users: {
                       select: {
-                        trackId: true,
-                        likes: {
+                        id: true,
+                        comments: {
                           select: {
-                            userId: true,
-                            id: true,
+                            trackId: true,
+                            likes: {
+                              select: {
+                                userId: true,
+                                id: true,
+                              },
+                            },
+                            track: {
+                              select: {
+                                gamePage: {
+                                  select: {
+                                    game: {
+                                      select: {
+                                        jamId: true,
+                                      },
+                                    },
+                                  },
+                                },
+                              },
+                            },
                           },
                         },
-                        track: {
+                        trackRatings: {
                           select: {
-                            game: {
+                            trackId: true,
+                            track: {
                               select: {
-                                jamId: true,
+                                gamePage: {
+                                  select: {
+                                    game: {
+                                      select: {
+                                        jamId: true,
+                                      },
+                                    },
+                                  },
+                                },
                               },
                             },
                           },
                         },
                       },
                     },
-                    trackRatings: {
-                      select: {
-                        trackId: true,
-                        track: {
-                          select: {
-                            game: {
+                  },
+                },
+                jam: true,
+                pages: {
+                  where: {
+                    version: {
+                      in: [PageVersion.JAM, PageVersion.POST_JAM],
+                    },
+                  },
+                  include: {
+                    tracks: {
+                      include: {
+                        composer: true,
+                        tags: {
+                          include: {
+                            category: true,
+                          },
+                        },
+                        flags: true,
+                        links: true,
+                        credits: {
+                          include: {
+                            user: {
                               select: {
-                                jamId: true,
+                                id: true,
+                                slug: true,
+                                name: true,
+                                profilePicture: true,
+                                short: true,
                               },
                             },
                           },
@@ -172,6 +242,8 @@ router.get("/", async (req, res) => {
     if (!tracks) {
       return res.status(404).json({ message: "No tracks found" });
     }
+
+    tracks = tracks.map((track: any) => materializeTrackPage(track));
 
     const trackCategories = await db.trackRatingCategory.findMany({
       where: {
@@ -279,7 +351,7 @@ router.get("/", async (req, res) => {
             user.trackRatings.reduce(
               (inner, rating) =>
                 inner +
-                (rating.track?.game.jamId === track.game.jamId
+                (rating.track?.gamePage?.game?.jamId === track.game.jamId
                   ? 1 / categoryCount
                   : 0),
               0,
@@ -308,13 +380,15 @@ router.get("/", async (req, res) => {
         const overallCategoryId =
           trackCategories.find((category) => category.name === "Overall")?.id ??
           null;
-        const recommendedPointsByTrackId = new Map<number, number>();
+        const recommendationKeyFor = (track: (typeof tracks)[number]) =>
+          `${track.sourceTrackId ?? track.id}:${track.pageVersion ?? PageVersion.JAM}`;
+        const recommendedPointsByTrackId = new Map<string, number>();
 
         if (overallCategoryId) {
           const ratingsByUser = new Map<
             number,
             Array<{
-              trackId: number;
+              trackId: string;
               value: number;
               tieBreakerValue: number;
               updatedAt: number;
@@ -353,7 +427,7 @@ router.get("/", async (req, res) => {
               );
               const average = averagesForUser?.get(candidate.id);
               existing.push({
-                trackId: candidate.id,
+                trackId: recommendationKeyFor(candidate),
                 value: rating.value,
                 tieBreakerValue: average
                   ? average.total / average.count
@@ -411,7 +485,7 @@ router.get("/", async (req, res) => {
                   (comment) =>
                     comment.trackId &&
                     comment.trackId !== track.id &&
-                    comment.track?.game.jamId === track.game.jamId,
+                    comment.track?.gamePage?.game?.jamId === track.game.jamId,
                 )
                 .reduce(
                   (inner, comment) =>
@@ -434,7 +508,7 @@ router.get("/", async (req, res) => {
         };
 
         const recommendedBoost = (track: (typeof tracks)[number]) => {
-          const points = recommendedPointsByTrackId.get(track.id) ?? 0;
+          const points = recommendedPointsByTrackId.get(recommendationKeyFor(track)) ?? 0;
           if (points <= 0) return 0;
           return recommendationWeight * points ** exponent;
         };
@@ -470,19 +544,46 @@ router.get(
   async (req, res) => {
     try {
       const { trackSlug } = req.params;
-      const track = await db.track.findUnique({
-        where: { slug: trackSlug },
+      const requestedPageVersion = parseRequestedPageVersion(
+        req.query.pageVersion,
+      );
+      const matchingTracks = await db.gamePageTrack.findMany({
+        where: {
+          slug: trackSlug,
+          gamePage: {
+            version: {
+              in: [PageVersion.JAM, PageVersion.POST_JAM],
+            },
+            game: {
+              published: true,
+            },
+          },
+        },
         include: {
           composer: true,
-          game: {
+          gamePage: {
             include: {
-              team: {
+              game: {
                 include: {
-                  users: true,
-                  owner: true,
+                  team: {
+                    include: {
+                      users: true,
+                      owner: true,
+                    },
+                  },
+                  jam: true,
+                  pages: {
+                    where: {
+                      version: {
+                        in: [PageVersion.JAM, PageVersion.POST_JAM],
+                      },
+                    },
+                    include: {
+                      tracks: true,
+                    },
+                  },
                 },
               },
-              jam: true,
             },
           },
           tags: {
@@ -605,9 +706,35 @@ router.get(
         },
       });
 
-      if (!track || !track.game?.published) {
+      const preferredVersions = requestedPageVersion
+        ? [requestedPageVersion]
+        : [PageVersion.POST_JAM, PageVersion.JAM];
+      const track =
+        preferredVersions
+          .map((version) =>
+            matchingTracks.find(
+              (candidate) => candidate.gamePage?.version === version,
+            ),
+          )
+          .find(Boolean) ?? null;
+
+      if (!track || !track.gamePage?.game?.published) {
         return res.status(404).json({ message: "Track not found" });
       }
+
+      const materializedTrack = materializeTrackPage(track);
+      const scorePageVersion = track.gamePage.version;
+      const availablePageVersions = (
+        [PageVersion.JAM, PageVersion.POST_JAM] as const
+      ).filter((version) =>
+        (track.gamePage?.game?.pages ?? []).some(
+          (page) =>
+            page.version === version &&
+            (page.tracks ?? []).some(
+              (candidate) => candidate.slug === track.slug,
+            ),
+        ),
+      );
 
       const visibleComments = mapCommentsForViewer(
         track.comments,
@@ -631,27 +758,39 @@ router.get(
         }
       > = {};
 
-      const jamTracks = await db.track.findMany({
+      const scoreTracks = await db.gamePageTrack.findMany({
         where: {
-          game: {
-            jamId: track.game.jamId,
-            published: true,
+          gamePage: {
+            version: scorePageVersion,
+            game: {
+              jamId: materializedTrack.game.jamId,
+              published: true,
+            },
           },
         },
         include: {
-          game: {
+          gamePage: {
             include: {
-              team: {
-                select: {
-                  users: {
+              game: {
+                include: {
+                  team: {
                     select: {
-                      trackRatings: {
+                      users: {
                         select: {
-                          track: {
+                          trackRatings: {
                             select: {
-                              game: {
+                              track: {
                                 select: {
-                                  jamId: true,
+                                  gamePage: {
+                                    select: {
+                                      version: true,
+                                      game: {
+                                        select: {
+                                          jamId: true,
+                                        },
+                                      },
+                                    },
+                                  },
                                 },
                               },
                             },
@@ -693,7 +832,7 @@ router.get(
         },
       });
 
-      const trackWithScores = jamTracks.map((candidate) => {
+      const trackWithScores = scoreTracks.map((candidate) => {
         const categoryAverages = trackCategories.map((category) => {
           const categoryRatings = candidate.ratings.filter(
             (rating) => rating.categoryId === category.id,
@@ -704,7 +843,7 @@ router.get(
               return (
                 candidateGame &&
                 candidateGame.published &&
-                candidateGame.jamId === track.game.jamId &&
+                candidateGame.jamId === materializedTrack.game.jamId &&
                 candidateGame.category !== "EXTRA"
               );
             }),
@@ -736,16 +875,18 @@ router.get(
         return {
           ...candidate,
           categoryAverages,
-          ratingsCount: candidate.game.team.users.reduce(
-            (totalRatings, user) => {
-              const userRatingCount = user.trackRatings.reduce(
-                (count, rating) =>
-                  count +
-                  (rating.track?.game.jamId === track.game.jamId
-                    ? 1 / trackCategories.length
-                    : 0),
-                0,
-              );
+            ratingsCount: candidate.gamePage.game.team.users.reduce(
+              (totalRatings, user) => {
+                const userRatingCount = user.trackRatings.reduce(
+                  (count, rating) =>
+                    count +
+                    (rating.track?.gamePage?.game?.jamId ===
+                      materializedTrack.game.jamId &&
+                    rating.track?.gamePage?.version === scorePageVersion
+                      ? 1 / trackCategories.length
+                      : 0),
+                  0,
+                );
               return totalRatings + userRatingCount;
             },
             0,
@@ -758,7 +899,7 @@ router.get(
           (avg) => avg.categoryName === "Overall",
         );
         return (
-          candidate.game.category !== "EXTRA" &&
+          candidate.gamePage.game.category !== "EXTRA" &&
           overallCategory &&
           overallCategory.rankedRatingCount >= 5 &&
           candidate.ratingsCount >= 4.99
@@ -790,7 +931,7 @@ router.get(
       if (target) {
         target.categoryAverages.forEach((category) => {
           const canBeRanked =
-            target.game.category !== "EXTRA" &&
+            target.gamePage.game.category !== "EXTRA" &&
             category.rankedRatingCount >= 5 &&
             target.ratingsCount >= 4.99;
 
@@ -806,7 +947,8 @@ router.get(
       }
 
       return res.json({
-        ...track,
+        ...materializedTrack,
+        availablePageVersions,
         comments: visibleComments,
         viewerRating,
         scores,

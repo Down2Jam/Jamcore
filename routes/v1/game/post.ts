@@ -9,6 +9,7 @@ import getTargetTeam from "@middleware/getTargetTeam";
 import getUser from "@middleware/getUser";
 import rateLimit from "@middleware/rateLimit";
 import { notifyNewMentions } from "@helper/mentionNotifications";
+import { PageVersion } from "@prisma/client";
 import { Router } from "express";
 import { body } from "express-validator";
 
@@ -169,13 +170,8 @@ router.post(
 
       const game = await db.game.create({
         data: {
-          name,
           slug,
-          description,
-          thumbnail,
-          banner,
           jamId: res.locals.jam.id,
-          emotePrefix: cleanedPrefix,
           downloadLinks: {
             create: downloadLinks.map(
               (link: { url: string; platform: string }) => ({
@@ -196,17 +192,7 @@ router.post(
           },
           teamId: res.locals.targetTeam.id,
           category,
-          short,
           published,
-          themeJustification,
-          screenshots: Array.isArray(screenshots) ? screenshots : [],
-          trailerUrl,
-          itchEmbedUrl,
-          itchEmbedAspectRatio,
-          inputMethods: Array.isArray(inputMethods) ? inputMethods : [],
-          estOneRun,
-          estAnyPercent,
-          estHundredPercent,
           achievements: {
             create: achievements.map((achievement: any) => ({
               name: achievement.name,
@@ -329,6 +315,157 @@ router.post(
         },
       });
 
+      await db.gamePage.create({
+        data: {
+          version: PageVersion.JAM,
+          name,
+          description,
+          short,
+          thumbnail,
+          banner,
+          screenshots: Array.isArray(screenshots) ? screenshots : [],
+          trailerUrl,
+          itchEmbedUrl,
+          itchEmbedAspectRatio,
+          inputMethods: Array.isArray(inputMethods) ? inputMethods : [],
+          estOneRun,
+          estAnyPercent,
+          estHundredPercent,
+          themeJustification,
+          emotePrefix: cleanedPrefix,
+          game: {
+            connect: { id: game.id },
+          },
+          ratingCategories: {
+            connect: ratingCategories.map((id: number) => ({ id })),
+          },
+          majRatingCategories: {
+            connect: majRatingCategories.map((id: number) => ({ id })),
+          },
+          tags: {
+            connect: tags.map((id: number) => ({ id })),
+          },
+          flags: {
+            connect: flags.map((id: number) => ({ id })),
+          },
+          downloadLinks: {
+            create: downloadLinks.map(
+              (link: { url: string; platform: string }) => ({
+                url: link.url,
+                platform: link.platform,
+              }),
+            ),
+          },
+          achievements: {
+            create: achievements.map((achievement: any) => ({
+              name: achievement.name,
+              description: achievement.description
+                ? achievement.description
+                : "",
+              image: achievement.image ? achievement.image : "",
+            })),
+          },
+          leaderboards: {
+            create: leaderboards.map((leaderboard: any) => ({
+              type: leaderboard.type,
+              name: leaderboard.name,
+              onlyBest: leaderboard.onlyBest,
+              maxUsersShown: leaderboard.maxUsersShown,
+              decimalPlaces: leaderboard.decimalPlaces,
+            })),
+          },
+          tracks: {
+            create: songs.map((song: any) => ({
+              name: song.name,
+              slug: song.slug,
+              url: song.url,
+              commentary: song.commentary || null,
+              bpm:
+                typeof song.bpm === "number" && Number.isFinite(song.bpm)
+                  ? Math.max(1, Math.floor(song.bpm))
+                  : null,
+              musicalKey: song.musicalKey || null,
+              softwareUsed: Array.isArray(song.softwareUsed)
+                ? song.softwareUsed.filter(Boolean)
+                : [],
+              license: song.license || null,
+              allowDownload: Boolean(song.allowDownload),
+              allowBackgroundUse:
+                typeof song.allowBackgroundUse === "boolean"
+                  ? song.allowBackgroundUse
+                  : backgroundUsageAllowedByDefault(song.license),
+              allowBackgroundUseAttribution:
+                typeof song.allowBackgroundUseAttribution === "boolean"
+                  ? song.allowBackgroundUseAttribution
+                  : backgroundUsageAttributionAllowedByDefault(song.license),
+              composer: {
+                connect: {
+                  id:
+                    (Array.isArray(song.credits)
+                      ? song.credits
+                          .map((credit: { role?: string; userId?: number | string }) => ({
+                            role: String(credit?.role ?? "").trim(),
+                            userId: Number(credit?.userId),
+                          }))
+                          .find(
+                            (credit) =>
+                              credit.role.toLowerCase() === "composer" &&
+                              Number.isInteger(credit.userId),
+                          )?.userId ??
+                        song.credits
+                          .map((credit: { role?: string; userId?: number | string }) => ({
+                            role: String(credit?.role ?? "").trim(),
+                            userId: Number(credit?.userId),
+                          }))
+                          .find((credit) => Number.isInteger(credit.userId))
+                          ?.userId
+                      : null) ?? song.composerId,
+                },
+              },
+              tags: {
+                connect: Array.isArray(song.tagIds)
+                  ? song.tagIds
+                      .map((id: number | string) => Number(id))
+                      .filter((id: number) => Number.isInteger(id))
+                      .map((id: number) => ({ id }))
+                  : [],
+              },
+              flags: {
+                connect: Array.isArray(song.flagIds)
+                  ? song.flagIds
+                      .map((id: number | string) => Number(id))
+                      .filter((id: number) => Number.isInteger(id))
+                      .map((id: number) => ({ id }))
+                  : [],
+              },
+              links: {
+                create: Array.isArray(song.links)
+                  ? song.links
+                      .map((link: { label?: string; url?: string }) => ({
+                        label: String(link?.label ?? "").trim(),
+                        url: String(link?.url ?? "").trim(),
+                      }))
+                      .filter((link) => link.label && link.url)
+                  : [],
+              },
+              credits: {
+                create: Array.isArray(song.credits)
+                  ? song.credits
+                      .map((credit: { role?: string; userId?: number | string }) => ({
+                        role: String(credit?.role ?? "").trim(),
+                        userId: Number(credit?.userId),
+                      }))
+                      .filter(
+                        (credit) =>
+                          credit.role.length > 0 && Number.isInteger(credit.userId),
+                      )
+                  : [],
+              },
+            })),
+          },
+        },
+      });
+
       await notifyNewMentions({
         type: "game",
         actorId: res.locals.user.id,
@@ -338,7 +475,7 @@ router.post(
         afterContent: description,
         gameId: game.id,
         gameSlug: game.slug,
-        gameName: game.name,
+        gameName: name,
       });
 
       res.status(201).json(game);

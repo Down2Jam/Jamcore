@@ -25,8 +25,15 @@ async function getUser(
       ratings: {
         select: {
           value: true,
-          gameId: true,
+          userId: true,
+          gamePageId: true,
           categoryId: true,
+          gamePage: {
+            select: {
+              version: true,
+              gameId: true,
+            },
+          },
         },
       },
       trackRatings: {
@@ -71,34 +78,19 @@ async function getUser(
           comment: {
             include: {
               game: true,
-              track: {
-                include: {
-                  game: true,
-                  composer: true,
-                },
-              },
+              track: true,
               post: true,
               author: true,
               comment: {
                 include: {
                   game: true,
-                  track: {
-                    include: {
-                      game: true,
-                      composer: true,
-                    },
-                  },
+                  track: true,
                   post: true,
                   author: true,
                   comment: {
                     include: {
                       game: true,
-                      track: {
-                        include: {
-                          game: true,
-                          composer: true,
-                        },
-                      },
+                      track: true,
                       post: true,
                       author: true,
                     },
@@ -109,12 +101,7 @@ async function getUser(
           },
           game: true,
           post: true,
-          track: {
-            include: {
-              game: true,
-              composer: true,
-            },
-          },
+          track: true,
         },
       },
       bannerPicture: true,
@@ -156,7 +143,14 @@ async function getUser(
     return;
   }
 
-  res.locals.user = user;
+  res.locals.user = {
+    ...user,
+    ratings: (user.ratings ?? []).map((rating) => ({
+      ...rating,
+      gameId: rating.gamePage?.gameId ?? null,
+      pageVersion: rating.gamePage?.version ?? "JAM",
+    })),
+  };
   next();
 }
 

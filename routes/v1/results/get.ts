@@ -9,6 +9,8 @@ import db from "@helper/db";
 import { GameCategory } from "@prisma/client";
 import authUserOptional from "@middleware/authUserOptional";
 import getUserOptional from "@middleware/getUserOptional";
+import { PageVersion } from "@prisma/client";
+import { materializeTrackPage } from "@helper/trackPages";
 
 const gameSortCategoryName = (sort?: string | string[]) => {
   switch (sort) {
@@ -72,29 +74,40 @@ router.get(
         category === "REGULAR" || category === "ODA"
           ? (category as GameCategory)
           : undefined;
-      const tracks = await db.track.findMany({
+      const tracks = await db.gamePageTrack.findMany({
         where: {
-          game: {
-            jamId,
-            published: true,
-            ...(trackCategory ? { category: trackCategory } : {}),
+          gamePage: {
+            version: PageVersion.JAM,
+            game: {
+              jamId,
+              published: true,
+              ...(trackCategory ? { category: trackCategory } : {}),
+            },
           },
         },
         include: {
           composer: true,
-          game: {
+          gamePage: {
             include: {
-              team: {
-                select: {
-                  users: {
+              game: {
+                include: {
+                  team: {
                     select: {
-                      trackRatings: {
+                      users: {
                         select: {
-                          track: {
+                          trackRatings: {
                             select: {
-                              game: {
+                              track: {
                                 select: {
-                                  jamId: true,
+                                  gamePage: {
+                                    select: {
+                                      game: {
+                                        select: {
+                                          jamId: true,
+                                        },
+                                      },
+                                    },
+                                  },
                                 },
                               },
                             },
@@ -139,6 +152,7 @@ router.get(
 
       const computedTracks = tracks
         .map((track) => {
+          const materializedTrack = materializeTrackPage(track);
           const categoryAverages = trackCategories.map((category) => {
             const categoryRatings = track.ratings.filter(
               (rating) => rating.categoryId === category.id,
@@ -179,13 +193,13 @@ router.get(
           });
 
           return {
-            ...track,
+            ...materializedTrack,
             categoryAverages,
-            ratingsCount: track.game.team.users.reduce((totalRatings, user) => {
+            ratingsCount: track.gamePage.game.team.users.reduce((totalRatings, user) => {
               const userRatingCount = user.trackRatings.reduce(
                 (count, rating) =>
                   count +
-                  (rating.track?.game.jamId === jamId
+                  (rating.track?.gamePage?.game?.jamId === jamId
                     ? 1 / trackCategories.length
                     : 0),
                 0,

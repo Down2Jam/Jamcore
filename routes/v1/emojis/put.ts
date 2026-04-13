@@ -70,7 +70,7 @@ router.put(
       if (existingEmoji.scopeType === "GAME" && existingEmoji.scopeGameId) {
         const game = await db.game.findUnique({
           where: { id: existingEmoji.scopeGameId },
-          include: { team: { include: { users: true } } },
+          include: { pages: true, team: { include: { users: true } } },
         });
         if (game) {
           isOwner = game.team.users.some(
@@ -180,14 +180,28 @@ router.put(
             select: {
               id: true,
               slug: true,
-              name: true,
-              thumbnail: true,
+              pages: {
+                where: { version: "JAM" },
+                select: { name: true, thumbnail: true },
+                take: 1,
+              },
             },
           },
         },
       });
-
-      res.json({ message: "Emoji updated", data: updated });
+      res.json({
+        message: "Emoji updated",
+        data: {
+          ...updated,
+          ownerGame: updated.ownerGame
+            ? {
+                ...updated.ownerGame,
+                name: updated.ownerGame.pages?.[0]?.name ?? updated.ownerGame.slug,
+                thumbnail: updated.ownerGame.pages?.[0]?.thumbnail ?? null,
+              }
+            : null,
+        },
+      });
     } catch (error) {
       console.error("Failed to update emoji", error);
       res.status(500).json({ message: "Failed to update emoji" });

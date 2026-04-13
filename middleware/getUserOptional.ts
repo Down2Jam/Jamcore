@@ -25,8 +25,15 @@ async function getUserOptional(
       ratings: {
         select: {
           value: true,
-          gameId: true,
+          userId: true,
+          gamePageId: true,
           categoryId: true,
+          gamePage: {
+            select: {
+              version: true,
+              gameId: true,
+            },
+          },
         },
       },
       trackRatings: {
@@ -78,7 +85,14 @@ async function getUserOptional(
   });
 
   if (user) {
-    res.locals.user = user;
+    res.locals.user = {
+      ...user,
+      ratings: (user.ratings ?? []).map((rating) => ({
+        ...rating,
+        gameId: rating.gamePage?.gameId ?? null,
+        pageVersion: rating.gamePage?.version ?? "JAM",
+      })),
+    };
   }
 
   next();

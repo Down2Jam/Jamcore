@@ -3,6 +3,7 @@ import db from "@helper/db";
 import rateLimit from "@middleware/rateLimit";
 import authUser from "@middleware/authUser";
 import getUser from "@middleware/getUser";
+import { parseTrackPageVersion } from "@helper/trackPages";
 
 const router = express.Router();
 
@@ -23,6 +24,7 @@ const backgroundUsageAttributionAllowedByDefault = (
 router.put("/:trackSlug", rateLimit(), authUser, getUser, async (req, res) => {
   try {
     const { trackSlug } = req.params;
+    const pageVersion = parseTrackPageVersion(req.query.pageVersion);
     const {
       name,
       commentary,
@@ -62,15 +64,24 @@ router.put("/:trackSlug", rateLimit(), authUser, getUser, async (req, res) => {
         ? composerId
         : null);
 
-    const track = await db.track.findUnique({
-      where: { slug: trackSlug },
+    const track = await db.gamePageTrack.findFirst({
+      where: {
+        slug: trackSlug,
+        gamePage: {
+          version: pageVersion,
+        },
+      },
       include: {
-        game: {
+        gamePage: {
           include: {
-            team: {
+            game: {
               include: {
-                users: {
-                  select: { id: true },
+                team: {
+                  include: {
+                    users: {
+                      select: { id: true },
+                    },
+                  },
                 },
               },
             },
@@ -83,14 +94,14 @@ router.put("/:trackSlug", rateLimit(), authUser, getUser, async (req, res) => {
       return res.status(404).json({ message: "Track not found" });
     }
 
-    const isTeamMember = track.game.team.users.some(
+    const isTeamMember = track.gamePage.game.team.users.some(
       (member) => member.id === res.locals.user.id,
     );
     if (!isTeamMember) {
       return res.status(403).json({ message: "Not allowed to edit this track" });
     }
 
-    const updated = await db.track.update({
+    const updated = await db.gamePageTrack.update({
       where: { id: track.id },
       data: {
         ...(typeof name === "string" ? { name: name.trim() } : {}),
@@ -175,7 +186,16 @@ router.put("/:trackSlug", rateLimit(), authUser, getUser, async (req, res) => {
       },
       include: {
         composer: true,
-        game: true,
+        gamePage: {
+          include: {
+            game: {
+              include: {
+                jam: true,
+                pages: true,
+              },
+            },
+          },
+        },
         flags: true,
         links: true,
         credits: {

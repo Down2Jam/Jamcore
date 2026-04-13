@@ -2,6 +2,10 @@ import { Router } from "express";
 import rateLimit from "@middleware/rateLimit";
 import db from "@helper/db";
 import getTargetUserOptional from "@middleware/getTargetUserOptional";
+import {
+  gamePageInclude,
+  materializeGamePage,
+} from "@helper/gamePages";
 
 const router = Router();
 
@@ -36,17 +40,13 @@ router.get(
           game: {
             include: {
               jam: true,
-              downloadLinks: true,
-              tags: true,
-              flags: true,
-              ratingCategories: true,
-              majRatingCategories: true,
-              leaderboards: true,
-              achievements: true,
-              tracks: {
-                include: {
-                  composer: true,
+              pages: {
+                where: {
+                  version: {
+                    in: ["JAM", "POST_JAM"],
+                  },
                 },
+                include: gamePageInclude,
               },
             },
           },
@@ -73,19 +73,36 @@ router.get(
           game: {
             include: {
               jam: true,
-              downloadLinks: true,
-              ratingCategories: true,
-              majRatingCategories: true,
-              tags: true,
-              flags: true,
-              leaderboards: true,
+              pages: {
+                where: {
+                  version: {
+                    in: ["JAM", "POST_JAM"],
+                  },
+                },
+                include: gamePageInclude,
+              },
             },
           },
         },
       });
     }
 
-    res.send({ message: "Teams fetched", data: teams });
+    res.send({
+      message: "Teams fetched",
+      data: teams.map((team) => ({
+        ...team,
+        game: team.game
+          ? {
+              ...materializeGamePage(team.game),
+              jamPage:
+                team.game.pages.find((page) => page.version === "JAM") ?? null,
+              postJamPage:
+                team.game.pages.find((page) => page.version === "POST_JAM") ??
+                null,
+            }
+          : null,
+      })),
+    });
   }
 );
 

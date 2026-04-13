@@ -6,6 +6,8 @@ import getUser from "@middleware/getUser";
 import assertUserModOrUserTargetUser from "@middleware/assertUserModOrUserTargetUser";
 import db from "@helper/db";
 import rateLimit from "@middleware/rateLimit";
+import { materializeGamePage } from "@helper/gamePages";
+import { materializeTrackPage } from "@helper/trackPages";
 import { notifyNewMentions } from "@helper/mentionNotifications";
 
 const router = Router();
@@ -287,7 +289,7 @@ router.put(
             })
           : Promise.resolve([]),
         allTrackIds.length
-          ? db.track.findMany({
+          ? db.gamePageTrack.findMany({
               where: { id: { in: allTrackIds } },
               select: { id: true },
             })
@@ -401,12 +403,15 @@ router.put(
           recommendedGames: {
             select: {
               id: true,
-              name: true,
               slug: true,
-              short: true,
-              thumbnail: true,
-              itchEmbedUrl: true,
               category: true,
+              pages: {
+                where: { version: "JAM" },
+                include: {
+                  downloadLinks: true,
+                },
+                take: 1,
+              },
               downloadLinks: {
                 select: {
                   id: true,
@@ -436,11 +441,48 @@ router.put(
               name: true,
               url: true,
               composer: { select: { name: true } },
-              game: { select: { name: true, slug: true, thumbnail: true } },
+              gamePage: {
+                select: {
+                  version: true,
+                  gameId: true,
+                  game: {
+                    select: {
+                      slug: true,
+                      jamId: true,
+                      pages: {
+                        where: { version: "JAM" },
+                        select: { name: true, thumbnail: true },
+                        take: 1,
+                      },
+                    },
+                  },
+                },
+              },
             },
           },
         },
       });
+
+      const materializeJamGameSummary = (game: any) =>
+        materializeGamePage(
+          {
+            ...game,
+            downloadLinks: game.downloadLinks,
+            pages: game.pages,
+          },
+          "JAM" as any,
+        );
+
+      const materializeTrackGameSummary = (track: any) =>
+        materializeTrackPage(track);
+
+      const normalizedUser = {
+        ...user,
+        recommendedGames: (user.recommendedGames ?? []).map(materializeJamGameSummary),
+        recommendedTracks: (user.recommendedTracks ?? []).map(
+          materializeTrackGameSummary,
+        ),
+      };
 
       await notifyNewMentions({
         type: "profile",
@@ -449,7 +491,7 @@ router.put(
         actorSlug: res.locals.user.slug,
         beforeContent: res.locals.targetUser?.bio ?? "",
         afterContent: bio,
-        profileSlug: user.slug,
+        profileSlug: normalizedUser.slug,
       });
 
       if (cleanedPrefix && cleanedPrefix !== oldPrefix) {
@@ -535,7 +577,7 @@ router.put(
         },
       });
 
-      res.status(200).send({ message: "User updated", data: user });
+      res.status(200).send({ message: "User updated", data: normalizedUser });
     } catch (error) {
       console.error("Failed to update user: ", error);
       res.status(500).send({ message: "Failed to update user" });

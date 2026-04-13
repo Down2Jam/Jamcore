@@ -1,4 +1,21 @@
 import db from "@helper/db";
+import { PageVersion } from "@prisma/client";
+
+function normalizeJamGames<T extends { games?: any[] }>(jam: T): T {
+  return {
+    ...jam,
+    games: (jam.games ?? []).map((game: any) => {
+      const jamPage =
+        game.pages?.find((page: any) => page.version === PageVersion.JAM) ??
+        null;
+
+      return {
+        ...game,
+        tracks: jamPage?.tracks ?? [],
+      };
+    }),
+  };
+}
 
 export const getCurrentActiveJam = async () => {
   const jams = await db.jam.findMany({
@@ -9,9 +26,16 @@ export const getCurrentActiveJam = async () => {
         include: {
           ratings: true,
           ratingCategories: true,
-          tracks: {
+          pages: {
+            where: {
+              version: PageVersion.JAM,
+            },
             include: {
-              ratings: true,
+              tracks: {
+                include: {
+                  ratings: true,
+                },
+              },
             },
           },
         },
@@ -19,7 +43,9 @@ export const getCurrentActiveJam = async () => {
     },
   });
 
-  const sortedJams = [...jams].sort(
+  const normalizedJams = jams.map(normalizeJamGames);
+
+  const sortedJams = [...normalizedJams].sort(
     (a, b) =>
       new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
   );

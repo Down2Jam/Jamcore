@@ -21,16 +21,21 @@ router.post("/", rateLimit(), authUser, getUser, async (req, res) => {
       return res.status(400).json({ message: "Invalid timestamp comment." });
     }
 
-    const track = await db.track.findUnique({
+    const track = await db.gamePageTrack.findUnique({
       where: { id: Number(trackId) },
       include: {
-        game: {
-          select: { published: true },
+        gamePage: {
+          select: {
+            version: true,
+            game: {
+              select: { published: true },
+            },
+          },
         },
       },
     });
 
-    if (!track || !track.game?.published) {
+    if (!track || !track.gamePage?.game?.published) {
       return res.status(404).json({ message: "Track not found" });
     }
 

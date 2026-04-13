@@ -18,6 +18,7 @@ import {
   getMusicFileBuffer,
 } from "@helper/audioDownload";
 import db from "@helper/db";
+import { parseTrackPageVersion } from "@helper/trackPages";
 
 const router = Router();
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -81,8 +82,17 @@ router.get("/:filename", rateLimit(9999), async (req, res, next) => {
 router.get("/track/:trackSlug/download", rateLimit(9999), async (req, res, next) => {
   try {
     const { trackSlug } = req.params;
-    const track = await db.track.findUnique({
-      where: { slug: trackSlug },
+    const pageVersion = parseTrackPageVersion(req.query.pageVersion);
+    const track = await db.gamePageTrack.findFirst({
+      where: {
+        slug: trackSlug,
+        gamePage: {
+          version: pageVersion,
+          game: {
+            published: true,
+          },
+        },
+      },
       select: {
         name: true,
         url: true,
@@ -90,15 +100,21 @@ router.get("/track/:trackSlug/download", rateLimit(9999), async (req, res, next)
         musicalKey: true,
         license: true,
         createdAt: true,
-        game: {
+        gamePage: {
           select: {
+            version: true,
             name: true,
-            published: true,
             thumbnail: true,
             banner: true,
-            jam: {
+            game: {
               select: {
-                startTime: true,
+                slug: true,
+                published: true,
+                jam: {
+                  select: {
+                    startTime: true,
+                  },
+                },
               },
             },
           },
@@ -133,7 +149,7 @@ router.get("/track/:trackSlug/download", rateLimit(9999), async (req, res, next)
       },
     });
 
-    if (!track || !track.game?.published) {
+    if (!track || !track.gamePage?.game?.published) {
       return res.status(404).json({ message: "Track not found" });
     }
 
@@ -155,16 +171,17 @@ router.get("/track/:trackSlug/download", rateLimit(9999), async (req, res, next)
       .map((tag) => tag.name.trim())
       .filter(Boolean)
       .join("; ");
-    const metadataDateSource = track.game.jam?.startTime ?? track.createdAt;
+    const metadataDateSource = track.gamePage.game.jam?.startTime ?? track.createdAt;
     const metadataDate = metadataDateSource.toISOString().slice(0, 10);
     const coverArt = await getEmbeddedCoverArt(
-      track.game.thumbnail,
-      track.game.banner,
+      track.gamePage.thumbnail,
+      track.gamePage.banner,
     );
+    const albumName = track.gamePage.name ?? track.gamePage.game.slug ?? "Unknown game";
     const metadataBuffer = embedTrackDownloadMetadata(originalBuffer, filename, {
       title: track.name,
       artist: creditedComposer?.name || creditedComposer?.slug || "Unknown composer",
-      album: track.game.name,
+      album: albumName,
       bpm: track.bpm,
       key: track.musicalKey,
       date: metadataDate,

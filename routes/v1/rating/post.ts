@@ -4,6 +4,7 @@ import getUser from "../../../middleware/getUser";
 import getPostOrComment from "../../../middleware/getPostOrComment";
 import db from "../../../helper/db";
 import getGame from "@middleware/getGame";
+import { PageVersion } from "@prisma/client";
 
 var router = express.Router();
 
@@ -15,13 +16,36 @@ router.post(
   getGame,
 
   async function (req, res) {
-    const { categoryId, value } = req.body;
+    const { categoryId, value, gamePageId, pageVersion } = req.body;
+    let targetGamePageId = Number(gamePageId);
 
-    const currentRating = await db.rating.findFirst({
+    if (!Number.isInteger(targetGamePageId)) {
+      const targetPageVersion =
+        pageVersion === "POST_JAM" ? PageVersion.POST_JAM : PageVersion.JAM;
+      const targetGamePage = await db.gamePage.findFirst({
+        where: {
+          gameId: res.locals.game.id,
+          version: targetPageVersion,
+        },
+        select: {
+          id: true,
+        },
+      });
+
+      if (!targetGamePage) {
+        return res.status(404).send({ message: "Game page missing." });
+      }
+
+      targetGamePageId = targetGamePage.id;
+    }
+
+    const currentRating = await db.rating.findUnique({
       where: {
-        gameId: res.locals.game.id,
-        userId: res.locals.user.id,
-        categoryId,
+        gamePageId_categoryId_userId: {
+          gamePageId: targetGamePageId,
+          userId: res.locals.user.id,
+          categoryId,
+        },
       },
     });
 
@@ -39,6 +63,7 @@ router.post(
         data: {
           value: value,
           gameId: res.locals.game.id,
+          gamePageId: targetGamePageId,
           userId: res.locals.user.id,
           categoryId,
         },

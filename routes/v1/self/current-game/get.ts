@@ -3,6 +3,10 @@ import authUser from "@middleware/authUser";
 import getJam from "@middleware/getJam";
 import getUser from "@middleware/getUser";
 import rateLimit from "@middleware/rateLimit";
+import {
+  gamePageInclude,
+  materializeGamePage,
+} from "@helper/gamePages";
 import { Router } from "express";
 
 const router = Router();
@@ -36,18 +40,26 @@ router.get(
           jamId: res.locals.jam.id,
         },
         include: {
-          downloadLinks: true,
-          ratingCategories: true,
-          majRatingCategories: true,
-          tags: true,
-          flags: true,
-          leaderboards: true,
-          achievements: true,
-          comments: true,
+          pages: {
+            where: {
+              version: {
+                in: ["JAM", "POST_JAM"],
+              },
+            },
+            include: gamePageInclude,
+          },
         },
       });
 
-      res.send({ message: "Games found", data: games });
+      res.send({
+        message: "Games found",
+        data: games.map((game) => ({
+          ...materializeGamePage(game),
+          jamPage: game.pages.find((page) => page.version === "JAM") ?? null,
+          postJamPage:
+            game.pages.find((page) => page.version === "POST_JAM") ?? null,
+        })),
+      });
     } catch (error) {
       console.error("Error fetching current game:", error);
       res.status(500).send("Internal server error.");

@@ -1,9 +1,18 @@
 import { Request, Response, NextFunction } from "express";
 import db from "../helper/db";
+import { materializeGamePage } from "@helper/gamePages";
+import { materializeTrackPage } from "@helper/trackPages";
+import { PageVersion } from "@prisma/client";
 import {
   applyRecommendationOverrides,
   rankRecommendationCandidates,
 } from "../helper/recommendations";
+
+function getRatingPageVersion(rating: any): PageVersion {
+  return rating?.gamePage?.version === PageVersion.POST_JAM
+    ? PageVersion.POST_JAM
+    : PageVersion.JAM;
+}
 
 /**
  * Middleware to fetch the target user from the database.
@@ -84,6 +93,11 @@ async function getTargetUser(
             value: true,
             userId: true,
             updatedAt: true,
+            gamePage: {
+              select: {
+                version: true,
+              },
+            },
             game: {
               select: {
                 jamId: true,
@@ -101,9 +115,13 @@ async function getTargetUser(
             updatedAt: true,
             track: {
               select: {
-                game: {
+                gamePage: {
                   select: {
-                    jamId: true,
+                    game: {
+                      select: {
+                        jamId: true,
+                      },
+                    },
                   },
                 },
               },
@@ -175,6 +193,11 @@ async function getTargetUser(
             value: true,
             userId: true,
             updatedAt: true,
+            gamePage: {
+              select: {
+                version: true,
+              },
+            },
             game: {
               select: {
                 jamId: true,
@@ -192,9 +215,13 @@ async function getTargetUser(
             updatedAt: true,
             track: {
               select: {
-                game: {
+                gamePage: {
                   select: {
-                    jamId: true,
+                    game: {
+                      select: {
+                        jamId: true,
+                      },
+                    },
                   },
                 },
               },
@@ -218,10 +245,19 @@ async function getTargetUser(
         },
         primaryRoles: true,
         secondaryRoles: true,
-        tracks: {
+        gamePageTracks: {
           include: {
             composer: true,
-            game: true,
+            gamePage: {
+              include: {
+                game: {
+                  include: {
+                    jam: true,
+                    pages: true,
+                  },
+                },
+              },
+            },
           },
         },
         posts: {
@@ -297,9 +333,18 @@ async function getTargetUser(
     return;
   }
 
+  user = {
+    ...user,
+    ratings: (user.ratings ?? []).map((rating: any) => ({
+      ...rating,
+      pageVersion: getRatingPageVersion(rating),
+    })),
+  };
+
   const gameAverageById = user.ratings.reduce(
     (acc: Map<number, { total: number; count: number }>, rating: any) => {
       if (activeJamId != null && rating.game?.jamId !== activeJamId) return acc;
+      if (rating.pageVersion !== PageVersion.JAM) return acc;
       const current = acc.get(rating.gameId) ?? { total: 0, count: 0 };
       current.total += rating.value;
       current.count += 1;
@@ -310,7 +355,7 @@ async function getTargetUser(
   );
   const trackAverageById = (user.trackRatings ?? []).reduce(
     (acc: Map<number, { total: number; count: number }>, rating: any) => {
-      if (activeJamId != null && rating.track?.game?.jamId !== activeJamId)
+      if (activeJamId != null && rating.track?.gamePage?.game?.jamId !== activeJamId)
         return acc;
       const current = acc.get(rating.trackId) ?? { total: 0, count: 0 };
       current.total += rating.value;
@@ -328,6 +373,7 @@ async function getTargetUser(
             (rating: any) =>
               activeJamId == null || rating.game?.jamId === activeJamId,
           )
+          .filter((rating: any) => rating.pageVersion === PageVersion.JAM)
           .filter((rating: any) => rating.categoryId === overallGameCategory.id)
           .map((rating: any) => ({
             itemId: rating.gameId,
@@ -345,7 +391,7 @@ async function getTargetUser(
       ? (user.trackRatings ?? [])
           .filter(
             (rating: any) =>
-              activeJamId == null || rating.track?.game?.jamId === activeJamId,
+              activeJamId == null || rating.track?.gamePage?.game?.jamId === activeJamId,
           )
           .filter(
             (rating: any) => rating.categoryId === overallTrackCategory.id,
@@ -384,12 +430,15 @@ async function getTargetUser(
             where: { id: { in: gameRecommendationBase.candidateIds } },
             select: {
               id: true,
-              name: true,
               slug: true,
-              short: true,
-              thumbnail: true,
-              itchEmbedUrl: true,
               category: true,
+              pages: {
+                where: { version: "JAM" },
+                include: {
+                  downloadLinks: true,
+                },
+                take: 1,
+              },
               downloadLinks: {
                 select: {
                   id: true,
@@ -412,12 +461,15 @@ async function getTargetUser(
             where: { id: { in: recommendedGameIds } },
             select: {
               id: true,
-              name: true,
               slug: true,
-              short: true,
-              thumbnail: true,
-              itchEmbedUrl: true,
               category: true,
+              pages: {
+                where: { version: "JAM" },
+                include: {
+                  downloadLinks: true,
+                },
+                take: 1,
+              },
               downloadLinks: {
                 select: {
                   id: true,
@@ -436,7 +488,7 @@ async function getTargetUser(
           })
         : Promise.resolve([]),
       trackRecommendationBase.candidateIds.length > 0
-        ? db.track.findMany({
+        ? db.gamePageTrack.findMany({
             where: { id: { in: trackRecommendationBase.candidateIds } },
             select: {
               id: true,
@@ -448,14 +500,28 @@ async function getTargetUser(
               allowDownload: true,
               license: true,
               composer: { select: { name: true, slug: true } },
-              game: {
-                select: { name: true, slug: true, thumbnail: true, jamId: true },
+              gamePage: {
+                select: {
+                  version: true,
+                  gameId: true,
+                  game: {
+                    select: {
+                      slug: true,
+                      jamId: true,
+                      pages: {
+                        where: { version: "JAM" },
+                        select: { name: true, thumbnail: true },
+                        take: 1,
+                      },
+                    },
+                  },
+                }
               },
             },
           })
         : Promise.resolve([]),
       recommendedTrackIds.length > 0
-        ? db.track.findMany({
+        ? db.gamePageTrack.findMany({
             where: { id: { in: recommendedTrackIds } },
             select: {
               id: true,
@@ -467,8 +533,22 @@ async function getTargetUser(
               allowDownload: true,
               license: true,
               composer: { select: { name: true, slug: true } },
-              game: {
-                select: { name: true, slug: true, thumbnail: true, jamId: true },
+              gamePage: {
+                select: {
+                  version: true,
+                  gameId: true,
+                  game: {
+                    select: {
+                      slug: true,
+                      jamId: true,
+                      pages: {
+                        where: { version: "JAM" },
+                        select: { name: true, thumbnail: true },
+                        take: 1,
+                      },
+                    },
+                  },
+                }
               },
             },
           })
@@ -478,7 +558,7 @@ async function getTargetUser(
   const ownedGameIds = (user.teams ?? [])
     .map((team: any) => team.game?.id)
     .filter((id: unknown): id is number => Number.isInteger(id));
-  const ownedTrackIds = (user.tracks ?? [])
+  const ownedTrackIds = (user.gamePageTracks ?? [])
     .map((track: any) => track.id)
     .filter((id: unknown): id is number => Number.isInteger(id));
 
@@ -511,6 +591,11 @@ async function getTargetUser(
                 categoryId: true,
                 value: true,
                 updatedAt: true,
+                gamePage: {
+                  select: {
+                    version: true,
+                  },
+                },
               },
             },
             trackRatings: {
@@ -518,8 +603,10 @@ async function getTargetUser(
                 activeJamId != null
                   ? {
                       track: {
-                        game: {
-                          jamId: activeJamId,
+                        gamePage: {
+                          game: {
+                            jamId: activeJamId,
+                          },
                         },
                       },
                     }
@@ -566,7 +653,14 @@ async function getTargetUser(
 
   recommendationUsers.forEach((recommendationUser) => {
     if (overallGameCategory) {
-      const gameAverageById = recommendationUser.ratings.reduce(
+      const jamRatings = recommendationUser.ratings
+        .map((rating: any) => ({
+          ...rating,
+          pageVersion: getRatingPageVersion(rating),
+        }))
+        .filter((rating: any) => rating.pageVersion === PageVersion.JAM);
+
+      const gameAverageById = jamRatings.reduce(
         (acc: Map<number, { total: number; count: number }>, rating: any) => {
           const current = acc.get(rating.gameId) ?? { total: 0, count: 0 };
           current.total += rating.value;
@@ -578,7 +672,7 @@ async function getTargetUser(
       );
 
       const gameRecommendationBase = rankRecommendationCandidates(
-        recommendationUser.ratings
+        jamRatings
           .filter((rating: any) => rating.categoryId === overallGameCategory.id)
           .map((rating: any) => ({
             itemId: rating.gameId,
@@ -690,18 +784,36 @@ async function getTargetUser(
       .filter((item): item is T => Boolean(item));
   };
 
+  const materializeJamGameSummary = (game: any) =>
+    materializeGamePage(
+      {
+        ...game,
+        downloadLinks: game.downloadLinks,
+        pages: game.pages ?? [],
+      },
+      "JAM",
+    );
+
+  const materializeTrackGameSummary = (track: any) => materializeTrackPage(track);
+
   res.locals.targetUser = {
     ...user,
-    recommendedGames: sortByIdOrder(recommendedGames, recommendedGameIds),
-    recommendedTracks: sortByIdOrder(recommendedTracks, recommendedTrackIds),
+    tracks: (user.gamePageTracks ?? []).map(materializeTrackPage),
+    recommendedGames: sortByIdOrder(recommendedGames, recommendedGameIds).map(
+      materializeJamGameSummary,
+    ),
+    recommendedTracks: sortByIdOrder(
+      recommendedTracks,
+      recommendedTrackIds,
+    ).map(materializeTrackGameSummary),
     recommendedGameCandidates: sortByIdOrder(
       gameCandidates,
       gameRecommendationBase.candidateIds,
-    ),
+    ).map(materializeJamGameSummary),
     recommendedTrackCandidates: sortByIdOrder(
       trackCandidates,
       trackRecommendationBase.candidateIds,
-    ),
+    ).map(materializeTrackGameSummary),
     recommendedGameCandidateCount: gameRecommendationBase.ratedCount,
     recommendedTrackCandidateCount: trackRecommendationBase.ratedCount,
     favoriteGameCounts,

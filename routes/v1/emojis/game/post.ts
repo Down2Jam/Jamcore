@@ -3,6 +3,7 @@ import db from "@helper/db";
 import rateLimit from "@middleware/rateLimit";
 import authUser from "@middleware/authUser";
 import getUser from "@middleware/getUser";
+import { getJamPage } from "@helper/gamePages";
 
 const router = Router();
 
@@ -49,6 +50,7 @@ router.post("/:gameSlug", rateLimit(), authUser, getUser, async (req, res) => {
     const game = await db.game.findUnique({
       where: { slug: gameSlug },
       include: {
+        pages: true,
         team: {
           include: {
             users: true,
@@ -67,10 +69,11 @@ router.post("/:gameSlug", rateLimit(), authUser, getUser, async (req, res) => {
       return;
     }
 
-    const prefix = game.emotePrefix ?? generatePrefix(game.slug);
-    if (!game.emotePrefix) {
-      await db.game.update({
-        where: { id: game.id },
+    const jamPage = getJamPage(game);
+    const prefix = jamPage?.emotePrefix ?? generatePrefix(game.slug);
+    if (jamPage && !jamPage.emotePrefix) {
+      await db.gamePage.update({
+        where: { id: jamPage.id },
         data: { emotePrefix: prefix },
       });
     }
@@ -133,14 +136,28 @@ router.post("/:gameSlug", rateLimit(), authUser, getUser, async (req, res) => {
           select: {
             id: true,
             slug: true,
-            name: true,
-            thumbnail: true,
+            pages: {
+              where: { version: "JAM" },
+              select: { name: true, thumbnail: true },
+              take: 1,
+            },
           },
         },
       },
     });
-
-    res.status(201).json({ message: "Emoji created", data: emoji });
+    res.status(201).json({
+      message: "Emoji created",
+      data: {
+        ...emoji,
+        ownerGame: emoji.ownerGame
+          ? {
+              ...emoji.ownerGame,
+              name: emoji.ownerGame.pages?.[0]?.name ?? emoji.ownerGame.slug,
+              thumbnail: emoji.ownerGame.pages?.[0]?.thumbnail ?? null,
+            }
+          : null,
+      },
+    });
   } catch (error) {
     console.error("Failed to create game emoji", error);
     res.status(500).json({ message: "Failed to create emoji" });

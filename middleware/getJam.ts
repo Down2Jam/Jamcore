@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import db from "../helper/db";
 import { getCurrentActiveJam } from "services/jamService";
+import { PageVersion } from "@prisma/client";
 
 async function getJam(
   req: Request,
@@ -37,12 +38,19 @@ async function getJam(
       games: {
         include: {
           ratings: true,
-          tracks: {
+          ratingCategories: true,
+          pages: {
+            where: {
+              version: PageVersion.JAM,
+            },
             include: {
-              ratings: true,
+              tracks: {
+                include: {
+                  ratings: true,
+                },
+              },
             },
           },
-          ratingCategories: true,
         },
       },
     },
@@ -53,7 +61,15 @@ async function getJam(
     return;
   }
 
-  res.locals.jam = jam;
+  res.locals.jam = {
+    ...jam,
+    games: (jam.games ?? []).map((game: any) => ({
+      ...game,
+      tracks:
+        game.pages?.find((page: any) => page.version === PageVersion.JAM)
+          ?.tracks ?? [],
+    })),
+  };
   next();
 }
 

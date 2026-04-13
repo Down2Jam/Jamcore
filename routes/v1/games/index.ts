@@ -10,8 +10,14 @@ import {
   applyRecommendationOverrides,
   rankRecommendationCandidates,
 } from "@helper/recommendations";
+import {
+  buildGamePagePayload,
+  materializeGamePage,
+  pageVersionFromInput,
+} from "@helper/gamePages";
 import authUserOptional from "@middleware/authUserOptional";
 import getUserOptional from "@middleware/getUserOptional";
+import { PageVersion } from "@prisma/client";
 
 var router = express.Router();
 const MIN_PREFIX_LENGTH = 4;
@@ -33,6 +39,827 @@ const ITCH_EMBED_ASPECT_RATIOS = new Set([
   "9 / 16",
   "10 / 16",
 ]);
+
+const postJamPageInclude = {
+  ratingCategories: true,
+  majRatingCategories: true,
+  tags: true,
+  flags: true,
+  downloadLinks: true,
+  achievements: {
+    include: {
+      users: true,
+    },
+  },
+  leaderboards: true,
+  comments: {
+    include: {
+      author: true,
+      likes: true,
+      commentReactions: {
+        include: {
+          reaction: true,
+          user: {
+            select: {
+              id: true,
+              slug: true,
+              name: true,
+              profilePicture: true,
+            },
+          },
+        },
+      },
+      children: {
+        include: {
+          author: true,
+          likes: true,
+          commentReactions: {
+            include: {
+              reaction: true,
+              user: {
+                select: {
+                  id: true,
+                  slug: true,
+                  name: true,
+                  profilePicture: true,
+                },
+              },
+            },
+          },
+          children: true,
+        },
+      },
+    },
+  },
+  tracks: {
+    include: {
+      composer: true,
+      tags: {
+        include: {
+          category: true,
+        },
+      },
+      flags: true,
+      links: true,
+      credits: {
+        include: {
+          user: true,
+        },
+      },
+    },
+  },
+} as const;
+
+function getPostJamPage(game: any) {
+  return (
+    game?.postJamPage ??
+    game?.pages?.find((page: any) => page.version === PageVersion.POST_JAM) ??
+    null
+  );
+}
+
+function getJamPage(game: any) {
+  return (
+    game?.jamPage ??
+    game?.pages?.find((page: any) => page.version === PageVersion.JAM) ??
+    null
+  );
+}
+
+type ListingPageVersion = PageVersion | "ALL";
+
+function parseListingPageVersion(value: unknown): ListingPageVersion {
+  return value === "POST_JAM" || value === "ALL" ? value : PageVersion.JAM;
+}
+
+function getListingVersions(
+  game: any,
+  listingPageVersion: ListingPageVersion,
+): PageVersion[] {
+  const jamPage = getJamPage(game);
+  const postJamPage = getPostJamPage(game);
+
+  if (listingPageVersion === "POST_JAM") {
+    return postJamPage ? [PageVersion.POST_JAM] : [];
+  }
+
+  if (listingPageVersion === "ALL") {
+    if (postJamPage) {
+      return [PageVersion.POST_JAM];
+    }
+
+    return jamPage ? [PageVersion.JAM] : [];
+  }
+
+  return jamPage ? [PageVersion.JAM] : [];
+}
+
+function getRatingPageVersion(rating: any): PageVersion {
+  return rating?.gamePage?.version === PageVersion.POST_JAM
+    ? PageVersion.POST_JAM
+    : PageVersion.JAM;
+}
+
+function getRatingGame(rating: any) {
+  return rating?.gamePage?.game ?? rating?.game ?? null;
+}
+
+function getRatingCategoryCount(rating: any) {
+  return (
+    rating?.gamePage?.ratingCategories?.length ??
+    rating?.game?.ratingCategories?.length ??
+    0
+  );
+}
+
+function buildPostJamBodyFromGame(game: any) {
+  const jamPage = getJamPage(game) ?? game;
+
+  return {
+    ...jamPage,
+    ratingCategories: (jamPage.ratingCategories ?? []).map((entry: any) => entry.id),
+    majRatingCategories: (jamPage.majRatingCategories ?? []).map(
+      (entry: any) => entry.id,
+    ),
+    flags: (jamPage.flags ?? []).map((entry: any) => entry.id),
+    tags: (jamPage.tags ?? []).map((entry: any) => entry.id),
+    achievements: (jamPage.achievements ?? []).map((entry: any) => ({
+      name: entry.name,
+      description: entry.description ?? "",
+      image: entry.image ?? "",
+    })),
+    leaderboards: (jamPage.leaderboards ?? []).map((entry: any) => ({
+      name: entry.name,
+      type: entry.type,
+      onlyBest: entry.onlyBest,
+      maxUsersShown: entry.maxUsersShown,
+      decimalPlaces: entry.decimalPlaces,
+    })),
+    downloadLinks: (jamPage.downloadLinks ?? []).map((entry: any) => ({
+      url: entry.url,
+      platform: entry.platform,
+    })),
+    songs: (jamPage.tracks ?? []).map((song: any) => ({
+      name: song.name,
+      slug: song.slug,
+      url: song.url,
+      commentary: song.commentary ?? null,
+      tagIds: (song.tags ?? []).map((entry: any) => entry.id),
+      flagIds: (song.flags ?? []).map((entry: any) => entry.id),
+      bpm: song.bpm ?? null,
+      musicalKey: song.musicalKey ?? null,
+      softwareUsed: song.softwareUsed ?? [],
+      links: (song.links ?? []).map((entry: any) => ({
+        label: entry.label,
+        url: entry.url,
+      })),
+      credits: (song.credits ?? []).map((entry: any) => ({
+        role: entry.role,
+        userId: entry.userId,
+      })),
+      composerId: song.composerId ?? song.composer?.id,
+      license: song.license ?? null,
+      allowDownload: Boolean(song.allowDownload),
+      allowBackgroundUse: Boolean(song.allowBackgroundUse),
+      allowBackgroundUseAttribution: Boolean(song.allowBackgroundUseAttribution),
+    })),
+  };
+}
+
+async function upsertGamePage(
+  gameId: number,
+  version: PageVersion,
+  body: any,
+) {
+  const existingPage = await db.gamePage.findFirst({
+    where: {
+      gameId,
+      version,
+    },
+    select: { id: true },
+  });
+
+  const pagePayload = buildGamePagePayload(body);
+
+  const buildTrackWriteData = (song: any) => {
+    const normalizedCredits = Array.isArray(song.credits)
+      ? song.credits
+          .map((credit: { role?: string; userId?: number | string }) => ({
+            role: String(credit?.role ?? "").trim(),
+            userId: Number(credit?.userId),
+          }))
+          .filter(
+            (credit) =>
+              credit.role.length > 0 && Number.isInteger(credit.userId),
+          )
+      : [];
+
+    const primaryCreditUserId =
+      normalizedCredits.find(
+        (credit) => credit.role.toLowerCase() === "composer",
+      )?.userId ??
+      normalizedCredits.find((credit) => Number.isInteger(credit.userId))
+        ?.userId ??
+      song.composerId;
+
+    return {
+      name: song.name,
+      slug: song.slug,
+      url: song.url,
+      commentary: song.commentary || null,
+      bpm:
+        typeof song.bpm === "number" && Number.isFinite(song.bpm)
+          ? Math.max(1, Math.floor(song.bpm))
+          : null,
+      musicalKey: song.musicalKey || null,
+      softwareUsed: Array.isArray(song.softwareUsed)
+        ? song.softwareUsed.filter(Boolean)
+        : [],
+      license: song.license || null,
+      allowDownload: Boolean(song.allowDownload),
+      allowBackgroundUse:
+        typeof song.allowBackgroundUse === "boolean"
+          ? song.allowBackgroundUse
+          : backgroundUsageAllowedByDefault(song.license),
+      allowBackgroundUseAttribution:
+        typeof song.allowBackgroundUseAttribution === "boolean"
+          ? song.allowBackgroundUseAttribution
+          : backgroundUsageAttributionAllowedByDefault(song.license),
+      composerId: primaryCreditUserId,
+      tagIds: Array.isArray(song.tagIds) ? song.tagIds : [],
+      flagIds: Array.isArray(song.flagIds) ? song.flagIds : [],
+      links: Array.isArray(song.links)
+        ? song.links
+            .map((link: any) => ({
+              label: String(link?.label ?? "").trim(),
+              url: String(link?.url ?? "").trim(),
+            }))
+            .filter((link: any) => link.label && link.url)
+        : [],
+      credits: normalizedCredits,
+    };
+  };
+
+  const syncGamePageTracks = async (pageId: number, songs: any[]) => {
+    const existingTracks = await db.gamePageTrack.findMany({
+      where: { gamePageId: pageId },
+      select: {
+        id: true,
+        slug: true,
+        ratings: { select: { id: true } },
+        timestampComments: { select: { id: true } },
+      },
+    });
+
+    const existingTrackBySlug = new Map(
+      existingTracks.map((track) => [track.slug, track]),
+    );
+    const incomingSlugs = new Set<string>();
+
+    for (const song of songs ?? []) {
+      const trackData = buildTrackWriteData(song);
+      const slug = String(trackData.slug ?? "").trim();
+      if (!slug) continue;
+      incomingSlugs.add(slug);
+
+      const relationData = {
+        tags: {
+          set: trackData.tagIds.map((id: number) => ({ id })),
+        },
+        flags: {
+          set: trackData.flagIds.map((id: number) => ({ id })),
+        },
+        links: {
+          deleteMany: {},
+          create: trackData.links,
+        },
+        credits: {
+          deleteMany: {},
+          create: trackData.credits,
+        },
+      };
+
+      const existingTrack = existingTrackBySlug.get(slug);
+      if (existingTrack) {
+        await db.gamePageTrack.update({
+          where: { id: existingTrack.id },
+          data: {
+            name: trackData.name,
+            slug: trackData.slug,
+            url: trackData.url,
+            commentary: trackData.commentary,
+            bpm: trackData.bpm,
+            musicalKey: trackData.musicalKey,
+            softwareUsed: trackData.softwareUsed,
+            license: trackData.license,
+            allowDownload: trackData.allowDownload,
+            allowBackgroundUse: trackData.allowBackgroundUse,
+            allowBackgroundUseAttribution:
+              trackData.allowBackgroundUseAttribution,
+            composerId: trackData.composerId,
+            ...relationData,
+          },
+        });
+        continue;
+      }
+
+      await db.gamePageTrack.create({
+        data: {
+          gamePageId: pageId,
+          name: trackData.name,
+          slug: trackData.slug,
+          url: trackData.url,
+          commentary: trackData.commentary,
+          bpm: trackData.bpm,
+          musicalKey: trackData.musicalKey,
+          softwareUsed: trackData.softwareUsed,
+          license: trackData.license,
+          allowDownload: trackData.allowDownload,
+          allowBackgroundUse: trackData.allowBackgroundUse,
+          allowBackgroundUseAttribution:
+            trackData.allowBackgroundUseAttribution,
+          composer: {
+            connect: {
+              id: trackData.composerId,
+            },
+          },
+          tags: {
+            connect: trackData.tagIds.map((id: number) => ({ id })),
+          },
+          flags: {
+            connect: trackData.flagIds.map((id: number) => ({ id })),
+          },
+          links: {
+            create: trackData.links,
+          },
+          credits: {
+            create: trackData.credits,
+          },
+        },
+      });
+    }
+
+    for (const existingTrack of existingTracks) {
+      if (incomingSlugs.has(existingTrack.slug)) continue;
+      if (
+        existingTrack.ratings.length > 0 ||
+        existingTrack.timestampComments.length > 0
+      ) {
+        continue;
+      }
+
+      await db.gamePageTrack.delete({
+        where: { id: existingTrack.id },
+      });
+    }
+  };
+  
+  const relationData = {
+    ratingCategories: (body.ratingCategories ?? []).map((id: number) => ({ id })),
+    majRatingCategories: (body.majRatingCategories ?? []).map((id: number) => ({ id })),
+    flags: (body.flags ?? []).map((id: number) => ({ id })),
+    tags: (body.tags ?? []).map((id: number) => ({ id })),
+  };
+
+  const baseData = {
+    ...pagePayload,
+    ratingCategories: existingPage
+      ? {
+          set: [],
+          connect: relationData.ratingCategories,
+        }
+      : {
+          connect: relationData.ratingCategories,
+        },
+    majRatingCategories: existingPage
+      ? {
+          set: [],
+          connect: relationData.majRatingCategories,
+        }
+      : {
+          connect: relationData.majRatingCategories,
+        },
+    flags: existingPage
+      ? {
+          set: [],
+          connect: relationData.flags,
+        }
+      : {
+          connect: relationData.flags,
+        },
+    tags: existingPage
+      ? {
+          set: [],
+          connect: relationData.tags,
+        }
+      : {
+          connect: relationData.tags,
+        },
+    downloadLinks: existingPage
+      ? {
+          deleteMany: {},
+          create: (body.downloadLinks ?? []).map((link: any) => ({
+            url: link.url,
+            platform: link.platform,
+          })),
+        }
+      : {
+          create: (body.downloadLinks ?? []).map((link: any) => ({
+            url: link.url,
+            platform: link.platform,
+          })),
+        },
+    leaderboards: existingPage
+      ? {
+          deleteMany: {},
+          create: (body.leaderboards ?? []).map((leaderboard: any) => ({
+            type: leaderboard.type,
+            name: leaderboard.name,
+            onlyBest: leaderboard.onlyBest,
+            maxUsersShown: leaderboard.maxUsersShown,
+            decimalPlaces: leaderboard.decimalPlaces,
+          })),
+        }
+      : {
+          create: (body.leaderboards ?? []).map((leaderboard: any) => ({
+            type: leaderboard.type,
+            name: leaderboard.name,
+            onlyBest: leaderboard.onlyBest,
+            maxUsersShown: leaderboard.maxUsersShown,
+            decimalPlaces: leaderboard.decimalPlaces,
+          })),
+        },
+    achievements: existingPage
+      ? {
+          deleteMany: {},
+          create: (body.achievements ?? []).map((achievement: any) => ({
+            name: achievement.name,
+            description: achievement.description || "",
+            image: achievement.image || "",
+          })),
+        }
+      : {
+          create: (body.achievements ?? []).map((achievement: any) => ({
+            name: achievement.name,
+            description: achievement.description || "",
+            image: achievement.image || "",
+          })),
+        },
+    tracks: existingPage
+      ? undefined
+      : {
+          create: (body.songs ?? []).map((song: any) => {
+            const trackData = buildTrackWriteData(song);
+            return {
+              name: trackData.name,
+              slug: trackData.slug,
+              url: trackData.url,
+              commentary: trackData.commentary,
+              bpm: trackData.bpm,
+              musicalKey: trackData.musicalKey,
+              softwareUsed: trackData.softwareUsed,
+              license: trackData.license,
+              allowDownload: trackData.allowDownload,
+              allowBackgroundUse: trackData.allowBackgroundUse,
+              allowBackgroundUseAttribution:
+                trackData.allowBackgroundUseAttribution,
+              composer: {
+                connect: {
+                  id: trackData.composerId,
+                },
+              },
+              tags: {
+                connect: trackData.tagIds.map((id: number) => ({ id })),
+              },
+              flags: {
+                connect: trackData.flagIds.map((id: number) => ({ id })),
+              },
+              links: {
+                create: trackData.links,
+              },
+              credits: {
+                create: trackData.credits,
+              },
+            };
+          }),
+        },
+  };
+
+  if (existingPage) {
+    await db.gamePage.update({
+      where: { id: existingPage.id },
+      data: baseData,
+      include: postJamPageInclude,
+    });
+
+    await syncGamePageTracks(existingPage.id, body.songs ?? []);
+    return db.gamePage.findUnique({
+      where: { id: existingPage.id },
+      include: postJamPageInclude,
+    });
+  }
+
+  return db.gamePage.create({
+    data: {
+      ...baseData,
+      version,
+      game: {
+        connect: { id: gameId },
+      },
+    },
+    include: postJamPageInclude,
+  });
+}
+
+async function buildVersionScores({
+  game,
+  version,
+}: {
+  game: any;
+  version: PageVersion;
+}) {
+  const scores: Record<
+    string,
+    {
+      placement?: number;
+      averageScore?: number;
+      ratingCount?: number;
+      averageUnrankedScore?: number;
+    }
+  > = {};
+
+  const games = await db.game.findMany({
+    where: {
+      jamId: game.jamId,
+      category: game.category,
+      published: true,
+    },
+    include: {
+      ratingCategories: true,
+      majRatingCategories: true,
+      pages: {
+        where: {
+          version,
+        },
+        include: {
+          ratingCategories: true,
+          majRatingCategories: true,
+        },
+      },
+      team: {
+        select: {
+          users: {
+            select: {
+              ratings: {
+                select: {
+                  gamePage: {
+                    select: {
+                      version: true,
+                      gameId: true,
+                      ratingCategories: {
+                        select: {
+                          id: true,
+                        },
+                      },
+                      game: {
+                        select: {
+                          ratingCategories: {
+                            select: {
+                              id: true,
+                            },
+                          },
+                          pages: {
+                            where: {
+                              version,
+                            },
+                            select: {
+                              ratingCategories: {
+                                select: {
+                                  id: true,
+                                },
+                              },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      ratings: {
+        select: {
+          value: true,
+          categoryId: true,
+          gamePage: {
+            select: {
+              version: true,
+              gameId: true,
+              game: {
+                select: {
+                  jamId: true,
+                  category: true,
+                  published: true,
+                },
+              },
+            },
+          },
+          user: {
+            select: {
+              teams: {
+                select: {
+                  game: {
+                    select: {
+                      jamId: true,
+                      category: true,
+                      published: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  const allCategories = await db.ratingCategory.findMany();
+  const categoriesById = new Map(allCategories.map((entry) => [entry.id, entry]));
+  const alwaysCategories = allCategories.filter((entry) => entry.always);
+
+  const filteredGames = games.map((game2) => {
+    const jamPage = getJamPage(game2);
+    const postJamPage = getPostJamPage(game2);
+    const selectedPage =
+      version === PageVersion.POST_JAM ? postJamPage : jamPage;
+    const selectedCategoryIds =
+      selectedPage?.ratingCategories?.map((entry: any) => entry.id) ??
+      game2.ratingCategories.map((entry) => entry.id);
+    const selectedMajIds =
+      selectedPage?.majRatingCategories?.map((entry: any) => entry.id) ??
+      game2.majRatingCategories.map((entry) => entry.id);
+
+    const selectedCategories = selectedCategoryIds
+      .map((id: number) => categoriesById.get(id))
+      .filter(Boolean);
+    const categories = [
+      ...selectedCategories,
+      ...alwaysCategories.filter(
+        (entry) => !selectedCategoryIds.includes(entry.id),
+      ),
+    ];
+    const categoryIds = categories.map((entry) => entry.id);
+
+    const filteredRatings = game2.ratings.filter(
+      (rating) =>
+        getRatingPageVersion(rating) === version &&
+        categoryIds.includes(rating.categoryId),
+    );
+
+    const publishedRatings = filteredRatings.filter((rating) =>
+      rating.user.teams.some((team) => {
+        const candidateGame = team.game;
+        return (
+          candidateGame &&
+          candidateGame.published &&
+          candidateGame.jamId === game.jamId &&
+          candidateGame.category !== "EXTRA"
+        );
+      }),
+    );
+
+    const categoryAverages = categories
+      .filter(
+        (category) =>
+          !category.askMajorityContent ||
+          game2.category !== "REGULAR" ||
+          !selectedCategoryIds.includes(category.id) ||
+          selectedMajIds.includes(category.id),
+      )
+      .map((category) => {
+        const categoryRatings = filteredRatings.filter(
+          (rating) => rating.categoryId === category.id,
+        );
+        const categoryPublishedRatings = publishedRatings.filter(
+          (rating) => rating.categoryId === category.id,
+        );
+
+        const averageRating =
+          categoryRatings.length > 0
+            ? categoryRatings.reduce((sum, rating) => sum + rating.value, 0) /
+              categoryRatings.length
+            : 0;
+
+        const averagePublishedRating =
+          categoryPublishedRatings.length > 0
+            ? categoryPublishedRatings.reduce(
+                (sum, rating) => sum + rating.value,
+                0,
+              ) / categoryPublishedRatings.length
+            : 0;
+
+        return {
+          categoryId: category.id,
+          categoryName: category.name,
+          averageScore: averagePublishedRating,
+          averageUnrankedScore: averageRating,
+          ratingCount: categoryRatings.length,
+          placement: -1,
+        };
+      });
+
+    return {
+      ...game2,
+      jamPage,
+      postJamPage,
+      categoryAverages,
+      ratingsCount: game2.team.users.reduce((totalRatings, user) => {
+        const userRatingCount = user.ratings.reduce((count, rating) => {
+          if (getRatingPageVersion(rating) !== version) return count;
+          const ratedGamePage = rating.gamePage;
+          const ratedCategoryCount =
+            ratedGamePage?.ratingCategories?.length ??
+            ratedGamePage?.game?.ratingCategories?.length ??
+            0;
+          return (
+            count + 1 / (ratedCategoryCount + alwaysCategories.length)
+          );
+        }, 0);
+        return totalRatings + userRatingCount;
+      }, 0),
+    };
+  });
+
+  const versionFilteredGames = filteredGames.filter((entry) =>
+    version === PageVersion.POST_JAM
+      ? Boolean(entry.postJamPage)
+      : Boolean(entry.jamPage),
+  );
+
+  const rankedGames = versionFilteredGames
+    .filter((entry) => {
+      const overallCategory = entry.categoryAverages.find(
+        (avg: any) => avg.categoryName === "RatingCategory.Overall.Title",
+      );
+      return overallCategory && overallCategory.ratingCount >= 5;
+    })
+    .filter((entry) => entry.ratingsCount >= 4.99);
+
+  if (game.category !== "EXTRA") {
+    rankedGames.forEach((entry) => {
+      entry.categoryAverages.forEach((category: any) => {
+        const rankedGamesInCategory = rankedGames
+          .map((candidate) => {
+            const categoryAvg = candidate.categoryAverages.find(
+              (cat: any) => cat.categoryId === category.categoryId,
+            );
+            return {
+              gameId: candidate.id,
+              score: categoryAvg ? categoryAvg.averageScore : 0,
+            };
+          })
+          .sort((a, b) => b.score - a.score);
+
+        const gamePlacement = rankedGamesInCategory.findIndex(
+          (rankedGame) => rankedGame.gameId === entry.id,
+        );
+
+        category.placement = gamePlacement + 1;
+      });
+    });
+  }
+
+  const rankedTarget = rankedGames.find((entry) => entry.id === game.id);
+  if (rankedTarget) {
+    rankedTarget.categoryAverages.forEach((category: any) => {
+      if (category.ratingCount >= 5) {
+        if (!scores[category.categoryName]) {
+          scores[category.categoryName] = {};
+        }
+        scores[category.categoryName].placement = category.placement;
+      }
+    });
+  }
+
+  const target = versionFilteredGames.find((entry) => entry.id === game.id);
+  if (target) {
+    target.categoryAverages.forEach((category: any) => {
+      if (!scores[category.categoryName]) {
+        scores[category.categoryName] = {};
+      }
+      scores[category.categoryName].averageScore = category.averageScore;
+      scores[category.categoryName].ratingCount = category.ratingCount;
+      scores[category.categoryName].averageUnrankedScore =
+        category.averageUnrankedScore;
+    });
+  }
+
+  return scores;
+}
 
 const backgroundUsageAllowedByDefault = (license?: string | null) => {
   const normalized = (license ?? "").toUpperCase().replace(/\s+/g, " ").trim();
@@ -95,7 +922,9 @@ router.put("/:gameSlug", getJam, async function (req, res) {
     estAnyPercent,
     estHundredPercent,
     emotePrefix,
+    pageVersion,
   } = req.body;
+  const targetPageVersion = pageVersionFromInput(pageVersion);
 
   if (!name || !category) {
     res.status(400).send("Name is required.");
@@ -130,19 +959,20 @@ router.put("/:gameSlug", getJam, async function (req, res) {
         majRatingCategories: true,
         tags: true,
         flags: true,
-        tracks: {
-          include: {
-            tags: true,
-            flags: true,
-            links: true,
-            credits: true,
-          },
-        },
+        downloadLinks: true,
         achievements: true,
         leaderboards: {
           include: {
             scores: true,
           },
+        },
+        pages: {
+          where: {
+            version: {
+              in: [PageVersion.JAM, PageVersion.POST_JAM],
+            },
+          },
+          include: postJamPageInclude,
         },
       },
     });
@@ -152,12 +982,45 @@ router.put("/:gameSlug", getJam, async function (req, res) {
       return;
     }
 
+    const existingPostJamPage = getPostJamPage(existingGame);
+    const currentVersionCategory =
+      existingGame.category;
+
     if (
+      targetPageVersion === PageVersion.JAM &&
       res.locals.jamPhase == "Rating" &&
       existingGame.category != category &&
-      category != "EXTRA" // So it can swap from regular to extra in rating period
+      category != "EXTRA"
     ) {
       res.status(400).send("Can't update category outside of jamming period.");
+      return;
+    }
+
+    if (
+      (res.locals.jamPhase === "Post-Jam Refinement" ||
+        res.locals.jamPhase === "Post-Jam Rating") &&
+      currentVersionCategory !== category
+    ) {
+      res.status(400).send("Can't update category during post-jam phases.");
+      return;
+    }
+
+    if (targetPageVersion === PageVersion.POST_JAM) {
+      await upsertGamePage(existingGame.id, PageVersion.POST_JAM, req.body);
+      const updatedGame = await db.game.findUnique({
+        where: { slug: gameSlug },
+        include: {
+          pages: {
+            where: {
+              version: {
+                in: [PageVersion.JAM, PageVersion.POST_JAM],
+              },
+            },
+            include: postJamPageInclude,
+          },
+        },
+      });
+      res.json(updatedGame);
       return;
     }
 
@@ -253,21 +1116,7 @@ router.put("/:gameSlug", getJam, async function (req, res) {
     const updatedGame = await db.game.update({
       where: { slug: gameSlug },
       data: {
-        name,
         slug,
-        description,
-        thumbnail,
-        banner,
-        short,
-        emotePrefix: cleanedPrefix,
-        screenshots: Array.isArray(screenshots) ? screenshots : [],
-        trailerUrl,
-        itchEmbedUrl,
-        itchEmbedAspectRatio,
-        inputMethods: Array.isArray(inputMethods) ? inputMethods : [],
-        estOneRun,
-        estAnyPercent,
-        estHundredPercent,
         downloadLinks: {
           deleteMany: {}, // Remove all existing download links
           create: downloadLinks.map(
@@ -311,7 +1160,6 @@ router.put("/:gameSlug", getJam, async function (req, res) {
         },
         category,
         published,
-        themeJustification,
       },
       include: {
         downloadLinks: true,
@@ -331,11 +1179,11 @@ router.put("/:gameSlug", getJam, async function (req, res) {
         actorId: actor.id,
         actorName: actor.name,
         actorSlug: actor.slug,
-        beforeContent: existingGame.description,
+        beforeContent: getJamPage(existingGame)?.description ?? "",
         afterContent: description,
         gameId: updatedGame.id,
         gameSlug: updatedGame.slug,
-        gameName: updatedGame.name,
+        gameName: name,
       });
     }
 
@@ -409,208 +1257,6 @@ router.put("/:gameSlug", getJam, async function (req, res) {
       }
     }
 
-    // figure out which existing tracks to keep (ids already present in DB)
-    const existingIds = new Set(existingGame.tracks.map((t) => t.id));
-
-    const keepTrackIds = songs
-      .map((s: any) => s?.id)
-      .filter(
-        (id: unknown): id is number =>
-          Number.isInteger(id) && existingIds.has(id),
-      );
-
-    // remove tracks that were deleted client-side
-    const where: any = { gameId: updatedGame.id };
-    if (keepTrackIds.length > 0) {
-      where.id = { notIn: keepTrackIds };
-    }
-    await db.track.deleteMany({ where });
-
-    for (const song of songs) {
-      const hasRealId = Number.isInteger(song?.id) && existingIds.has(song.id);
-      const primaryCreditUserId = Array.isArray(song.credits)
-        ? (song.credits
-            .map((credit: { role?: string; userId?: number | string }) => ({
-              role: String(credit?.role ?? "").trim(),
-              userId: Number(credit?.userId),
-            }))
-            .find(
-              (credit) =>
-                credit.role.toLowerCase() === "composer" &&
-                Number.isInteger(credit.userId),
-            )?.userId ??
-          song.credits
-            .map((credit: { role?: string; userId?: number | string }) => ({
-              role: String(credit?.role ?? "").trim(),
-              userId: Number(credit?.userId),
-            }))
-            .find((credit) => Number.isInteger(credit.userId))?.userId ??
-          null)
-        : null;
-
-      if (hasRealId) {
-        await db.track.update({
-          where: { id: song.id },
-          data: {
-            name: song.name,
-            url: song.url,
-            slug: song.slug,
-            commentary: song.commentary || null,
-            bpm:
-              typeof song.bpm === "number" && Number.isFinite(song.bpm)
-                ? Math.max(1, Math.floor(song.bpm))
-                : null,
-            musicalKey: song.musicalKey || null,
-            softwareUsed: Array.isArray(song.softwareUsed)
-              ? song.softwareUsed.filter(Boolean)
-              : [],
-            license: song.license || null,
-            allowDownload: Boolean(song.allowDownload),
-            allowBackgroundUse:
-              typeof song.allowBackgroundUse === "boolean"
-                ? song.allowBackgroundUse
-                : backgroundUsageAllowedByDefault(song.license),
-            allowBackgroundUseAttribution:
-              typeof song.allowBackgroundUseAttribution === "boolean"
-                ? song.allowBackgroundUseAttribution
-                : backgroundUsageAttributionAllowedByDefault(song.license),
-            tags: {
-              set: Array.isArray(song.tagIds)
-                ? song.tagIds
-                    .map((id: number | string) => Number(id))
-                    .filter((id: number) => Number.isInteger(id))
-                    .map((id: number) => ({ id }))
-                : [],
-            },
-            flags: {
-              set: Array.isArray(song.flagIds)
-                ? song.flagIds
-                    .map((id: number | string) => Number(id))
-                    .filter((id: number) => Number.isInteger(id))
-                    .map((id: number) => ({ id }))
-                : [],
-            },
-            links: {
-              deleteMany: {},
-              create: Array.isArray(song.links)
-                ? song.links
-                    .map((link: { label?: string; url?: string }) => ({
-                      label: String(link?.label ?? "").trim(),
-                      url: String(link?.url ?? "").trim(),
-                    }))
-                    .filter((link) => link.label && link.url)
-                : [],
-            },
-            credits: {
-              deleteMany: {},
-              create: Array.isArray(song.credits)
-                ? song.credits
-                    .map(
-                      (credit: {
-                        role?: string;
-                        userId?: number | string;
-                      }) => ({
-                        role: String(credit?.role ?? "").trim(),
-                        userId: Number(credit?.userId),
-                      }),
-                    )
-                    .filter(
-                      (credit) =>
-                        credit.role.length > 0 &&
-                        Number.isInteger(credit.userId),
-                    )
-                : [],
-            },
-            ...(primaryCreditUserId || song.composerId
-              ? {
-                  composer: {
-                    connect: { id: primaryCreditUserId || song.composerId },
-                  },
-                }
-              : {}),
-          },
-        });
-      } else {
-        await db.track.create({
-          data: {
-            name: song.name,
-            slug: song.slug,
-            url: song.url,
-            commentary: song.commentary || null,
-            bpm:
-              typeof song.bpm === "number" && Number.isFinite(song.bpm)
-                ? Math.max(1, Math.floor(song.bpm))
-                : null,
-            musicalKey: song.musicalKey || null,
-            softwareUsed: Array.isArray(song.softwareUsed)
-              ? song.softwareUsed.filter(Boolean)
-              : [],
-            license: song.license || null,
-            allowDownload: Boolean(song.allowDownload),
-            allowBackgroundUse:
-              typeof song.allowBackgroundUse === "boolean"
-                ? song.allowBackgroundUse
-                : backgroundUsageAllowedByDefault(song.license),
-            allowBackgroundUseAttribution:
-              typeof song.allowBackgroundUseAttribution === "boolean"
-                ? song.allowBackgroundUseAttribution
-                : backgroundUsageAttributionAllowedByDefault(song.license),
-            tags: {
-              connect: Array.isArray(song.tagIds)
-                ? song.tagIds
-                    .map((id: number | string) => Number(id))
-                    .filter((id: number) => Number.isInteger(id))
-                    .map((id: number) => ({ id }))
-                : [],
-            },
-            flags: {
-              connect: Array.isArray(song.flagIds)
-                ? song.flagIds
-                    .map((id: number | string) => Number(id))
-                    .filter((id: number) => Number.isInteger(id))
-                    .map((id: number) => ({ id }))
-                : [],
-            },
-            links: {
-              create: Array.isArray(song.links)
-                ? song.links
-                    .map((link: { label?: string; url?: string }) => ({
-                      label: String(link?.label ?? "").trim(),
-                      url: String(link?.url ?? "").trim(),
-                    }))
-                    .filter((link) => link.label && link.url)
-                : [],
-            },
-            credits: {
-              create: Array.isArray(song.credits)
-                ? song.credits
-                    .map(
-                      (credit: {
-                        role?: string;
-                        userId?: number | string;
-                      }) => ({
-                        role: String(credit?.role ?? "").trim(),
-                        userId: Number(credit?.userId),
-                      }),
-                    )
-                    .filter(
-                      (credit) =>
-                        credit.role.length > 0 &&
-                        Number.isInteger(credit.userId),
-                    )
-                : [],
-            },
-            composer: {
-              connect: {
-                id: primaryCreditUserId || song.composerId,
-              },
-            },
-            game: { connect: { id: updatedGame.id } },
-          },
-        });
-      }
-    }
-
     for (const achievement of achievements) {
       if (
         existingGame.achievements.filter(
@@ -656,9 +1302,72 @@ router.put("/:gameSlug", getJam, async function (req, res) {
       }
     }
 
+    await upsertGamePage(updatedGame.id, PageVersion.JAM, req.body);
+
     res.json(updatedGame);
   } catch (error) {
     console.error("Error updating game:", error);
+    res.status(500).send("Internal server error.");
+  }
+});
+
+router.post("/:gameSlug/post-jam", getJam, async function (req, res) {
+  const { gameSlug } = req.params;
+
+  try {
+    const existingGame = await db.game.findUnique({
+      where: { slug: gameSlug },
+      include: {
+        ratingCategories: true,
+        majRatingCategories: true,
+        tags: true,
+        flags: true,
+        achievements: true,
+        leaderboards: true,
+        downloadLinks: true,
+        pages: {
+          where: {
+            version: {
+              in: [PageVersion.JAM, PageVersion.POST_JAM],
+            },
+          },
+          include: postJamPageInclude,
+        },
+      },
+    });
+
+    if (!existingGame) {
+      res.status(404).send("Game not found.");
+      return;
+    }
+
+    if (!getPostJamPage(existingGame)) {
+      await upsertGamePage(
+        existingGame.id,
+        PageVersion.POST_JAM,
+        buildPostJamBodyFromGame(existingGame),
+      );
+      const updatedGame = await db.game.findUnique({
+        where: { slug: gameSlug },
+        include: {
+          pages: {
+            where: {
+              version: {
+                in: [PageVersion.JAM, PageVersion.POST_JAM],
+              },
+            },
+            include: postJamPageInclude,
+          },
+        },
+      });
+
+      res.json(updatedGame);
+      return;
+    }
+
+    res.json(existingGame);
+  } catch (error) {
+    console.error("Error creating post-jam page:", error);
     res.status(500).send("Internal server error.");
   }
 });
@@ -679,29 +1388,6 @@ router.get(
         majRatingCategories: true,
         tags: true,
         flags: true,
-        achievements: {
-          include: {
-            users: true,
-          },
-        },
-        tracks: {
-          include: {
-            composer: true,
-            game: true,
-            tags: {
-              include: {
-                category: true,
-              },
-            },
-            flags: true,
-            links: true,
-            credits: {
-              include: {
-                user: true,
-              },
-            },
-          },
-        },
         leaderboards: {
           include: {
             scores: {
@@ -714,9 +1400,27 @@ router.get(
         gameEmotes: {
           include: {
             artistUser: true,
-            ownerGame: true,
+            ownerGame: {
+              select: {
+                id: true,
+                slug: true,
+                pages: {
+                  where: { version: "JAM" },
+                  select: { name: true, thumbnail: true },
+                  take: 1,
+                },
+              },
+            },
             uploaderUser: true,
           },
+        },
+        pages: {
+          where: {
+            version: {
+              in: [PageVersion.JAM, PageVersion.POST_JAM],
+            },
+          },
+          include: postJamPageInclude,
         },
         team: {
           include: {
@@ -725,14 +1429,25 @@ router.get(
               include: {
                 ratings: {
                   select: {
-                    game: {
+                    gamePage: {
                       select: {
+                        version: true,
+                        gameId: true,
                         ratingCategories: {
                           select: {
                             id: true,
                           },
                         },
-                        jamId: true,
+                        game: {
+                          select: {
+                            ratingCategories: {
+                              select: {
+                                id: true,
+                              },
+                            },
+                            jamId: true,
+                          },
+                        },
                       },
                     },
                   },
@@ -743,6 +1458,14 @@ router.get(
         },
         ratings: {
           include: {
+            category: true,
+            gamePage: {
+              select: {
+                id: true,
+                version: true,
+                gameId: true,
+              },
+            },
             user: {
               select: {
                 teams: {
@@ -836,10 +1559,20 @@ router.get(
       res.locals.user?.id ?? null,
       isPrivilegedViewer(res.locals.user),
     );
+    const jamPage = getJamPage(game);
+    const postJamPage = getPostJamPage(game);
+    const jamPageCommentsWithHasLiked = mapCommentsForViewer(
+      jamPage?.comments ?? [],
+      res.locals.user?.id ?? null,
+      isPrivilegedViewer(res.locals.user),
+    );
+    const postJamPageCommentsWithHasLiked = mapCommentsForViewer(
+      postJamPage?.comments ?? [],
+      res.locals.user?.id ?? null,
+      isPrivilegedViewer(res.locals.user),
+    );
 
     // Ratings info
-
-    let scores = {};
 
     const currentJamMatches = res.locals.jam?.id === game.jamId;
     const canViewRecapScores = req.query.recap === "1";
@@ -858,218 +1591,83 @@ router.get(
     const isJamOver =
       jamStartMs != null ? Date.now() >= jamStartMs + jamDurationMs : true;
 
+    let jamScores = {};
+    let postJamScores = {};
+
     if (
       !currentJamMatches ||
       isJamOver ||
       canViewRecapScores ||
       canPreviewScores
     ) {
-      let games = await db.game.findMany({
-        where: {
-          category: game.category,
-          jamId: game.jamId,
-        },
-        include: {
-          ratingCategories: true,
-          majRatingCategories: true,
-          team: {
-            select: {
-              users: {
-                select: {
-                  ratings: {
-                    select: {
-                      game: {
-                        select: {
-                          ratingCategories: {
-                            select: {
-                              id: true,
-                            },
-                          },
-                        },
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          },
-          ratings: {
-            select: {
-              value: true,
-              categoryId: true,
-              user: {
-                select: {
-                  teams: {
-                    select: {
-                      game: {
-                        select: {
-                          published: true,
-                        },
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
+      jamScores = await buildVersionScores({
+        game,
+        version: PageVersion.JAM,
       });
 
-      const ratingCategories = await db.ratingCategory.findMany({
-        where: {
-          always: true,
-        },
-      });
-
-      let filteredGames = games.map((game2) => {
-        const categories = [...game2.ratingCategories, ...ratingCategories];
-        const categoryIds = categories.map(
-          (ratingCategory) => ratingCategory.id,
-        );
-
-        // Filter out ratings in categories the game has opted out of (in case they opt out later)
-        const filteredRatings = game2.ratings.filter((rating) =>
-          categoryIds.includes(rating.categoryId),
-        );
-
-        const publishedRatings = filteredRatings.filter(
-          (rating) =>
-            rating.user.teams.filter((team) => team.game?.published).length > 0,
-        );
-
-        const categoryAverages = categories
-          .filter(
-            (category) =>
-              !category.askMajorityContent ||
-              game2.category != "REGULAR" ||
-              game.majRatingCategories.filter((maj) => maj.id == category.id)
-                .length == 0 ||
-              game2.majRatingCategories.filter((maj) => maj.id == category.id)
-                .length > 0,
-          )
-          .map((category) => {
-            const categoryRatings = filteredRatings.filter(
-              (rating) => rating.categoryId === category.id,
-            );
-            const categoryPublishedRatings = publishedRatings.filter(
-              (rating) => rating.categoryId === category.id,
-            );
-
-            const averageRating =
-              categoryRatings.length > 0
-                ? categoryRatings.reduce(
-                    (sum, rating) => sum + rating.value,
-                    0,
-                  ) / categoryRatings.length
-                : 0;
-
-            const averagePublishedRating =
-              categoryPublishedRatings.length > 0
-                ? categoryPublishedRatings.reduce(
-                    (sum, rating) => sum + rating.value,
-                    0,
-                  ) / categoryPublishedRatings.length
-                : 0;
-
-            return {
-              categoryId: category.id,
-              categoryName: category.name,
-              averageScore: averagePublishedRating,
-              averageUnrankedScore: averageRating,
-              ratingCount: categoryRatings.length,
-              placement: -1,
-            };
-          });
-
-        return {
-          ...game2,
-          categoryAverages,
-          ratingsCount: game2.team.users.reduce((totalRatings, user) => {
-            const userRatingCount = user.ratings.reduce((count, rating) => {
-              return (
-                count +
-                1 /
-                  (rating.game.ratingCategories.length +
-                    ratingCategories.length)
-              );
-            }, 0);
-            return totalRatings + userRatingCount;
-          }, 0),
-        };
-      });
-
-      const newfilteredgames = filteredGames
-        .filter((game) => {
-          const overallCategory = game.categoryAverages.find(
-            (avg) => avg.categoryName === "RatingCategory.Overall.Title",
-          );
-          return overallCategory && overallCategory.ratingCount >= 5;
-        })
-        .filter((game) => game.ratingsCount >= 4.99);
-
-      if (game.category !== "EXTRA") {
-        newfilteredgames.forEach((game) => {
-          game.categoryAverages.forEach((category) => {
-            // Rank games within each category by averageScore
-            const rankedGamesInCategory = newfilteredgames
-              .map((g) => {
-                const categoryAvg = g.categoryAverages.find(
-                  (cat) => cat.categoryId === category.categoryId,
-                );
-                return {
-                  gameId: g.id,
-                  score: categoryAvg ? categoryAvg.averageScore : 0,
-                };
-              })
-              .sort((a, b) => b.score - a.score);
-
-            const gamePlacement = rankedGamesInCategory.findIndex(
-              (rankedGame) => rankedGame.gameId === game.id,
-            );
-
-            category.placement = gamePlacement + 1;
-          });
-        });
-      }
-
-      const newgame = newfilteredgames.filter((fgame) => fgame.id == game.id);
-
-      if (newgame.length > 0) {
-        newgame[0].categoryAverages.forEach((cat) => {
-          if (cat.ratingCount >= 5) {
-            if (!scores[cat.categoryName]) {
-              scores[cat.categoryName] = {};
-            }
-            scores[cat.categoryName].placement = cat.placement;
-          }
-        });
-      }
-
-      const gamedet = filteredGames.filter((fgame) => fgame.id == game.id);
-
-      if (gamedet.length > 0) {
-        gamedet[0].categoryAverages.forEach((cat) => {
-          if (!scores[cat.categoryName]) {
-            scores[cat.categoryName] = {};
-          }
-          scores[cat.categoryName].averageScore = cat.averageScore;
-          scores[cat.categoryName].ratingCount = cat.ratingCount;
-          scores[cat.categoryName].averageUnrankedScore =
-            cat.averageUnrankedScore;
+      if (postJamPage && game.published) {
+        postJamScores = await buildVersionScores({
+          game,
+          version: PageVersion.POST_JAM,
         });
       }
     }
 
+    const normalizedRatings = (game.ratings ?? []).map((rating: any) => ({
+      ...rating,
+      gameId: rating.gamePage?.gameId ?? game.id,
+      gamePageId: rating.gamePage?.id ?? null,
+      pageVersion: getRatingPageVersion(rating),
+    }));
+
+    const normalizedTeam = {
+      ...game.team,
+      users: (game.team?.users ?? []).map((teamUser: any) => ({
+        ...teamUser,
+        ratings: (teamUser.ratings ?? []).map((rating: any) => ({
+          ...rating,
+          gameId: rating.gamePage?.gameId ?? null,
+          gamePageId: rating.gamePage?.id ?? null,
+          pageVersion: getRatingPageVersion(rating),
+          game:
+            rating.gamePage?.game ??
+            rating.game ??
+            null,
+        })),
+      })),
+    };
+
     res.json({
       ...game,
+      achievements: jamPage?.achievements ?? [],
+      gameEmotes: (game.gameEmotes ?? []).map((emoji: any) => ({
+        ...emoji,
+        ownerGame: emoji.ownerGame
+          ? {
+              ...emoji.ownerGame,
+              name: emoji.ownerGame.pages?.[0]?.name ?? emoji.ownerGame.slug,
+              thumbnail: emoji.ownerGame.pages?.[0]?.thumbnail ?? null,
+            }
+          : null,
+      })),
+      team: normalizedTeam,
+      ratings: normalizedRatings,
+      jamPage: jamPage
+        ? { ...jamPage, comments: jamPageCommentsWithHasLiked }
+        : null,
+      postJamPage: postJamPage
+        ? { ...postJamPage, comments: postJamPageCommentsWithHasLiked }
+        : null,
       comments: commentsWithHasLiked,
-      scores,
+      jamScores,
+      postJamScores,
     });
   },
 );
 
 router.get("/", async function (req: Request, res: Response) {
   const { sort, jamId } = req.query;
+  const listingPageVersion = parseListingPageVersion(req.query.pageVersion);
   let orderBy: {} | undefined = {};
 
   switch (sort) {
@@ -1116,15 +1714,30 @@ router.get("/", async function (req: Request, res: Response) {
       downloadLinks: true,
       tags: true,
       flags: true,
+      pages: {
+        where: {
+          version: {
+            in: [PageVersion.JAM, PageVersion.POST_JAM],
+          },
+        },
+        include: postJamPageInclude,
+      },
       ratings: {
         select: {
           id: true,
           value: true,
+          userId: true,
           categoryId: true,
+          gameId: true,
           category: {
             select: {
               id: true,
               name: true,
+            },
+          },
+          gamePage: {
+            select: {
+              version: true,
             },
           },
           user: {
@@ -1197,6 +1810,11 @@ router.get("/", async function (req: Request, res: Response) {
               ratings: {
                 select: {
                   gameId: true,
+                  gamePage: {
+                    select: {
+                      version: true,
+                    },
+                  },
                   game: { select: { jamId: true, ratingCategories: true } },
                 },
               },
@@ -1213,6 +1831,38 @@ router.get("/", async function (req: Request, res: Response) {
     res.status(404).send("No Games were found");
     return;
   }
+
+  game = game.flatMap((entry: any) => {
+    const jamPage = getJamPage(entry);
+    const postJamPage = getPostJamPage(entry);
+
+    return getListingVersions(entry, listingPageVersion).map((version) => {
+      const materialized = materializeGamePage(entry, version);
+
+      return {
+        ...materialized,
+        pageVersion: version,
+        jamPage,
+        postJamPage,
+        ratings: (entry.ratings ?? []).filter(
+          (rating: any) =>
+            (rating.gamePage?.version ?? PageVersion.JAM) === version,
+        ),
+        team: entry.team
+          ? {
+              ...entry.team,
+              users: (entry.team.users ?? []).map((user: any) => ({
+                ...user,
+                ratings: (user.ratings ?? []).filter(
+                  (rating: any) =>
+                    (rating.gamePage?.version ?? PageVersion.JAM) === version,
+                ),
+              })),
+            }
+          : entry.team,
+      };
+    });
+  });
 
   const ratingCategories = await db.ratingCategory.findMany({
     where: {
@@ -1360,18 +2010,26 @@ router.get("/", async function (req: Request, res: Response) {
     const recommendationWeight = 2;
     const recommendationSlots = 3;
     const jamIds = [...new Set(game.map((entry) => entry.jamId))];
+    const pageVersions = [
+      ...new Set(game.map((entry) => entry.pageVersion ?? PageVersion.JAM)),
+    ];
     const overallCategoryId =
       ratingCategories.find(
         (category) => category.name === "RatingCategory.Overall.Title",
       )?.id ?? null;
+    const recommendationKeyFor = (gameId: number, version: PageVersion) =>
+      `${gameId}:${version}`;
 
-    const recommendedPointsByGameId = new Map<number, number>();
+    const recommendedPointsByGameId = new Map<string, number>();
 
     if (overallCategoryId && jamIds.length > 0) {
       const recommendationRatings = await db.rating.findMany({
         where: {
           game: {
             jamId: { in: jamIds },
+          },
+          gamePage: {
+            version: { in: pageVersions },
           },
         },
         select: {
@@ -1380,6 +2038,11 @@ router.get("/", async function (req: Request, res: Response) {
           categoryId: true,
           value: true,
           updatedAt: true,
+          gamePage: {
+            select: {
+              version: true,
+            },
+          },
           game: {
             select: {
               jamId: true,
@@ -1407,6 +2070,7 @@ router.get("/", async function (req: Request, res: Response) {
         Array<{
           gameId: number;
           jamId: number;
+          pageVersion: PageVersion;
           value: number;
           tieBreakerValue: number;
           updatedAt: number;
@@ -1442,6 +2106,7 @@ router.get("/", async function (req: Request, res: Response) {
         existing.push({
           gameId: rating.gameId,
           jamId: rating.game.jamId,
+          pageVersion: rating.gamePage?.version ?? PageVersion.JAM,
           value: rating.value,
           tieBreakerValue: average
             ? average.total / average.count
@@ -1466,7 +2131,7 @@ router.get("/", async function (req: Request, res: Response) {
       ratingsByUser.forEach((entries, userId) => {
         const ranking = rankRecommendationCandidates(
           entries.map((entry) => ({
-            itemId: entry.gameId,
+            itemId: recommendationKeyFor(entry.gameId, entry.pageVersion),
             value: entry.value,
             tieBreakerValue: entry.tieBreakerValue,
             updatedAt: entry.updatedAt,
@@ -1483,12 +2148,14 @@ router.get("/", async function (req: Request, res: Response) {
         )
           .filter((gameId) =>
             entries.some(
-              (entry) => entry.gameId === gameId && jamIds.includes(entry.jamId),
+              (entry) =>
+                recommendationKeyFor(entry.gameId, entry.pageVersion) ===
+                  gameId && jamIds.includes(entry.jamId),
             ),
           )
-          .forEach((entry) => {
-            const current = recommendedPointsByGameId.get(entry) ?? 0;
-            recommendedPointsByGameId.set(entry, current + 1);
+          .forEach((entryKey) => {
+            const current = recommendedPointsByGameId.get(entryKey) ?? 0;
+            recommendedPointsByGameId.set(entryKey, current + 1);
           });
       });
     }
@@ -1583,7 +2250,10 @@ router.get("/", async function (req: Request, res: Response) {
     };
 
     const recommendedBoost = (g: (typeof game)[number]) => {
-      const points = recommendedPointsByGameId.get(g.id) ?? 0;
+      const points =
+        recommendedPointsByGameId.get(
+          recommendationKeyFor(g.id, g.pageVersion ?? PageVersion.JAM),
+        ) ?? 0;
       if (points <= 0) return 0;
       return recommendationWeight * points ** exponent;
     };

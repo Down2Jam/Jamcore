@@ -61,10 +61,26 @@ router.put("/", rateLimit(), authUser, getUser, async (req, res) => {
     });
   }
 
+  const jamPage = await db.gamePage.findFirst({
+    where: {
+      gameId: ownerGame.id,
+      version: "JAM",
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (!jamPage) {
+    return res.status(500).json({
+      message: "Jam page missing for published game.",
+    });
+  }
+
   const existingRows = await db.data.findMany({
     where: {
       userId: currentUserId,
-      gameId: ownerGame.id,
+      gamePageId: jamPage.id,
     },
     select: {
       id: true,
@@ -95,7 +111,7 @@ router.put("/", rateLimit(), authUser, getUser, async (req, res) => {
       data: {
         data: JSON.stringify(payload),
         userId: currentUserId,
-        gameId: ownerGame.id,
+        gamePageId: jamPage.id,
       },
     });
   }

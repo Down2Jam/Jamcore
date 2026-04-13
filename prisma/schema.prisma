@@ -44,8 +44,8 @@ model User {
   themeSuggestions      ThemeSuggestion[] @relation(name: "SuggestionToUser")
   themeVotes            ThemeVote[]       @relation(name: "VoteToUser")
   themeVotes2           ThemeVote2[]      @relation(name: "Vote2ToUser")
-  tracks                Track[]           @relation(name: "TrackToComposer")
-  trackCredits          TrackCredit[]     @relation(name: "TrackCreditToUser")
+  gamePageTracks        GamePageTrack[]   @relation(name: "GamePageTrackToComposer")
+  gamePageTrackCredits  GamePageTrackCredit[] @relation(name: "GamePageTrackCreditToUser")
   trackTimestampComments TrackTimestampComment[] @relation(name: "TrackTimestampCommentToAuthor")
   scores                Score[]           @relation(name: "ScoreToUser")
   ghosts                Ghost[]           @relation(name: "GhostToUser")
@@ -61,6 +61,7 @@ model User {
   trackRatings          TrackRating[]     @relation(name: "TrackRatingToUser")
   commentReactions      CommentReaction[]
   achievements          Achievement[]     @relation(name: "AchievementToUsers")
+  gamePageAchievements  GamePageAchievement[] @relation(name: "GamePageAchievementToUsers")
   receivedNotifications Notification[]    @relation(name: "NotificationToRecipient")
   sentNotifications     Notification[]    @relation(name: "NotificationToActor")
   PostReaction          PostReaction[]
@@ -70,7 +71,7 @@ model User {
   reactionsUploaded     Reaction[]        @relation(name: "ReactionToUploader")
   recommendedGames      Game[]            @relation(name: "UserRecommendedGames")
   recommendedPosts      Post[]            @relation(name: "UserRecommendedPosts")
-  recommendedTracks     Track[]           @relation(name: "UserRecommendedTracks")
+  recommendedTracks     GamePageTrack[]   @relation(name: "UserRecommendedTracks")
   documentationDocuments DocumentationDocument[]
   pressKitMedia         PressKitMedia[]
   recommendedGameOverrideIds Int[]        @default([])
@@ -85,6 +86,11 @@ enum Priority {
   HIGH
   MEDIUM
   LOW
+}
+
+enum PageVersion {
+  JAM
+  POST_JAM
 }
 
 model TagCategory {
@@ -115,6 +121,7 @@ model Tag {
   // Relations
   posts      Post[]
   games      Game[]       @relation(name: "GamesToTags")
+  gamePages  GamePage[]   @relation(name: "GamePagesToTags")
   category   TagCategory? @relation(fields: [categoryId], references: [id])
   categoryId Int?
 }
@@ -261,7 +268,9 @@ model Comment {
   commentId     Int?
   game          Game?          @relation(fields: [gameId], references: [id], name: "CommentToGame")
   gameId        Int?
-  track         Track?         @relation(fields: [trackId], references: [id], name: "CommentToTrack")
+  gamePage      GamePage?      @relation(fields: [gamePageId], references: [id], name: "CommentToGamePage")
+  gamePageId    Int?
+  track         GamePageTrack? @relation(fields: [trackId], references: [id], name: "CommentToTrack")
   trackId       Int?
   author        User           @relation(fields: [authorId], references: [id])
   authorId      Int
@@ -340,26 +349,12 @@ enum GameCategory {
 model Game {
   id                  Int              @id @default(autoincrement())
   slug                String           @unique
-  name                String
-  description         String?
-  short               String?
-  thumbnail           String?
-  banner              String?
-  screenshots         String[]         @default([])
-  trailerUrl          String?
-  itchEmbedUrl        String?
-  itchEmbedAspectRatio String?
-  inputMethods        String[]         @default([])
-  estOneRun           String?
-  estAnyPercent       String?
-  estHundredPercent   String?
   category            GameCategory
   createdAt           DateTime         @default(now())
   updatedAt           DateTime         @updatedAt
   ratingCategories    RatingCategory[]
   majRatingCategories RatingCategory[] @relation(name: "GameToMajorityContentRating")
   published           Boolean          @default(false)
-  themeJustification  String?
 
   // Relations
   team          Team               @relation(fields: [teamId], references: [id], name: "GameToTeam")
@@ -368,19 +363,55 @@ model Game {
   jamId         Int
   reports       Report[]           @relation(name: "ReportToGame")
   downloadLinks GameDownloadLink[] @relation(name: "LinkToGame")
-  tracks        Track[]            @relation(name: "TrackToGame")
   leaderboards  Leaderboard[]      @relation(name: "LeaderboardToGame")
   achievements  Achievement[]      @relation(name: "AchievementToGame")
-  ghosts        Ghost[]            @relation(name: "GhostToGame")
-  data          Data[]             @relation(name: "DataToGame")
   ratings       Rating[]           @relation(name: "RatingToGame")
   flags         Flag[]             @relation(name: "GamesToFlags")
   tags          Tag[]              @relation(name: "GamesToTags")
   comments      Comment[]          @relation(name: "CommentToGame")
   notifications Notification[]     @relation(name: "NotificationToGame")
-  emotePrefix   String?
   gameEmotes    Reaction[]         @relation(name: "ReactionToGameOwner")
   recommendedByUsers User[]        @relation(name: "UserRecommendedGames")
+  pages         GamePage[]         @relation(name: "GameToPages")
+}
+
+model GamePage {
+  id                   Int              @id @default(autoincrement())
+  version              PageVersion
+  name                 String
+  description          String?
+  short                String?
+  thumbnail            String?
+  banner               String?
+  screenshots          String[]         @default([])
+  trailerUrl           String?
+  itchEmbedUrl         String?
+  itchEmbedAspectRatio String?
+  inputMethods         String[]         @default([])
+  estOneRun            String?
+  estAnyPercent        String?
+  estHundredPercent    String?
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+  themeJustification   String?
+  emotePrefix          String?
+
+  game                 Game             @relation(fields: [gameId], references: [id], name: "GameToPages")
+  gameId               Int
+  ratingCategories     RatingCategory[]
+  majRatingCategories  RatingCategory[] @relation(name: "GamePageToMajorityContentRating")
+  flags                Flag[]           @relation(name: "GamePagesToFlags")
+  tags                 Tag[]            @relation(name: "GamePagesToTags")
+  downloadLinks        GamePageDownloadLink[] @relation(name: "LinkToGamePage")
+  tracks               GamePageTrack[]       @relation(name: "TrackToGamePage")
+  leaderboards         GamePageLeaderboard[] @relation(name: "LeaderboardToGamePage")
+  achievements         GamePageAchievement[] @relation(name: "AchievementToGamePage")
+  comments             Comment[]             @relation(name: "CommentToGamePage")
+  ghosts               Ghost[]               @relation(name: "GhostToGamePage")
+  data                 Data[]                @relation(name: "DataToGamePage")
+  ratings              Rating[]              @relation(name: "RatingToGamePage")
+
+  @@unique([gameId, version])
 }
 
 model Flag {
@@ -392,7 +423,8 @@ model Flag {
   updatedAt   DateTime @updatedAt
 
   // Relations
-  games Game[] @relation(name: "GamesToFlags")
+  games     Game[]     @relation(name: "GamesToFlags")
+  gamePages GamePage[] @relation(name: "GamePagesToFlags")
 }
 
 model RatingCategory {
@@ -406,9 +438,11 @@ model RatingCategory {
   updatedAt          DateTime @updatedAt
 
   // Relations
-  ratings         Rating[] @relation("RatingToCategory")
-  games           Game[]
-  majContentGames Game[]   @relation("GameToMajorityContentRating")
+  ratings             Rating[]   @relation("RatingToCategory")
+  games               Game[]
+  majContentGames     Game[]     @relation("GameToMajorityContentRating")
+  gamePages           GamePage[]
+  majContentGamePages GamePage[] @relation("GamePageToMajorityContentRating")
 }
 
 model TrackRatingCategory {
@@ -443,7 +477,7 @@ model TrackTag {
 
   category   TrackTagCategory @relation(fields: [categoryId], references: [id])
   categoryId Int
-  tracks     Track[]
+  gamePageTracks GamePageTrack[]
 }
 
 model TrackFlag {
@@ -454,7 +488,7 @@ model TrackFlag {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  tracks Track[]
+  gamePageTracks GamePageTrack[]
 }
 
 model Rating {
@@ -470,61 +504,10 @@ model Rating {
   userId     Int
   game       Game           @relation(fields: [gameId], references: [id], name: "RatingToGame")
   gameId     Int
-}
+  gamePage   GamePage       @relation(fields: [gamePageId], references: [id], name: "RatingToGamePage")
+  gamePageId Int
 
-model Track {
-  id            Int      @id @default(autoincrement())
-  slug          String   @unique
-  url           String
-  name          String
-  license       String?
-  allowDownload Boolean  @default(false)
-  allowBackgroundUse Boolean @default(false)
-  allowBackgroundUseAttribution Boolean @default(false)
-  bpm           Int?
-  musicalKey    String?
-  softwareUsed  String[] @default([])
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  commentary    String?
-
-  // Relations
-  composer   User @relation(fields: [composerId], references: [id], name: "TrackToComposer")
-  composerId Int
-  game       Game @relation(fields: [gameId], references: [id], name: "TrackToGame")
-  gameId     Int
-  tags       TrackTag[]
-  flags      TrackFlag[]
-  links      TrackLink[]         @relation(name: "TrackToLinks")
-  credits    TrackCredit[]       @relation(name: "TrackToCredits")
-  comments   Comment[]         @relation(name: "CommentToTrack")
-  ratings    TrackRating[]     @relation(name: "TrackRatingToTrack")
-  notifications Notification[] @relation(name: "NotificationToTrack")
-  timestampComments TrackTimestampComment[] @relation(name: "TrackTimestampCommentToTrack")
-  recommendedByUsers User[] @relation(name: "UserRecommendedTracks")
-}
-
-model TrackLink {
-  id        Int      @id @default(autoincrement())
-  label     String
-  url       String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  track   Track @relation(fields: [trackId], references: [id], name: "TrackToLinks", onDelete: Cascade)
-  trackId Int
-}
-
-model TrackCredit {
-  id        Int      @id @default(autoincrement())
-  role      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  track   Track @relation(fields: [trackId], references: [id], name: "TrackToCredits", onDelete: Cascade)
-  trackId Int
-  user    User  @relation(fields: [userId], references: [id], name: "TrackCreditToUser")
-  userId  Int
+  @@unique([gamePageId, categoryId, userId])
 }
 
 model TrackRating {
@@ -537,7 +520,7 @@ model TrackRating {
   categoryId Int
   user       User           @relation(fields: [userId], references: [id], name: "TrackRatingToUser")
   userId     Int
-  track      Track          @relation(fields: [trackId], references: [id], name: "TrackRatingToTrack")
+  track      GamePageTrack  @relation(fields: [trackId], references: [id], name: "TrackRatingToTrack")
   trackId    Int
 
   @@unique([trackId, categoryId, userId])
@@ -552,8 +535,64 @@ model TrackTimestampComment {
 
   author   User  @relation(fields: [authorId], references: [id], name: "TrackTimestampCommentToAuthor")
   authorId Int
-  track    Track @relation(fields: [trackId], references: [id], name: "TrackTimestampCommentToTrack")
+  track    GamePageTrack @relation(fields: [trackId], references: [id], name: "TrackTimestampCommentToTrack")
   trackId  Int
+}
+
+model GamePageTrack {
+  id                           Int      @id @default(autoincrement())
+  slug                         String
+  url                          String
+  name                         String
+  license                      String?
+  allowDownload                Boolean  @default(false)
+  allowBackgroundUse           Boolean  @default(false)
+  allowBackgroundUseAttribution Boolean @default(false)
+  bpm                          Int?
+  musicalKey                   String?
+  softwareUsed                 String[] @default([])
+  createdAt                    DateTime @default(now())
+  updatedAt                    DateTime @updatedAt
+  commentary                   String?
+
+  composer   User     @relation(fields: [composerId], references: [id], name: "GamePageTrackToComposer")
+  composerId Int
+  gamePage   GamePage  @relation(fields: [gamePageId], references: [id], name: "TrackToGamePage")
+  gamePageId Int
+  tags       TrackTag[]
+  flags      TrackFlag[]
+  links      GamePageTrackLink[]   @relation(name: "GamePageTrackToLinks")
+  credits    GamePageTrackCredit[] @relation(name: "GamePageTrackToCredits")
+  comments   Comment[]             @relation(name: "CommentToTrack")
+  ratings    TrackRating[]         @relation(name: "TrackRatingToTrack")
+  notifications Notification[]     @relation(name: "NotificationToTrack")
+  timestampComments TrackTimestampComment[] @relation(name: "TrackTimestampCommentToTrack")
+  recommendedByUsers User[]        @relation(name: "UserRecommendedTracks")
+
+  @@unique([gamePageId, slug])
+}
+
+model GamePageTrackLink {
+  id        Int      @id @default(autoincrement())
+  label     String
+  url       String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  track   GamePageTrack @relation(fields: [trackId], references: [id], name: "GamePageTrackToLinks", onDelete: Cascade)
+  trackId Int
+}
+
+model GamePageTrackCredit {
+  id        Int      @id @default(autoincrement())
+  role      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  track   GamePageTrack @relation(fields: [trackId], references: [id], name: "GamePageTrackToCredits", onDelete: Cascade)
+  trackId Int
+  user    User          @relation(fields: [userId], references: [id], name: "GamePageTrackCreditToUser")
+  userId  Int
 }
 
 enum LeaderboardType {
@@ -577,6 +616,20 @@ model Leaderboard {
   game   Game    @relation(fields: [gameId], references: [id], name: "LeaderboardToGame")
   gameId Int
   scores Score[] @relation(name: "ScoreToLeaderboard")
+}
+
+model GamePageLeaderboard {
+  id            Int             @id @default(autoincrement())
+  type          LeaderboardType
+  name          String
+  decimalPlaces Int             @default(0)
+  maxUsersShown Int             @default(10)
+  onlyBest      Boolean         @default(true)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  gamePage   GamePage @relation(fields: [gamePageId], references: [id], name: "LeaderboardToGamePage")
+  gamePageId Int
 }
 
 model Score {
@@ -607,6 +660,19 @@ model Achievement {
   gameId Int
 }
 
+model GamePageAchievement {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?
+  image       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users      User[]   @relation(name: "GamePageAchievementToUsers")
+  gamePage   GamePage @relation(fields: [gamePageId], references: [id], name: "AchievementToGamePage")
+  gamePageId Int
+}
+
 model Ghost {
   id        Int      @id @default(autoincrement())
   data      String
@@ -614,10 +680,10 @@ model Ghost {
   updatedAt DateTime @updatedAt
 
   // Relations
-  user   User @relation(fields: [userId], references: [id], name: "GhostToUser")
-  userId Int
-  game   Game @relation(fields: [gameId], references: [id], name: "GhostToGame")
-  gameId Int
+  user       User     @relation(fields: [userId], references: [id], name: "GhostToUser")
+  userId     Int
+  gamePage   GamePage @relation(fields: [gamePageId], references: [id], name: "GhostToGamePage")
+  gamePageId Int
 }
 
 model Data {
@@ -627,10 +693,10 @@ model Data {
   updatedAt DateTime @updatedAt
 
   // Relations
-  user   User @relation(fields: [userId], references: [id], name: "DataToUser")
-  userId Int
-  game   Game @relation(fields: [gameId], references: [id], name: "DataToGame")
-  gameId Int
+  user       User     @relation(fields: [userId], references: [id], name: "DataToUser")
+  userId     Int
+  gamePage   GamePage @relation(fields: [gamePageId], references: [id], name: "DataToGamePage")
+  gamePageId Int
 }
 
 model GameDownloadLink {
@@ -641,6 +707,15 @@ model GameDownloadLink {
   // Relation to Game
   game   Game @relation(fields: [gameId], references: [id], onDelete: Cascade, name: "LinkToGame")
   gameId Int
+}
+
+model GamePageDownloadLink {
+  id       Int    @id @default(autoincrement())
+  url      String
+  platform String
+
+  gamePage   GamePage @relation(fields: [gamePageId], references: [id], onDelete: Cascade, name: "LinkToGamePage")
+  gamePageId Int
 }
 
 model Like {
@@ -725,7 +800,7 @@ model Notification {
   commentId         Int?
   game              Game?            @relation(name: "NotificationToGame", fields: [gameId], references: [id])
   gameId            Int?
-  track             Track?           @relation(name: "NotificationToTrack", fields: [trackId], references: [id])
+  track             GamePageTrack?   @relation(name: "NotificationToTrack", fields: [trackId], references: [id])
   trackId           Int?
   team              Team?            @relation(name: "team", fields: [teamId], references: [id])
   teamId            Int?
