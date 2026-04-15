@@ -17,6 +17,14 @@ const router = express.Router();
 const SCORE_SORT_RATING_GOAL = 5;
 const SCORE_SORT_MIDPOINT = 6;
 
+const listingGamePageInclude = {
+  ratingCategories: true,
+  majRatingCategories: true,
+  tags: true,
+  flags: true,
+  downloadLinks: true,
+} as const;
+
 type ListingPageVersion = PageVersion | "ALL";
 
 function parseListingPageVersion(value: unknown): ListingPageVersion {
@@ -148,33 +156,7 @@ router.get("/", async (req, res) => {
                       in: [PageVersion.JAM, PageVersion.POST_JAM],
                     },
                   },
-                  include: {
-                    tracks: {
-                      include: {
-                        composer: true,
-                        tags: {
-                          include: {
-                            category: true,
-                          },
-                        },
-                        flags: true,
-                        links: true,
-                        credits: {
-                          include: {
-                            user: {
-                              select: {
-                                id: true,
-                                slug: true,
-                                name: true,
-                                profilePicture: true,
-                                short: true,
-                              },
-                            },
-                          },
-                        },
-                      },
-                    },
-                  },
+                  include: listingGamePageInclude,
                 },
               },
             },

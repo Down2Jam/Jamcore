@@ -110,6 +110,14 @@ const postJamPageInclude = {
   },
 } as const;
 
+const listingPageInclude = {
+  ratingCategories: true,
+  majRatingCategories: true,
+  tags: true,
+  flags: true,
+  downloadLinks: true,
+} as const;
+
 function getPostJamPage(game: any) {
   return (
     game?.postJamPage ??
@@ -1720,7 +1728,7 @@ router.get("/", async function (req: Request, res: Response) {
             in: [PageVersion.JAM, PageVersion.POST_JAM],
           },
         },
-        include: postJamPageInclude,
+        include: listingPageInclude,
       },
       ratings: {
         select: {

@@ -1,10 +1,25 @@
 import { Router } from "express";
 import rateLimit from "@middleware/rateLimit";
-import logger from "@helper/logger";
 import { query, validationResult } from "express-validator";
 import db from "@helper/db";
+import { materializeGamePage } from "@helper/gamePages";
+import { materializeTrackPage } from "@helper/trackPages";
+import { PageVersion } from "@prisma/client";
 
 const router = Router();
+
+function pickPreferredGameVersion(game: { pages?: Array<{ version: PageVersion }> }) {
+  return game.pages?.some((page) => page.version === PageVersion.POST_JAM)
+    ? PageVersion.POST_JAM
+    : PageVersion.JAM;
+}
+
+function compareByDisplayName(
+  a: { name?: string | null },
+  b: { name?: string | null },
+) {
+  return String(a.name ?? "").localeCompare(String(b.name ?? ""));
+}
 
 /**
  * Route to search the database for something
@@ -27,87 +42,200 @@ router.get(
       return;
     }
 
-    const { query, type } = req.query;
+    const { query: rawQuery, type } = req.query;
+    const searchQuery =
+      typeof rawQuery === "string" ? rawQuery.trim() : String(rawQuery ?? "").trim();
 
     const searchTypes = !type
       ? ["games", "users", "posts", "tracks", "teams"]
       : typeof type === "string"
-      ? type.split("&")
-      : [];
+        ? type.split("&")
+        : [];
 
-    const data: Record<string, Record<string, string | number>> = {};
+    const data: Record<string, any[]> = {};
 
     if (searchTypes.includes("games")) {
-      data["games"] = await db.$queryRaw`
-        SELECT id, name, slug, banner, thumbnail, short
-        FROM "Game" 
-        WHERE published = true
-          AND name % ${query} 
-        ORDER BY name <-> ${query} ASC
-        LIMIT 2;`;
+      const games = await db.game.findMany({
+        where: {
+          published: true,
+          pages: {
+            some: {
+              name: {
+                contains: searchQuery,
+                mode: "insensitive",
+              },
+            },
+          },
+        },
+        include: {
+          pages: {
+            where: {
+              version: {
+                in: [PageVersion.JAM, PageVersion.POST_JAM],
+              },
+            },
+            include: {
+              ratingCategories: true,
+              majRatingCategories: true,
+              tags: true,
+              flags: true,
+              downloadLinks: true,
+              achievements: true,
+              leaderboards: true,
+              comments: true,
+              tracks: true,
+            },
+          },
+        },
+        take: 8,
+      });
+
+      data.games = games
+        .map((game) => materializeGamePage(game, pickPreferredGameVersion(game)))
+        .sort(compareByDisplayName)
+        .slice(0, 2);
     }
 
     if (searchTypes.includes("users")) {
-      data["users"] = await db.$queryRaw`
-        SELECT id, name, slug, "bannerPicture", "profilePicture", short
-        FROM "User" 
-        WHERE name % ${query} 
-        ORDER BY name <-> ${query} ASC
-        LIMIT 2;`;
+      data.users = await db.user.findMany({
+        where: {
+          name: {
+            contains: searchQuery,
+            mode: "insensitive",
+          },
+        },
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          bannerPicture: true,
+          profilePicture: true,
+          short: true,
+        },
+        take: 2,
+      });
     }
 
     if (searchTypes.includes("posts")) {
-      data["posts"] = await db.$queryRaw`
-        SELECT id, title, slug
-        FROM "Post" 
-        WHERE title % ${query} 
-        ORDER BY title <-> ${query} ASC
-        LIMIT 2;`;
+      data.posts = await db.post.findMany({
+        where: {
+          title: {
+            contains: searchQuery,
+            mode: "insensitive",
+          },
+        },
+        select: {
+          id: true,
+          title: true,
+          slug: true,
+        },
+        take: 2,
+      });
     }
 
     if (searchTypes.includes("tracks")) {
-      data["tracks"] = await db.$queryRaw`
-        SELECT 
-          t.id,
-          t.name,
-          t."createdAt",
-          t."updatedAt",
-          json_build_object(
-            'id', g.id,
-            'name', g.name,
-            'slug', g.slug,
-            'thumbnail', g.thumbnail,
-            'banner', g.banner,
-            'short', g.short
-          ) AS game,
-          json_build_object(
-            'id', u.id,
-            'name', u.name,
-            'slug', u.slug,
-            'profilePicture', u."profilePicture",
-            'bannerPicture', u."bannerPicture"
-          ) AS composer
-        FROM "Track" t
-        JOIN "Game" g ON g.id = t."gameId"
-        LEFT JOIN "User" u ON u.id = t."composerId"
-        WHERE g.published = true
-          AND t.name % ${query}
-        ORDER BY t.name <-> ${query} ASC
-        LIMIT 2;
-      `;
+      const tracks = await db.gamePageTrack.findMany({
+        where: {
+          name: {
+            contains: searchQuery,
+            mode: "insensitive",
+          },
+          gamePage: {
+            version: {
+              in: [PageVersion.JAM, PageVersion.POST_JAM],
+            },
+            game: {
+              published: true,
+            },
+          },
+        },
+        include: {
+          composer: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              profilePicture: true,
+              bannerPicture: true,
+            },
+          },
+          gamePage: {
+            include: {
+              game: {
+                include: {
+                  pages: {
+                    where: {
+                      version: {
+                        in: [PageVersion.JAM, PageVersion.POST_JAM],
+                      },
+                    },
+                    include: {
+                      ratingCategories: true,
+                      majRatingCategories: true,
+                      tags: true,
+                      flags: true,
+                      downloadLinks: true,
+                      achievements: true,
+                      leaderboards: true,
+                      comments: true,
+                      tracks: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+          tags: {
+            include: {
+              category: true,
+            },
+          },
+          flags: true,
+          links: true,
+          credits: {
+            include: {
+              user: true,
+            },
+          },
+        },
+        orderBy: {
+          updatedAt: "desc",
+        },
+        take: 12,
+      });
+
+      const preferredTracks = new Map<string, (typeof tracks)[number]>();
+      for (const track of tracks) {
+        const existing = preferredTracks.get(track.slug);
+        if (!existing || track.gamePage.version === PageVersion.POST_JAM) {
+          preferredTracks.set(track.slug, track);
+        }
+      }
+
+      data.tracks = [...preferredTracks.values()]
+        .map((track) => materializeTrackPage(track))
+        .sort(compareByDisplayName)
+        .slice(0, 2);
     }
 
     if (searchTypes.includes("teams")) {
-      data["teams"] = await db.$queryRaw`
-        SELECT id, name
-        FROM "Team" 
-        WHERE name % ${query} 
-        ORDER BY name <-> ${query} ASC
-        LIMIT 2;`;
+      data.teams = await db.team.findMany({
+        where: {
+          name: {
+            contains: searchQuery,
+            mode: "insensitive",
+          },
+        },
+        select: {
+          id: true,
+          name: true,
+        },
+        take: 2,
+      });
     }
 
     res.send({ message: "Data searched", data });
-  }
+  },
 );
 
 export default router;
