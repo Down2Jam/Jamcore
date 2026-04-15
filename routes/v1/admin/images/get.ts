@@ -79,7 +79,7 @@ router.get(
           screenshots: true,
         },
       }),
-      db.achievement.findMany({ select: { image: true } }),
+      db.gamePageAchievement.findMany({ select: { image: true } }),
       db.reaction.findMany({ select: { image: true } }),
       db.event.findMany({ select: { icon: true } }),
       db.tag.findMany({ select: { icon: true } }),

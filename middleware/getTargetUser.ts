@@ -14,6 +14,17 @@ function getRatingPageVersion(rating: any): PageVersion {
     : PageVersion.JAM;
 }
 
+function materializeGameSummaryForVersion(game: any, version: PageVersion) {
+  return materializeGamePage(
+    {
+      ...game,
+      downloadLinks: game?.downloadLinks ?? [],
+      pages: game?.pages ?? [],
+    },
+    version,
+  );
+}
+
 /**
  * Middleware to fetch the target user from the database.
  */
@@ -152,6 +163,16 @@ async function getTargetUser(
               include: {
                 jam: true,
                 downloadLinks: true,
+                pages: {
+                  where: {
+                    version: {
+                      in: [PageVersion.JAM, PageVersion.POST_JAM],
+                    },
+                  },
+                  include: {
+                    downloadLinks: true,
+                  },
+                },
               },
             },
           },
@@ -279,7 +300,25 @@ async function getTargetUser(
             user: true,
             leaderboard: {
               include: {
-                game: true,
+                gamePage: {
+                  include: {
+                    game: {
+                      include: {
+                        pages: {
+                          include: {
+                            achievements: {
+                              include: {
+                                users: true,
+                              },
+                            },
+                            leaderboards: true,
+                            downloadLinks: true,
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
                 scores: {
                   include: {
                     user: true,
@@ -289,23 +328,28 @@ async function getTargetUser(
             },
           },
         },
-        achievements: {
+        gamePageAchievements: {
           include: {
-            game: {
+            gamePage: {
               include: {
-                achievements: {
+                game: {
                   include: {
-                    users: true,
-                  },
-                },
-                leaderboards: {
-                  include: {
-                    scores: true,
-                  },
-                },
-                ratings: {
-                  select: {
-                    userId: true,
+                    pages: {
+                      include: {
+                        achievements: {
+                          include: {
+                            users: true,
+                          },
+                        },
+                        leaderboards: true,
+                        downloadLinks: true,
+                      },
+                    },
+                    ratings: {
+                      select: {
+                        userId: true,
+                      },
+                    },
                   },
                 },
               },
@@ -320,6 +364,16 @@ async function getTargetUser(
               include: {
                 jam: true,
                 downloadLinks: true,
+                pages: {
+                  where: {
+                    version: {
+                      in: [PageVersion.JAM, PageVersion.POST_JAM],
+                    },
+                  },
+                  include: {
+                    downloadLinks: true,
+                  },
+                },
               },
             },
           },
@@ -785,20 +839,64 @@ async function getTargetUser(
   };
 
   const materializeJamGameSummary = (game: any) =>
-    materializeGamePage(
-      {
-        ...game,
-        downloadLinks: game.downloadLinks,
-        pages: game.pages ?? [],
-      },
-      "JAM",
-    );
+    materializeGameSummaryForVersion(game, PageVersion.JAM);
 
   const materializeTrackGameSummary = (track: any) => materializeTrackPage(track);
 
+  const normalizedScores = (user.scores ?? []).map((score: any) => ({
+    ...score,
+    leaderboard: score.leaderboard
+      ? {
+          ...score.leaderboard,
+          game: score.leaderboard.gamePage?.game
+            ? materializeGameSummaryForVersion(
+                score.leaderboard.gamePage.game,
+                score.leaderboard.gamePage.version === PageVersion.POST_JAM
+                  ? PageVersion.POST_JAM
+                  : PageVersion.JAM,
+              )
+            : null,
+        }
+      : null,
+  }));
+
+  const normalizedAchievements = (user.gamePageAchievements ?? []).map(
+    (achievement: any) => {
+      const pageVersion =
+        achievement.gamePage?.version === PageVersion.POST_JAM
+          ? PageVersion.POST_JAM
+          : PageVersion.JAM;
+      const pageGame = achievement.gamePage?.game ?? null;
+      const game = pageGame
+        ? materializeGameSummaryForVersion(pageGame, pageVersion)
+        : null;
+      const pageRecord =
+        pageGame?.pages?.find((page: any) => page.version === pageVersion) ??
+        null;
+      const fullAchievement =
+        pageRecord?.achievements?.find((entry: any) => entry.id === achievement.id) ??
+        achievement;
+
+      return {
+        ...achievement,
+        ...fullAchievement,
+        game,
+        pageVersion,
+      };
+    },
+  );
+
+  const normalizedTeams = (user.teams ?? []).map((team: any) => ({
+    ...team,
+    game: team.game ? materializeGameSummaryForVersion(team.game, PageVersion.JAM) : null,
+  }));
+
   res.locals.targetUser = {
     ...user,
+    teams: normalizedTeams,
     tracks: (user.gamePageTracks ?? []).map(materializeTrackPage),
+    scores: normalizedScores,
+    achievements: normalizedAchievements,
     recommendedGames: sortByIdOrder(recommendedGames, recommendedGameIds).map(
       materializeJamGameSummary,
     ),

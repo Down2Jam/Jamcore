@@ -13,9 +13,25 @@ async function getLeaderboard(
     return;
   }
 
-  const leaderboard = await db.leaderboard.findUnique({
+  const leaderboard = await db.gamePageLeaderboard.findUnique({
     where: {
       id: leaderboardId,
+    },
+    include: {
+      gamePage: {
+        include: {
+          game: {
+            select: {
+              id: true,
+              slug: true,
+              jamId: true,
+              category: true,
+              published: true,
+              teamId: true,
+            },
+          },
+        },
+      },
     },
   });
 
@@ -24,6 +40,7 @@ async function getLeaderboard(
     return;
   }
 
+  res.locals.pageLeaderboard = leaderboard;
   res.locals.leaderboard = leaderboard;
   next();
 }

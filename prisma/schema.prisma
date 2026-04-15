@@ -60,7 +60,6 @@ model User {
   ratings               Rating[]          @relation(name: "RatingToUser")
   trackRatings          TrackRating[]     @relation(name: "TrackRatingToUser")
   commentReactions      CommentReaction[]
-  achievements          Achievement[]     @relation(name: "AchievementToUsers")
   gamePageAchievements  GamePageAchievement[] @relation(name: "GamePageAchievementToUsers")
   receivedNotifications Notification[]    @relation(name: "NotificationToRecipient")
   sentNotifications     Notification[]    @relation(name: "NotificationToActor")
@@ -363,8 +362,6 @@ model Game {
   jamId         Int
   reports       Report[]           @relation(name: "ReportToGame")
   downloadLinks GameDownloadLink[] @relation(name: "LinkToGame")
-  leaderboards  Leaderboard[]      @relation(name: "LeaderboardToGame")
-  achievements  Achievement[]      @relation(name: "AchievementToGame")
   ratings       Rating[]           @relation(name: "RatingToGame")
   flags         Flag[]             @relation(name: "GamesToFlags")
   tags          Tag[]              @relation(name: "GamesToTags")
@@ -602,22 +599,6 @@ enum LeaderboardType {
   ENDURANCE
 }
 
-model Leaderboard {
-  id            Int             @id @default(autoincrement())
-  type          LeaderboardType
-  name          String
-  decimalPlaces Int             @default(0)
-  maxUsersShown Int             @default(10)
-  onlyBest      Boolean         @default(true)
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
-
-  // Relations
-  game   Game    @relation(fields: [gameId], references: [id], name: "LeaderboardToGame")
-  gameId Int
-  scores Score[] @relation(name: "ScoreToLeaderboard")
-}
-
 model GamePageLeaderboard {
   id            Int             @id @default(autoincrement())
   type          LeaderboardType
@@ -630,6 +611,7 @@ model GamePageLeaderboard {
 
   gamePage   GamePage @relation(fields: [gamePageId], references: [id], name: "LeaderboardToGamePage")
   gamePageId Int
+  scores     Score[]  @relation(name: "ScoreToGamePageLeaderboard")
 }
 
 model Score {
@@ -640,24 +622,10 @@ model Score {
   updatedAt DateTime @updatedAt
 
   // Relations
-  user          User        @relation(fields: [userId], references: [id], name: "ScoreToUser")
+  user          User                @relation(fields: [userId], references: [id], name: "ScoreToUser")
   userId        Int
-  leaderboard   Leaderboard @relation(fields: [leaderboardId], references: [id], name: "ScoreToLeaderboard")
+  leaderboard   GamePageLeaderboard @relation(fields: [leaderboardId], references: [id], name: "ScoreToGamePageLeaderboard")
   leaderboardId Int
-}
-
-model Achievement {
-  id          Int      @id @default(autoincrement())
-  name        String
-  description String?
-  image       String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Relations
-  users  User[] @relation(name: "AchievementToUsers")
-  game   Game   @relation(fields: [gameId], references: [id], name: "AchievementToGame")
-  gameId Int
 }
 
 model GamePageAchievement {

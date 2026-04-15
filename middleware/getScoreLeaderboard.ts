@@ -11,9 +11,16 @@ async function getScoreLeaderboard(
     return;
   }
 
-  const leaderboard = await db.leaderboard.findUnique({
+  const leaderboard = await db.gamePageLeaderboard.findUnique({
     where: {
       id: res.locals.score.leaderboardId,
+    },
+    include: {
+      gamePage: {
+        include: {
+          game: true,
+        },
+      },
     },
   });
 

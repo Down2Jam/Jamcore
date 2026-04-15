@@ -32,12 +32,16 @@ async function getTargetTeam(
       applications: true,
       game: {
         include: {
-          leaderboards: {
+          pages: {
             include: {
-              scores: true,
+              achievements: true,
+              leaderboards: {
+                include: {
+                  scores: true,
+                },
+              },
             },
           },
-          achievements: true,
         },
       },
     },

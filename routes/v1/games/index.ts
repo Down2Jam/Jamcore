@@ -51,7 +51,15 @@ const postJamPageInclude = {
       users: true,
     },
   },
-  leaderboards: true,
+  leaderboards: {
+    include: {
+      scores: {
+        include: {
+          user: true,
+        },
+      },
+    },
+  },
   comments: {
     include: {
       author: true,
@@ -422,6 +430,73 @@ async function upsertGamePage(gameId: number, version: PageVersion, body: any) {
     }
   };
 
+  const syncGamePageLeaderboards = async (
+    pageId: number,
+    leaderboards: any[],
+  ) => {
+    const existingLeaderboards = await db.gamePageLeaderboard.findMany({
+      where: { gamePageId: pageId },
+      include: {
+        scores: {
+          select: {
+            id: true,
+          },
+        },
+      },
+    });
+
+    for (const leaderboard of leaderboards ?? []) {
+      const existingLeaderboard = existingLeaderboards.find(
+        (entry) => entry.id === leaderboard.id,
+      );
+
+      if (existingLeaderboard) {
+        await db.gamePageLeaderboard.update({
+          where: { id: existingLeaderboard.id },
+          data: {
+            type: leaderboard.type,
+            name: leaderboard.name,
+            onlyBest: leaderboard.onlyBest,
+            maxUsersShown: leaderboard.maxUsersShown,
+            decimalPlaces: leaderboard.decimalPlaces,
+          },
+        });
+        continue;
+      }
+
+      await db.gamePageLeaderboard.create({
+        data: {
+          gamePageId: pageId,
+          type: leaderboard.type,
+          name: leaderboard.name,
+          onlyBest: leaderboard.onlyBest,
+          maxUsersShown: leaderboard.maxUsersShown,
+          decimalPlaces: leaderboard.decimalPlaces,
+        },
+      });
+    }
+
+    for (const existingLeaderboard of existingLeaderboards) {
+      if (
+        (leaderboards ?? []).some(
+          (leaderboard: any) => leaderboard.id === existingLeaderboard.id,
+        )
+      ) {
+        continue;
+      }
+
+      for (const score of existingLeaderboard.scores ?? []) {
+        await db.score.delete({
+          where: { id: score.id },
+        });
+      }
+
+      await db.gamePageLeaderboard.delete({
+        where: { id: existingLeaderboard.id },
+      });
+    }
+  };
+
   const relationData = {
     ratingCategories: (body.ratingCategories ?? []).map((id: number) => ({
       id,
@@ -479,26 +554,6 @@ async function upsertGamePage(gameId: number, version: PageVersion, body: any) {
           create: (body.downloadLinks ?? []).map((link: any) => ({
             url: link.url,
             platform: link.platform,
-          })),
-        },
-    leaderboards: existingPage
-      ? {
-          deleteMany: {},
-          create: (body.leaderboards ?? []).map((leaderboard: any) => ({
-            type: leaderboard.type,
-            name: leaderboard.name,
-            onlyBest: leaderboard.onlyBest,
-            maxUsersShown: leaderboard.maxUsersShown,
-            decimalPlaces: leaderboard.decimalPlaces,
-          })),
-        }
-      : {
-          create: (body.leaderboards ?? []).map((leaderboard: any) => ({
-            type: leaderboard.type,
-            name: leaderboard.name,
-            onlyBest: leaderboard.onlyBest,
-            maxUsersShown: leaderboard.maxUsersShown,
-            decimalPlaces: leaderboard.decimalPlaces,
           })),
         },
     achievements: existingPage
@@ -564,6 +619,7 @@ async function upsertGamePage(gameId: number, version: PageVersion, body: any) {
       include: postJamPageInclude,
     });
 
+    await syncGamePageLeaderboards(existingPage.id, body.leaderboards ?? []);
     await syncGamePageTracks(existingPage.id, body.songs ?? []);
     return db.gamePage.findUnique({
       where: { id: existingPage.id },
@@ -571,7 +627,7 @@ async function upsertGamePage(gameId: number, version: PageVersion, body: any) {
     });
   }
 
-  return db.gamePage.create({
+  const createdPage = await db.gamePage.create({
     data: {
       ...baseData,
       version,
@@ -579,6 +635,13 @@ async function upsertGamePage(gameId: number, version: PageVersion, body: any) {
         connect: { id: gameId },
       },
     },
+    include: postJamPageInclude,
+  });
+
+  await syncGamePageLeaderboards(createdPage.id, body.leaderboards ?? []);
+
+  return db.gamePage.findUnique({
+    where: { id: createdPage.id },
     include: postJamPageInclude,
   });
 }
@@ -972,12 +1035,6 @@ router.put("/:gameSlug", getJam, async function (req, res) {
         tags: true,
         flags: true,
         downloadLinks: true,
-        achievements: true,
-        leaderboards: {
-          include: {
-            scores: true,
-          },
-        },
         pages: {
           where: {
             version: {
@@ -1209,110 +1266,6 @@ router.put("/:gameSlug", getJam, async function (req, res) {
       );
     }
 
-    for (const leaderboard of leaderboards) {
-      if (
-        existingGame.leaderboards.filter(
-          (curLeaderboard) => curLeaderboard.id == leaderboard.id,
-        ).length > 0
-      ) {
-        await db.leaderboard.update({
-          where: {
-            id: leaderboard.id,
-          },
-          data: {
-            type: leaderboard.type,
-            name: leaderboard.name,
-            onlyBest: leaderboard.onlyBest,
-            maxUsersShown: leaderboard.maxUsersShown,
-            decimalPlaces: leaderboard.decimalPlaces,
-          },
-        });
-      } else {
-        await db.leaderboard.create({
-          data: {
-            type: leaderboard.type,
-            name: leaderboard.name,
-            onlyBest: leaderboard.onlyBest,
-            maxUsersShown: leaderboard.maxUsersShown,
-            decimalPlaces: leaderboard.decimalPlaces,
-            game: {
-              connect: {
-                id: updatedGame.id,
-              },
-            },
-          },
-        });
-      }
-    }
-
-    for (const leaderboard of existingGame.leaderboards) {
-      if (
-        leaderboards.filter((leaderboard2) => leaderboard2.id == leaderboard.id)
-          .length == 0
-      ) {
-        if (leaderboard.scores) {
-          for (const score of leaderboard.scores) {
-            await db.score.delete({
-              where: {
-                id: score.id,
-              },
-            });
-          }
-        }
-
-        await db.leaderboard.delete({
-          where: {
-            id: leaderboard.id,
-          },
-        });
-      }
-    }
-
-    for (const achievement of achievements) {
-      if (
-        existingGame.achievements.filter(
-          (curAchievement) => curAchievement.id == achievement.id,
-        ).length > 0
-      ) {
-        await db.achievement.update({
-          where: {
-            id: achievement.id,
-          },
-          data: {
-            name: achievement.name,
-            description: achievement.description ? achievement.description : "",
-            image: achievement.image ? achievement.image : "",
-          },
-        });
-      } else {
-        await db.achievement.create({
-          data: {
-            name: achievement.name,
-            description: achievement.description ? achievement.description : "",
-            image: achievement.image ? achievement.image : "",
-            game: {
-              connect: {
-                id: updatedGame.id,
-              },
-            },
-          },
-        });
-      }
-    }
-
-    for (const achievement of existingGame.achievements) {
-      if (
-        achievements.filter((achievement2) => achievement2.id == achievement.id)
-          .length == 0
-      ) {
-        await db.achievement.delete({
-          where: {
-            id: achievement.id,
-          },
-        });
-      }
-    }
-
     await upsertGamePage(updatedGame.id, PageVersion.JAM, req.body);
 
     res.json(updatedGame);
@@ -1399,15 +1352,6 @@ router.get(
         majRatingCategories: true,
         tags: true,
         flags: true,
-        leaderboards: {
-          include: {
-            scores: {
-              include: {
-                user: true,
-              },
-            },
-          },
-        },
         gameEmotes: {
           include: {
             artistUser: true,
@@ -1648,6 +1592,7 @@ router.get(
     res.json({
       ...game,
       achievements: jamPage?.achievements ?? [],
+      leaderboards: jamPage?.leaderboards ?? [],
       gameEmotes: (game.gameEmotes ?? []).map((emoji: any) => ({
         ...emoji,
         ownerGame: emoji.ownerGame
@@ -1661,10 +1606,16 @@ router.get(
       team: normalizedTeam,
       ratings: normalizedRatings,
       jamPage: jamPage
-        ? { ...jamPage, comments: jamPageCommentsWithHasLiked }
+        ? {
+            ...jamPage,
+            comments: jamPageCommentsWithHasLiked,
+          }
         : null,
       postJamPage: postJamPage
-        ? { ...postJamPage, comments: postJamPageCommentsWithHasLiked }
+        ? {
+            ...postJamPage,
+            comments: postJamPageCommentsWithHasLiked,
+          }
         : null,
       comments: commentsWithHasLiked,
       jamScores,
@@ -1775,12 +1726,17 @@ router.get("/", async function (req: Request, res: Response) {
           users: {
             select: {
               id: true,
-              achievements: {
+              gamePageAchievements: {
                 select: {
-                  gameId: true,
-                  game: {
+                  gamePage: {
                     select: {
-                      jamId: true,
+                      version: true,
+                      gameId: true,
+                      game: {
+                        select: {
+                          jamId: true,
+                        },
+                      },
                     },
                   },
                 },
@@ -1789,10 +1745,21 @@ router.get("/", async function (req: Request, res: Response) {
                 select: {
                   leaderboard: {
                     select: {
-                      gameId: true,
-                      game: {
+                      gamePageId: true,
+                      name: true,
+                      type: true,
+                      onlyBest: true,
+                      maxUsersShown: true,
+                      decimalPlaces: true,
+                      gamePage: {
                         select: {
-                          jamId: true,
+                          version: true,
+                          gameId: true,
+                          game: {
+                            select: {
+                              jamId: true,
+                            },
+                          },
                         },
                       },
                     },
@@ -2169,6 +2136,14 @@ router.get("/", async function (req: Request, res: Response) {
       });
     }
 
+    const matchesLeaderboardForVersion = (
+      score: (typeof game)[number]["team"]["users"][number]["scores"][number],
+      gameId: number,
+      version: PageVersion,
+    ) =>
+      score.leaderboard.gamePage?.gameId === gameId &&
+      (score.leaderboard.gamePage?.version ?? PageVersion.JAM) === version;
+
     const karmaScore = (g: (typeof game)[number]) => {
       const given = g.team.users.reduce(
         (prev, cur) =>
@@ -2229,8 +2204,16 @@ router.get("/", async function (req: Request, res: Response) {
           [
             ...new Set(
               cur.scores
-                .filter((sc) => sc.leaderboard.game.jamId === g.jamId)
-                .map((sc) => sc.leaderboard.gameId),
+                .filter(
+                  (sc) =>
+                    sc.leaderboard.gamePage?.game?.jamId === g.jamId &&
+                    matchesLeaderboardForVersion(
+                      sc,
+                      g.id,
+                      g.pageVersion ?? PageVersion.JAM,
+                    ),
+                )
+                .map((sc) => sc.leaderboard.gamePageId),
             ),
           ].length,
         0,
@@ -2241,9 +2224,15 @@ router.get("/", async function (req: Request, res: Response) {
           prev +
           [
             ...new Set(
-              cur.achievements
-                .filter((ach) => ach.game.jamId === g.jamId)
-                .map((ach) => ach.gameId),
+              (cur.gamePageAchievements ?? [])
+                .filter(
+                  (ach) =>
+                    ach.gamePage?.game?.jamId === g.jamId &&
+                    (ach.gamePage?.version ?? PageVersion.JAM) ===
+                      (g.pageVersion ?? PageVersion.JAM),
+                )
+                .map((ach) => ach.gamePage?.gameId)
+                .filter((gameId): gameId is number => Number.isInteger(gameId)),
             ),
           ].length,
         0,

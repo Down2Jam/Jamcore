@@ -1,5 +1,4 @@
 import { Request, Response, NextFunction } from "express";
-import db from "../helper/db";
 
 async function getLeaderboardGame(
   _req: Request,
@@ -11,11 +10,7 @@ async function getLeaderboardGame(
     return;
   }
 
-  const game = await db.game.findUnique({
-    where: {
-      id: res.locals.leaderboard.gameId,
-    },
-  });
+  const game = res.locals.leaderboard.gamePage?.game ?? null;
 
   if (!game) {
     res.status(404).send("Game missing.");

@@ -11,6 +11,7 @@ import authUserOptional from "@middleware/authUserOptional";
 import getUserOptional from "@middleware/getUserOptional";
 import { PageVersion } from "@prisma/client";
 import { materializeTrackPage } from "@helper/trackPages";
+import { materializeGamePage } from "@helper/gamePages";
 
 const gameSortCategoryName = (sort?: string | string[]) => {
   switch (sort) {
@@ -257,6 +258,7 @@ router.get(
 
     let where = {
       category: category as GameCategory,
+      published: true,
     };
 
     if (jam && jam !== "all") {
@@ -270,14 +272,38 @@ router.get(
     let games = await db.game.findMany({
       where,
       include: {
-        majRatingCategories: true,
-        ratingCategories: true,
+        pages: {
+          where: {
+            version: PageVersion.JAM,
+          },
+          include: {
+            ratingCategories: true,
+            majRatingCategories: true,
+            tags: true,
+            flags: true,
+            downloadLinks: true,
+            achievements: true,
+            leaderboards: true,
+            comments: true,
+          },
+          take: 1,
+        },
         team: {
           select: {
             users: {
               select: {
                 ratings: {
                   select: {
+                    gamePage: {
+                      select: {
+                        version: true,
+                        ratingCategories: {
+                          select: {
+                            id: true,
+                          },
+                        },
+                      },
+                    },
                     game: {
                       select: {
                         ratingCategories: {
@@ -297,6 +323,11 @@ router.get(
           select: {
             value: true,
             categoryId: true,
+            gamePage: {
+              select: {
+                version: true,
+              },
+            },
             user: {
               select: {
                 teams: {
@@ -323,12 +354,19 @@ router.get(
 
     const computedGames = games
       .map((game) => {
-        let categories = [...game.ratingCategories, ...ratingCategories];
+        const jamPage = game.pages?.[0] ?? null;
+        if (!jamPage) return null;
+
+        const materializedGame = materializeGamePage(game, PageVersion.JAM);
+        let categories = [
+          ...(materializedGame.ratingCategories ?? []),
+          ...ratingCategories,
+        ];
         if (contentType == "MAJORITYCONTENT" && game.category == "REGULAR") {
           categories = categories.filter(
             (category) =>
               !category.askMajorityContent ||
-              game.majRatingCategories
+              (materializedGame.majRatingCategories ?? [])
                 .map((cat) => cat.id)
                 .includes(category.id)
           );
@@ -338,8 +376,10 @@ router.get(
         );
 
         // Filter out ratings in categories the game has opted out of (in case they opt out later)
-        const filteredRatings = game.ratings.filter((rating) =>
-          categoryIds.includes(rating.categoryId)
+        const filteredRatings = game.ratings.filter(
+          (rating) =>
+            rating.gamePage?.version === PageVersion.JAM &&
+            categoryIds.includes(rating.categoryId),
         );
 
         const categoryAverages = categories.map((category) => {
@@ -366,21 +406,27 @@ router.get(
         });
 
         return {
-          ...game,
+          ...materializedGame,
+          pageVersion: PageVersion.JAM,
           categoryAverages,
           ratingsCount: game.team.users.reduce((totalRatings, user) => {
             const userRatingCount = user.ratings.reduce((count, rating) => {
+              const ratingCategoryCount =
+                rating.gamePage?.ratingCategories?.length ??
+                rating.game.ratingCategories.length;
+
               return (
                 count +
-                1 /
-                  (rating.game.ratingCategories.length +
-                    ratingCategories.length)
+                (rating.gamePage?.version === PageVersion.JAM
+                  ? 1 / (ratingCategoryCount + ratingCategories.length)
+                  : 0)
               );
             }, 0);
             return totalRatings + userRatingCount;
           }, 0),
         };
-      });
+      })
+      .filter(Boolean);
 
     const qualifiedGames = computedGames
       .filter((game) => {

@@ -193,15 +193,6 @@ router.post(
           teamId: res.locals.targetTeam.id,
           category,
           published,
-          achievements: {
-            create: achievements.map((achievement: any) => ({
-              name: achievement.name,
-              description: achievement.description
-                ? achievement.description
-                : "",
-              image: achievement.image ? achievement.image : "",
-            })),
-          },
           tracks: {
             create: songs.map((song: any) => ({
               name: song.name,
@@ -289,14 +280,6 @@ router.post(
                       )
                   : [],
               },
-            })),
-          },
-          leaderboards: {
-            create: leaderboards.map((leaderboard: any) => ({
-              type: leaderboard.type,
-              name: leaderboard.name,
-              onlyBest: leaderboard.onlyBest,
-              maxUsersShown: leaderboard.maxUsersShown,
             })),
           },
           tags: {

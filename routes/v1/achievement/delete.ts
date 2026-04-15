@@ -1,9 +1,7 @@
 import express from "express";
 import authUser from "../../../middleware/authUser";
 import getUser from "../../../middleware/getUser";
-import getPostOrComment from "../../../middleware/getPostOrComment";
 import db from "../../../helper/db";
-import getGame from "@middleware/getGame";
 
 var router = express.Router();
 
@@ -16,7 +14,7 @@ router.delete(
   async function (req, res) {
     const { achievementId } = req.body;
 
-    const achievement = await db.achievement.findFirst({
+    const achievement = await db.gamePageAchievement.findFirst({
       where: {
         id: achievementId,
       },
@@ -28,7 +26,7 @@ router.delete(
       return;
     }
 
-    await db.achievement.update({
+    await db.gamePageAchievement.update({
       where: {
         id: achievementId,
       },

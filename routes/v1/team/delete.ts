@@ -21,10 +21,10 @@ router.delete(
   async (_req, res) => {
     try {
       if (res.locals.targetTeam.game) {
-        if (res.locals.targetTeam.game.leaderboards) {
-          for (const leaderboard of res.locals.targetTeam.game.leaderboards) {
-            if (res.locals.targetTeam.game.scores) {
-              for (const score of leaderboard.scores) {
+        if (res.locals.targetTeam.game.pages) {
+          for (const page of res.locals.targetTeam.game.pages) {
+            for (const leaderboard of page.leaderboards ?? []) {
+              for (const score of leaderboard.scores ?? []) {
                 await db.score.delete({
                   where: {
                     id: score.id,
@@ -33,7 +33,7 @@ router.delete(
               }
             }
 
-            await db.leaderboard.delete({
+            await db.gamePageLeaderboard.delete({
               where: {
                 id: leaderboard.id,
               },
@@ -41,13 +41,15 @@ router.delete(
           }
         }
 
-        if (res.locals.targetTeam.game.achievements) {
-          for (const achievement of res.locals.targetTeam.game.achievements) {
-            await db.achievement.delete({
-              where: {
-                id: achievement.id,
-              },
-            });
+        if (res.locals.targetTeam.game.pages) {
+          for (const page of res.locals.targetTeam.game.pages) {
+            for (const achievement of page.achievements ?? []) {
+              await db.gamePageAchievement.delete({
+                where: {
+                  id: achievement.id,
+                },
+              });
+            }
           }
         }
 
