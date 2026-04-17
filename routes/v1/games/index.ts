@@ -192,7 +192,21 @@ function buildPostJamBodyFromGame(game: any) {
   const jamPage = getJamPage(game) ?? game;
 
   return {
-    ...jamPage,
+    name: jamPage.name ?? "",
+    description: jamPage.description ?? "",
+    short: jamPage.short ?? "",
+    thumbnail: jamPage.thumbnail ?? null,
+    banner: jamPage.banner ?? null,
+    screenshots: Array.isArray(jamPage.screenshots) ? jamPage.screenshots : [],
+    trailerUrl: jamPage.trailerUrl ?? null,
+    itchEmbedUrl: jamPage.itchEmbedUrl ?? null,
+    itchEmbedAspectRatio: jamPage.itchEmbedAspectRatio ?? null,
+    inputMethods: Array.isArray(jamPage.inputMethods) ? jamPage.inputMethods : [],
+    estOneRun: jamPage.estOneRun ?? null,
+    estAnyPercent: jamPage.estAnyPercent ?? null,
+    estHundredPercent: jamPage.estHundredPercent ?? null,
+    themeJustification: jamPage.themeJustification ?? "",
+    emotePrefix: jamPage.emotePrefix ?? null,
     ratingCategories: (jamPage.ratingCategories ?? []).map(
       (entry: any) => entry.id,
     ),
@@ -1286,8 +1300,6 @@ router.post("/:gameSlug/post-jam", getJam, async function (req, res) {
         majRatingCategories: true,
         tags: true,
         flags: true,
-        achievements: true,
-        leaderboards: true,
         downloadLinks: true,
         pages: {
           where: {
