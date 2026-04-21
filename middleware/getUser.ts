@@ -22,21 +22,101 @@ async function getUser(
       slug: userSlug,
     },
     select: {
+      ratings: {
+        select: {
+          value: true,
+          userId: true,
+          gamePageId: true,
+          categoryId: true,
+          gamePage: {
+            select: {
+              version: true,
+              gameId: true,
+            },
+          },
+        },
+      },
+      trackRatings: {
+        select: {
+          value: true,
+          trackId: true,
+          categoryId: true,
+        },
+      },
       id: true,
       name: true,
       bio: true,
+      short: true,
       profilePicture: true,
+      profileBackground: true,
       createdAt: true,
       slug: true,
       mod: true,
       admin: true,
+      emotePrefix: true,
+      hideRatings: true,
+      autoHideRatingsWhileStreaming: true,
       jams: true,
+      receivedNotifications: {
+        include: {
+          teamApplication: {
+            include: {
+              user: true,
+              team: true,
+            },
+          },
+          teamInvite: {
+            include: {
+              user: true,
+              team: {
+                include: {
+                  owner: true,
+                },
+              },
+            },
+          },
+          comment: {
+            include: {
+              game: true,
+              track: true,
+              post: true,
+              author: true,
+              comment: {
+                include: {
+                  game: true,
+                  track: true,
+                  post: true,
+                  author: true,
+                  comment: {
+                    include: {
+                      game: true,
+                      track: true,
+                      post: true,
+                      author: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+          game: true,
+          post: true,
+          track: true,
+        },
+      },
       bannerPicture: true,
+      pronouns: true,
+      links: true,
+      linkLabels: true,
       email: true,
       twitch: true,
       primaryRoles: true,
       secondaryRoles: true,
-      teams: true,
+      teams: {
+        include: {
+          game: true,
+        },
+      },
       teamInvites: {
         include: {
           team: {
@@ -63,7 +143,14 @@ async function getUser(
     return;
   }
 
-  res.locals.user = user;
+  res.locals.user = {
+    ...user,
+    ratings: (user.ratings ?? []).map((rating) => ({
+      ...rating,
+      gameId: rating.gamePage?.gameId ?? null,
+      pageVersion: rating.gamePage?.version ?? "JAM",
+    })),
+  };
   next();
 }
 

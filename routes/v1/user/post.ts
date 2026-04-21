@@ -7,8 +7,37 @@ import checkUsernameConflict from "@middleware/checkUsernameConflict";
 import assertTokenSecret from "@middleware/assertTokenSecret";
 import rateLimit from "@middleware/rateLimit";
 import logger from "@helper/logger";
+import {
+  REFRESH_TOKEN_EXPIRES_IN,
+  SESSION_DURATION_MS,
+} from "@helper/authCookies";
+import fs from "fs";
+import process from "process";
+import path, { dirname } from "path";
+import { fileURLToPath } from "url";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const router = Router();
+
+function getRandomPfp(): string | null {
+  const pfpsPath = path.join(process.cwd(), "public", "pfps");
+
+  if (!fs.existsSync(pfpsPath)) return null;
+
+  const files = fs
+    .readdirSync(pfpsPath)
+    .filter((f) => /\.(png|jpe?g|gif|webp)$/i.test(f));
+
+  if (files.length === 0) return null;
+
+  const randomIndex = Math.floor(Math.random() * files.length);
+  return `${
+    process.env.NODE_ENV === "production"
+      ? "https://d2jam.com"
+      : `http://localhost:${process.env.PORT || 3005}`
+  }/api/v1/pfp/${files[randomIndex]}`;
+}
 
 /**
  * Route to add a user to the database.
@@ -32,12 +61,15 @@ router.post(
     const { username, password, email } = req.body;
 
     try {
+      const randomPfp = getRandomPfp();
+
       const user = await db.user.create({
         data: {
           slug: username.toLowerCase().replace(" ", "_"),
           name: username,
           password: await hashPassword(password),
-          email,
+          email: email ? email : null,
+          profilePicture: randomPfp,
         },
       });
 
@@ -57,7 +89,7 @@ router.post(
         { name: user.slug },
         process.env.TOKEN_SECRET as string,
         {
-          expiresIn: "1d",
+          expiresIn: REFRESH_TOKEN_EXPIRES_IN,
         }
       );
 
@@ -65,6 +97,7 @@ router.post(
         .cookie("refreshToken", refreshToken, {
           httpOnly: true,
           sameSite: "strict",
+          maxAge: SESSION_DURATION_MS,
         })
         .header("Authorization", accessToken)
         .send({

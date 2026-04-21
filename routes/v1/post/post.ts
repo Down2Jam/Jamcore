@@ -1,6 +1,8 @@
 import { Router } from "express";
 import db from "@helper/db";
+import { notifyNewMentions } from "@helper/mentionNotifications";
 import jwt from "jsonwebtoken";
+import { SESSION_DURATION_MS } from "@helper/authCookies";
 
 const router = Router();
 
@@ -61,6 +63,7 @@ router.post("/", async function (req, res) {
         .cookie("refreshToken", refreshToken, {
           httpOnly: true,
           sameSite: "strict",
+          maxAge: SESSION_DURATION_MS,
         })
         .header("Authorization", accessToken);
     } catch (error) {
@@ -124,6 +127,13 @@ router.post("/", async function (req, res) {
     },
   });
 
+  await db.like.create({
+    data: {
+      userId: user.id,
+      postId: newpost.id,
+    },
+  });
+
   if (tags && tags.length > 0) {
     await db.post.update({
       where: { id: newpost.id },
@@ -134,6 +144,18 @@ router.post("/", async function (req, res) {
       },
     });
   }
+
+  await notifyNewMentions({
+    type: "post",
+    actorId: user.id,
+    actorName: user.name,
+    actorSlug: user.slug,
+    beforeContent: "",
+    afterContent: content,
+    postId: newpost.id,
+    postSlug: newpost.slug,
+    postTitle: newpost.title,
+  });
 
   res.send("Post created");
 });

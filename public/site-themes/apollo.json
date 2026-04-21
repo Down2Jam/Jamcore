@@ -1,0 +1,32 @@
+{
+  "name": "Apollo",
+  "authors": ["Ategon"],
+  "description": "",
+  "version": "0.1.0",
+  "keywords": [],
+  "repository": "",
+  "type": "Dark",
+  "extends": "Base",
+  "colors": {
+    "text": "#ebede9",
+
+    "base": "#151d28",
+    "mantle": "#10141f",
+    "crust": "#090a14",
+
+    "red": "#a53030",
+    "orange": "#da863e",
+    "yellow": "#de9e41",
+    "lime": "#a8ca58",
+    "green": "#468232",
+    "teal": "#3c5e8b",
+    "cyan": "#4f8fba",
+    "blue": "#73bed3",
+    "indigo": "#a23e8c",
+    "violet": "#402751",
+    "purple": "#7a367b",
+    "magenta": "#c65197",
+    "pink": "#df84a5",
+    "gray": "#577277"
+  }
+}

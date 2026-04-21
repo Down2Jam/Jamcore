@@ -1,5 +1,9 @@
 import express from "express";
 import { PostTime } from "../../../types/PostTimes";
+import {
+  isPrivilegedViewer,
+  mapCommentsForViewer,
+} from "@helper/contentModeration";
 import db from "@helper/db";
 
 var router = express.Router();
@@ -7,6 +11,82 @@ var router = express.Router();
 type WhereType = {
   createdAt?: {};
   tags?: {};
+  sticky?: boolean;
+  deletedAt?: null;
+  removedAt?: null;
+};
+
+const buildReactionSummary = (
+  reactions: Array<{
+    reaction: any;
+    userId: number;
+    reactionId: number;
+    createdAt?: Date;
+    user?: { id: number; slug: string; name: string; profilePicture?: string | null };
+  }>,
+  userId: number | null
+) => {
+  const summaryMap = new Map<
+    number,
+    {
+      reaction: any;
+      count: number;
+      reacted: boolean;
+      firstReactionAt: Date | null;
+      firstReactorUserId: number | null;
+      users: Array<{
+        id: number;
+        slug: string;
+        name: string;
+        profilePicture?: string | null;
+      }>;
+    }
+  >();
+
+  for (const entry of reactions) {
+    const current = summaryMap.get(entry.reactionId) ?? {
+      reaction: entry.reaction,
+      count: 0,
+      reacted: false,
+      firstReactionAt: null,
+      firstReactorUserId: null,
+      users: [],
+    };
+    current.count += 1;
+    if (userId && entry.userId === userId) {
+      current.reacted = true;
+    }
+    if (
+      !current.firstReactionAt ||
+      (entry.createdAt && entry.createdAt < current.firstReactionAt)
+    ) {
+      current.firstReactionAt = entry.createdAt ?? null;
+      current.firstReactorUserId = entry.userId;
+    }
+    if (entry.user) {
+      current.users.push(entry.user);
+    }
+    summaryMap.set(entry.reactionId, current);
+  }
+
+  return Array.from(summaryMap.values())
+    .map((summary) => ({
+      reaction: summary.reaction,
+      count: summary.count,
+      reacted: summary.reacted,
+      isFirstReactor:
+        Boolean(userId) && summary.firstReactorUserId === userId,
+      users: summary.users
+        .filter(
+          (user, index, self) =>
+            self.findIndex((u) => u.id === user.id) === index
+        )
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    }))
+    .sort((a, b) => {
+    if (b.count !== a.count) return b.count - a.count;
+    return a.reaction.slug.localeCompare(b.reaction.slug);
+  });
 };
 
 router.get(
@@ -68,16 +148,12 @@ router.get(
         };
       }
 
-      console.log(includeTags);
-
       if (excludeTags.length > 0) {
         where["tags"] = {
           ...where["tags"],
           none: { id: { in: excludeTags } },
         };
       }
-
-      console.log(excludeTags);
     }
 
     // Handle sort filters
@@ -89,28 +165,96 @@ router.get(
       orderBy = { likes: { _count: "desc" } };
     }
 
+    if (sticky === "true") {
+      where.sticky = true;
+    }
+
+    let userId = null;
+    let privilegedViewer = false;
+    if (user) {
+      const userRecord = await db.user.findUnique({
+        where: { slug: String(user) },
+      });
+      userId = userRecord ? userRecord.id : null;
+      privilegedViewer = isPrivilegedViewer(userRecord);
+    }
+
+    if (!privilegedViewer) {
+      where.deletedAt = null;
+      where.removedAt = null;
+    }
+
     const posts = await db.post.findMany({
       take: 20,
-      where: {
-        ...where,
-        sticky: sticky === "true",
-      },
+      where,
       include: {
         author: true,
         tags: true,
         likes: true,
+        postReactions: {
+          include: {
+            reaction: true,
+            user: {
+              select: {
+                id: true,
+                slug: true,
+                name: true,
+                profilePicture: true,
+              },
+            },
+          },
+        },
         comments: {
           include: {
             author: true,
             likes: true,
+            commentReactions: {
+              include: {
+                reaction: true,
+                user: {
+                  select: {
+                    id: true,
+                    slug: true,
+                    name: true,
+                    profilePicture: true,
+                  },
+                },
+              },
+            },
             children: {
               include: {
                 author: true,
                 likes: true,
+                commentReactions: {
+                  include: {
+                    reaction: true,
+                    user: {
+                      select: {
+                        id: true,
+                        slug: true,
+                        name: true,
+                        profilePicture: true,
+                      },
+                    },
+                  },
+                },
                 children: {
                   include: {
                     author: true,
                     likes: true,
+                    commentReactions: {
+                      include: {
+                        reaction: true,
+                        user: {
+                          select: {
+                            id: true,
+                            slug: true,
+                            name: true,
+                            profilePicture: true,
+                          },
+                        },
+                      },
+                    },
                     children: true,
                   },
                 },
@@ -122,19 +266,13 @@ router.get(
       orderBy,
     });
 
-    let userId = null;
-    if (user) {
-      const userRecord = await db.user.findUnique({
-        where: { slug: String(user) },
-      });
-      userId = userRecord ? userRecord.id : null;
-    }
-
     const postsWithLikes = posts.map((post) => ({
       ...post,
       hasLiked: userId
         ? post.likes.some((like) => like.userId === userId)
         : false,
+      reactions: buildReactionSummary(post.postReactions, userId),
+      comments: mapCommentsForViewer(post.comments, userId, privilegedViewer),
     }));
 
     res.send(postsWithLikes);

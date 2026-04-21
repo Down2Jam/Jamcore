@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Jam" ADD COLUMN     "submissionHours" INTEGER NOT NULL DEFAULT 2,
+ALTER COLUMN "ratingHours" SET DEFAULT 334;

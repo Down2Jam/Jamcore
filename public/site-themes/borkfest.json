@@ -1,0 +1,40 @@
+{
+  "name": "Borkfest",
+  "authors": ["Ategon"],
+  "description": "",
+  "version": "0.1.0",
+  "keywords": [],
+  "repository": "",
+  "type": "Dark",
+  "extends": "Base",
+  "colors": {
+    "text": "#dfd785",
+    "textFaded": "#ebc275",
+
+    "base": "#963c3c",
+    "mantle": "#3a2802",
+    "crust": "#202215",
+
+    "red": "#ff7831",
+    "redDark": "#ca5a2e",
+    "orange": "#ff7831",
+    "orangeDark": "#ca5a2e",
+    "yellow": "#ff7831",
+    "yellowDark": "#ca5a2e",
+    "lime": "#ff7831",
+    "green": "#ff7831",
+    "teal": "#ff7831",
+    "tealDark": "#ca5a2e",
+    "cyan": "#ff7831",
+    "cyanDark": "#ca5a2e",
+    "blue": "#ff7831",
+    "blueDark": "#ca5a2e",
+    "indigo": "#ff7831",
+    "indigoDark": "#ca5a2e",
+    "violet": "#ff7831",
+    "purple": "#ff7831",
+    "magenta": "#ff7831",
+    "pink": "#ff7831",
+    "gray": "#ff7831"
+  }
+}

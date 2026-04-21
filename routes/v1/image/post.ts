@@ -1,7 +1,7 @@
 import { Router } from "express";
 import rateLimit from "@middleware/rateLimit";
 import authUser from "@middleware/authUser";
-import images from "@helper/images";
+import { images, UploadFile } from "@helper/files";
 
 const router = Router();
 
@@ -19,21 +19,22 @@ router.post(
     images.single("upload")(req, res, (err) => {
       if (err) {
         console.error("Multer error:", err);
+        if (err.code === "LIMIT_FILE_SIZE" || err.message === "Invalid file type") {
+          return res.status(400).send({ message: "Invalid upload" });
+        }
         return res.status(500).send({ message: "File upload error" });
       }
       next();
     });
   },
 
-  (req, res) => {
-    res.status(200).send({
-      message: "Image uploaded",
-      data: `${
-        process.env.NODE_ENV === "production"
-          ? "https://d2jam.com"
-          : `http://localhost:${process.env.PORT || 3005}`
-      }/api/v1/image/${req.file?.filename}`,
-    });
+  async (req, res) => {
+    try {
+      await UploadFile(req, res);
+    } catch (err) {
+      console.error("Upload error:", err);
+      res.status(500).send({ message: "File upload error" });
+    }
   }
 );
 

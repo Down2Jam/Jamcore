@@ -1,21 +1,17 @@
 # syntax=docker/dockerfile:1
 
-ARG NODE_VERSION=18
+ARG NODE_VERSION=24.14.0
 ARG NODE_ENV=development
 
 # --- Base Stage ---
-FROM node:${NODE_VERSION}-alpine as base
+FROM node:${NODE_VERSION}-alpine AS base
 WORKDIR /usr/src/app
-# Install common dependencies (e.g. PostgreSQL client)
 RUN apk add --no-cache postgresql-client
 EXPOSE 3005
 
 # --- Dependencies Stage ---
-FROM base as deps
-# Copy package files first to leverage caching
+FROM base AS deps
 COPY package.json package-lock.json ./
-
-# Use cache mount for npm downloads; conditionally install based on NODE_ENV
 RUN --mount=type=cache,target=/root/.npm \
     if [ "$NODE_ENV" = "production" ]; then \
       npm ci --omit=dev; \
@@ -24,22 +20,20 @@ RUN --mount=type=cache,target=/root/.npm \
     fi
 
 # --- Builder Stage ---
-FROM deps as builder
-# Copy the rest of the application code
+FROM deps AS builder
 COPY . .
-# Generate Prisma client (or other build steps)
 RUN npx prisma generate
+RUN npm run build
+RUN chown -R node:node /usr/src/app
 
 # --- Development Final Stage ---
-FROM base as dev
-
+FROM base AS dev
 COPY --from=builder /usr/src/app ./
-
+USER node
 CMD ["npm", "run", "dev"]
 
 # --- Production Final Stage ---
-FROM base as production
-
+FROM base AS production
 COPY --from=builder /usr/src/app ./
-
+USER node
 CMD ["node", "index.js"]

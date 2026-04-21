@@ -26,7 +26,7 @@ app.use(
         : `http://localhost:${process.env.FRONT_DEV_PORT || 3000}`,
     credentials: true,
     allowedHeaders: ["Content-Type", "Authorization"],
-    exposedHeaders: ["Authorization"],
+    exposedHeaders: ["Authorization", "Content-Disposition", "Content-Type"],
   })
 );
 app.use(cookieParser());

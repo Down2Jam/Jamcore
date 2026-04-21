@@ -9,15 +9,17 @@ async function getTargetUserOptional(
   res: Response,
   next: NextFunction
 ): Promise<void> {
-  const { targetUserId, targetUserSlug } = req.body;
-  const {
-    targetUserId: queryTargetUserId,
-    targetUserSlug: queryTargetUserSlug,
-  } = req.query;
+  const targetUserId =
+    req.body?.targetUserId ??
+    req.query?.targetUserId ??
+    req.params?.targetUserId;
+  const targetUserSlug =
+    req.body?.targetUserSlug ??
+    req.query?.targetUserSlug ??
+    req.params?.targetUserSlug;
 
-  // Use query parameters if available, otherwise fallback to body
-  const userId = targetUserId || queryTargetUserId;
-  const userSlug = targetUserSlug || queryTargetUserSlug;
+  const userId = targetUserId;
+  const userSlug = targetUserSlug;
 
   if ((!userId || isNaN(parseInt(userId as string))) && !userSlug) {
     next();
@@ -36,6 +38,7 @@ async function getTargetUserOptional(
       select: {
         id: true,
         name: true,
+        short: true,
         bio: true,
         profilePicture: true,
         createdAt: true,
@@ -57,6 +60,7 @@ async function getTargetUserOptional(
         id: true,
         name: true,
         bio: true,
+        short: true,
         profilePicture: true,
         createdAt: true,
         slug: true,

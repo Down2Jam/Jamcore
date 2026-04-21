@@ -1,0 +1,31 @@
+{
+  "name": "Lava-GB",
+  "authors": ["Ategon"],
+  "description": "",
+  "version": "0.1.0",
+  "keywords": [],
+  "repository": "",
+  "type": "Dark",
+  "extends": "Base",
+  "colors": {
+    "base": "#4a2480",
+    "mantle": "#4a2480",
+    "crust": "#051f39",
+    "text": "#ff8e80",
+
+    "red": "#c53a9d",
+    "orange": "#c53a9d",
+    "yellow": "#c53a9d",
+    "lime": "#c53a9d",
+    "green": "#c53a9d",
+    "teal": "#c53a9d",
+    "cyan": "#c53a9d",
+    "blue": "#c53a9d",
+    "indigo": "#c53a9d",
+    "violet": "#c53a9d",
+    "purple": "#c53a9d",
+    "magenta": "#c53a9d",
+    "pink": "#c53a9d",
+    "gray": "#c53a9d"
+  }
+}

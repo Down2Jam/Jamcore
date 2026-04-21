@@ -16,12 +16,18 @@ router.get(
     logger.info(`Jams fetched`);
     const jams = await db.jam.findMany({
       take: 10,
-      orderBy: {
-        id: "desc",
-      },
+      orderBy: { id: "desc" },
     });
 
-    res.send(jams);
+    const now = Date.now();
+
+    const activeJams = jams.filter((jam) => {
+      const jamEnd = new Date(jam.startTime).getTime();
+
+      return jamEnd < now;
+    });
+
+    res.send(activeJams);
   }
 );
 

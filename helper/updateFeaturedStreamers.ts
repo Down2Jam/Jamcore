@@ -1,8 +1,5 @@
 import axios from "axios";
-import { PrismaClient } from "@prisma/client";
 import db from "./db";
-
-const prisma = new PrismaClient();
 
 export async function updateFeaturedStreamers() {
   const clientId = process.env.TWITCH_CLIENT_ID;
@@ -19,7 +16,7 @@ export async function updateFeaturedStreamers() {
           client_secret: clientSecret,
           grant_type: "client_credentials",
         },
-      }
+      },
     );
     const accessToken = tokenResponse.data.access_token;
 
@@ -54,11 +51,12 @@ export async function updateFeaturedStreamers() {
       ue5: "unrealengine",
       godotengine: "godot",
       unity3d: "unity",
+      down2jam: "d2jam",
     };
 
     // Step 3: Filter streams by desired tags
-    const priorityTags = ["d2jam"];
-    const desiredTags = ["d2jam", "gamejam", "gamedev"];
+    const priorityTags = ["d2jam", "down2jam"];
+    const desiredTags = ["d2jam", "down2jam", "gamejam", "gamedev"];
     const streamers = await db.user.findMany({
       where: {
         twitch: {
@@ -67,7 +65,7 @@ export async function updateFeaturedStreamers() {
       },
     });
     const streamerNames = streamers.map((streamer) =>
-      streamer.twitch?.toLowerCase()
+      streamer.twitch?.toLowerCase(),
     );
 
     const normalizedStreams = streams.map((stream) => {
@@ -92,69 +90,79 @@ export async function updateFeaturedStreamers() {
       return stream;
     });
 
-    const filteredStreams = normalizedStreams.filter((stream) => {
-      if (!stream.tags) return false; // Skip streams without tags
-      if (stream.language !== "en") return false; // Skip non-English streams
-      return stream.tags.some((tag) => desiredTags.includes(tag.toLowerCase()));
-    });
+    const hasDesiredTag = (stream: any) =>
+      (stream.tags ?? []).some((t: string) =>
+        desiredTags.includes(t.toLowerCase()),
+      );
 
-    const priorityStreams = filteredStreams
-      .filter((stream) =>
-        stream.tags.some((tag) => priorityTags.includes(tag.toLowerCase()))
-      )
-      .sort((a, b) => {
-        return (
+    const hasPriorityTag = (stream: any) =>
+      (stream.tags ?? []).some((t: string) =>
+        priorityTags.includes(t.toLowerCase()),
+      );
+
+    const isKnownStreamer = (stream: any) =>
+      streamerNames.includes(stream.user_name.toLowerCase());
+
+    const priorityStreams = normalizedStreams
+      .filter(hasPriorityTag)
+      .sort(
+        (a, b) =>
           Math.log10(b.viewer_count + 1) -
           Math.log10(a.viewer_count + 1) +
-          (Math.random() - 0.5) * 2 // Small random offset
-        );
-      });
+          (Math.random() - 0.5) * 2,
+      );
 
-    const streamerStreams = filteredStreams
-      .filter((stream) =>
-        stream.tags.every((tag) => !priorityTags.includes(tag.toLowerCase()))
-      )
-      .filter((stream) =>
-        streamerNames.includes(stream.user_name.toLowerCase())
-      )
-      .sort((a, b) => {
-        return (
+    const streamerStreams = normalizedStreams
+      .filter(hasDesiredTag)
+      .filter((s) => !hasPriorityTag(s))
+      .filter(isKnownStreamer)
+      .sort(
+        (a, b) =>
           Math.log10(b.viewer_count + 1) -
           Math.log10(a.viewer_count + 1) +
-          (Math.random() - 0.5) * 2 // Small random offset
-        );
-      });
+          (Math.random() - 0.5) * 2,
+      );
 
-    const nonPriorityStreams = filteredStreams
-      .filter((stream) =>
-        stream.tags.every((tag) => !priorityTags.includes(tag.toLowerCase()))
-      )
-      .filter(
-        (stream) => !streamerNames.includes(stream.user_name.toLowerCase())
-      )
-      .sort((a, b) => {
-        return (
-          Math.log10(b.viewer_count + 1) -
-          Math.log10(a.viewer_count + 1) +
-          (Math.random() - 0.5) * 2 // Small random offset
-        );
-      })
-      .slice(0, 3);
+    const numCore = priorityStreams.length + streamerStreams.length;
+    const nonPriorityStreams =
+      numCore < 3
+        ? normalizedStreams
+            .filter(hasDesiredTag)
+            .filter((s) => s.language === "en")
+            .filter((s) => !hasPriorityTag(s))
+            .filter((s) => !isKnownStreamer(s))
+            .sort(
+              (a, b) =>
+                Math.log10(b.viewer_count + 1) -
+                Math.log10(a.viewer_count + 1) +
+                (Math.random() - 0.5) * 2,
+            )
+            .slice(0, 3 - numCore)
+        : [];
 
     // Step 4: Update database with filtered streams
-    await prisma.featuredStreamer.deleteMany(); // Clear existing records
+    await db.featuredStreamer.deleteMany(); // Clear existing records
 
-    const finalStreams = [
+    const finalStreams: any[] = [];
+    const addedStreamers = new Set<string>();
+
+    for (const stream of [
       ...priorityStreams,
       ...streamerStreams,
       ...nonPriorityStreams,
-    ];
+    ]) {
+      const lowerCaseName = stream.user_name.toLowerCase();
+      if (!addedStreamers.has(lowerCaseName)) {
+        addedStreamers.add(lowerCaseName);
+        finalStreams.push(stream);
+      }
+    }
 
     console.log("Inserting new featured streams into database...");
     for (const stream of finalStreams) {
       console.log(stream);
       console.log("Inserting stream:", stream.user_name);
-      await prisma.featuredStreamer.create({
+      await db.featuredStreamer.create({
         data: {
           userName: stream.user_name,
           thumbnailUrl: stream.thumbnail_url

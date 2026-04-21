@@ -24,7 +24,7 @@ async function getPostOrComment(
     });
 
     if (!post) {
-      res.status(404).send("Post missing.");
+      res.status(404).send({ message: "Post missing." });
       return;
     }
 
@@ -40,7 +40,7 @@ async function getPostOrComment(
     });
 
     if (!comment) {
-      res.status(404).send("Comment missing.");
+      res.status(404).send({ message: "Comment missing." });
       return;
     }
 

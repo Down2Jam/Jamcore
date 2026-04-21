@@ -12,7 +12,7 @@ async function main() {
 
   // Use getCurrentActiveJam to fetch the active jam
   const activeJam = await getCurrentActiveJam();
-  if (!activeJam || !activeJam.futureJam) {
+  if (!activeJam || !activeJam.jam) {
     throw new Error("No active jam found.");
   }
 
@@ -22,14 +22,14 @@ async function main() {
   for (const user of users) {
     const suggestionCount = faker.number.int({
       min: 1,
-      max: activeJam.futureJam.themePerUser || 5, // Limit based on themePerUser
+      max: activeJam.jam.themePerUser || 5, // Limit based on themePerUser
     });
 
     for (let i = 0; i < suggestionCount; i++) {
       suggestions.push({
         suggestion: faker.lorem.words(3),
         userId: user.id,
-        jamId: activeJam.futureJam.id,
+        jamId: activeJam.jam.id,
       });
     }
   }

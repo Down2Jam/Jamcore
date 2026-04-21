@@ -19,8 +19,14 @@ router.put(
   assertUserModOrUserTargetTeamOwner,
 
   async (req, res) => {
-    const { applicationsOpen, rolesWanted, description, users, invitations } =
-      req.body;
+    const {
+      applicationsOpen,
+      rolesWanted,
+      description,
+      users,
+      invitations,
+      name,
+    } = req.body;
 
     const team = await db.team.update({
       where: {
@@ -29,6 +35,7 @@ router.put(
       data: {
         applicationsOpen,
         description: description ? description : null,
+        name: name ? name : null,
       },
       select: {
         rolesWanted: { select: { slug: true } },

@@ -6,8 +6,16 @@ import path from "path";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-import games from "./games/games.js";
-import themes from "./themes/themes.js";
+import games from "./games/index.js";
+import themes from "./themes/index.js";
+import documentationDocumentGet from "./documentation-document/get.js";
+import documentationDocumentPost from "./documentation-document/post.js";
+import documentationDocumentPut from "./documentation-document/put.js";
+import documentationDocumentDelete from "./documentation-document/delete.js";
+import documentationDocumentsGet from "./documentation-documents/get.js";
+import pressKitMediaGet from "./press-kit-media/get.js";
+import pressKitMediaPost from "./press-kit-media/post.js";
+import pressKitMediaDelete from "./press-kit-media/delete.js";
 
 var router = express.Router();
 
@@ -15,14 +23,23 @@ function loadRoutes(dir: string, routePath: string) {
   const files = readdirSync(dir, { withFileTypes: true });
 
   for (const file of files) {
+    const filePath = path.join(dir, file.name);
+
     if (file.isDirectory()) {
-      loadRoutes(path.join(file.path, file.name), routePath + "/" + file.name);
+      loadRoutes(filePath, routePath + "/" + file.name);
     } else {
-      if (file.name == "v1.ts" || file.name == "index.ts") {
+      const extension = path.extname(file.name);
+      const basename = path.basename(file.name, extension);
+
+      if (basename === "v1" || basename === "index") {
         continue;
       }
 
-      import(pathToFileURL(path.join(file.path, file.name)).href).then(
+      if (![".ts", ".js"].includes(extension)) {
+        continue;
+      }
+
+      import(pathToFileURL(filePath).href).then(
         (module) => {
           if (!module.default) {
             console.log(
@@ -31,7 +48,7 @@ function loadRoutes(dir: string, routePath: string) {
             return;
           }
 
-          const method = file.name.replace(".ts", "").toLowerCase();
+          const method = basename.toLowerCase();
 
           if (!["get", "post", "put", "delete"].includes(method)) {
             console.log(
@@ -53,6 +70,14 @@ function loadRoutes(dir: string, routePath: string) {
 
 router.use("/games", games);
 router.use("/themes", themes);
+router.use("/documentation-document", documentationDocumentGet);
+router.use("/documentation-document", documentationDocumentPost);
+router.use("/documentation-document", documentationDocumentPut);
+router.use("/documentation-document", documentationDocumentDelete);
+router.use("/documentation-documents", documentationDocumentsGet);
+router.use("/press-kit-media", pressKitMediaGet);
+router.use("/press-kit-media", pressKitMediaPost);
+router.use("/press-kit-media", pressKitMediaDelete);
 
 loadRoutes(__dirname, "");
 

@@ -1,5 +1,4 @@
 import express from "express";
-import { PrismaClient } from "@prisma/client";
 import {
   getCurrentActiveJam,
   checkJamParticipation,
@@ -7,8 +6,8 @@ import {
 import authenticateUser from "../../../middleware/authUser";
 import getUser from "@middleware/getUser";
 import getJam from "@middleware/getJam";
+import db from "@helper/db";
 
-const prisma = new PrismaClient();
 const router = express.Router();
 
 router.get(
@@ -19,33 +18,33 @@ router.get(
     const username = res.locals.userSlug;
 
     // Find the user
-    const user = await prisma.user.findUnique({
+    const user = await db.user.findUnique({
       where: { slug: username },
     });
 
     if (!user) {
-      return res.status(401).send("Unauthorized: User not found.");
+      return res.status(401).send({ message: "Unauthorized: User not found." });
     }
 
     // Get current active jam
     const activeJam = await getCurrentActiveJam();
-    if (!activeJam || !activeJam.futureJam) {
-      return res.status(404).send("No active jam found.");
+    if (!activeJam || !activeJam.jam) {
+      return res.status(404).send({ message: "No active jam found." });
     }
 
     // Fetch user's suggestions for the current jam
     try {
-      const suggestions = await prisma.themeSuggestion.findMany({
+      const suggestions = await db.themeSuggestion.findMany({
         where: {
           userId: user.id,
-          jamId: activeJam.futureJam.id,
+          jamId: activeJam.jam.id,
         },
       });
 
-      res.json(suggestions);
+      res.json({ message: "Suggestions fetched", data: suggestions });
     } catch (error) {
       console.error("Error fetching suggestions:", error);
-      res.status(500).send("Internal Server Error.");
+      res.status(500).send({ message: "Internal Server Error." });
     }
   }
 );
@@ -59,7 +58,7 @@ router.delete(
     const username = res.locals.userSlug;
 
     // Find the user
-    const user = await prisma.user.findUnique({
+    const user = await db.user.findUnique({
       where: { slug: username },
     });
 
@@ -68,7 +67,7 @@ router.delete(
     }
 
     // Check if the suggestion belongs to the user
-    const suggestion = await prisma.themeSuggestion.findUnique({
+    const suggestion = await db.themeSuggestion.findUnique({
       where: { id: suggestionId },
     });
 
@@ -80,7 +79,7 @@ router.delete(
 
     // Delete the suggestion
     try {
-      await prisma.themeSuggestion.delete({
+      await db.themeSuggestion.delete({
         where: { id: suggestionId },
       });
 
@@ -92,60 +91,12 @@ router.delete(
   }
 );
 
-router.put(
-  "/suggestion/:id",
-  authenticateUser,
-  checkJamParticipation,
-  async function (req, res) {
-    const suggestionId = parseInt(req.params.id);
-    const { suggestionText } = req.body;
-    const username = res.locals.userSlug;
-
-    if (!suggestionText) {
-      return res.status(400).send("Suggestion text is required.");
-    }
-
-    // Find the user
-    const user = await prisma.user.findUnique({
-      where: { slug: username },
-    });
-
-    if (!user) {
-      return res.status(401).send("Unauthorized: User not found.");
-    }
-
-    // Check if the suggestion belongs to the user
-    const suggestion = await prisma.themeSuggestion.findUnique({
-      where: { id: suggestionId },
-    });
-
-    if (!suggestion || suggestion.userId !== user.id) {
-      return res
-        .status(403)
-        .send("Unauthorized: You cannot update this suggestion.");
-    }
-
-    // Update the suggestion
-    try {
-      const updatedSuggestion = await prisma.themeSuggestion.update({
-        where: { id: suggestionId },
-        data: { suggestion: suggestionText },
-      });
-
-      res.json(updatedSuggestion);
-    } catch (error) {
-      console.error("Error updating suggestion:", error);
-      res.status(500).send("Internal Server Error.");
-    }
-  }
-);
-
 router.post(
   "/suggestion",
   authenticateUser,
   checkJamParticipation,
   async function (req, res) {
-    const { suggestionText } = req.body;
+    const { suggestionText, description } = req.body;
 
     if (!suggestionText) {
       return res.status(400).send("Suggestion text is required.");
@@ -156,7 +107,7 @@ router.post(
     console.log("Authenticated Username:", username);
 
     // Find the user in the database
-    const user = await prisma.user.findUnique({
+    const user = await db.user.findUnique({
       where: { slug: username },
     });
 
@@ -167,23 +118,23 @@ router.post(
     // Get the current active jam
     const activeJam = await getCurrentActiveJam();
 
-    if (!activeJam || !activeJam.futureJam) {
+    if (!activeJam || !activeJam.jam) {
       return res.status(404).send("No active jam found.");
     }
 
-    if (activeJam && activeJam.futureJam && activeJam.phase != "Suggestion") {
+    if (activeJam && activeJam.jam && activeJam.phase != "Suggestion") {
       return res.status(404).send("It's not suggestion phase.");
     }
 
     // Check if themePerUser is set and enforce the limit
-    const themeLimit = activeJam.futureJam.themePerUser || Infinity; // Default to no limit if themePerUser is not set
+    const themeLimit = activeJam.jam.themePerUser || Infinity; // Default to no limit if themePerUser is not set
 
     try {
       // Count existing suggestions by the user for this jam
-      const userSuggestionsCount = await prisma.themeSuggestion.count({
+      const userSuggestionsCount = await db.themeSuggestion.count({
         where: {
           userId: user.id,
-          jamId: activeJam.futureJam.id,
+          jamId: activeJam.jam.id,
         },
       });
 
@@ -194,11 +145,12 @@ router.post(
       }
 
       // Create the suggestion in the database
-      const newSuggestion = await prisma.themeSuggestion.create({
+      const newSuggestion = await db.themeSuggestion.create({
         data: {
           suggestion: suggestionText,
           userId: user.id,
-          jamId: activeJam.futureJam.id,
+          jamId: activeJam.jam.id,
+          description: description,
         },
       });
 
@@ -239,7 +191,7 @@ router.post(
 
     try {
       // Check if the user already voted on this suggestion
-      let existingVote = await prisma.themeVote.findFirst({
+      let existingVote = await db.themeVote.findFirst({
         where: {
           userId: res.locals.user.id,
           jamId: res.locals.jam.id,
@@ -248,14 +200,14 @@ router.post(
       });
 
       if (existingVote) {
-        await prisma.themeVote.update({
+        await db.themeVote.update({
           where: { id: existingVote.id },
           data: { slaughterScore: voteType },
         });
 
         res.json({ message: "Edited vote successfully." });
       } else {
-        await prisma.themeVote.create({
+        await db.themeVote.create({
           data: {
             slaughterScore: voteType,
             userId: res.locals.user.id,
@@ -302,14 +254,14 @@ router.post(
       res.locals.jam &&
       res.locals.jam &&
       new Date(res.locals.jam.startTime).getTime() - new Date().getTime() <=
-        60 * 60 * 1000
+        60 * 60 * 1000 * 24
     ) {
       return res.status(400).send("Voting is closed.");
     }
 
     try {
       // Check if the user already voted on this suggestion
-      let existingVote = await prisma.themeVote2.findFirst({
+      let existingVote = await db.themeVote2.findFirst({
         where: {
           userId: res.locals.user.id,
           jamId: res.locals.jam.id,
@@ -319,14 +271,14 @@ router.post(
       });
 
       if (existingVote) {
-        await prisma.themeVote2.update({
+        await db.themeVote2.update({
           where: { id: existingVote.id },
           data: { voteScore: voteType },
         });
 
         res.json({ message: "Edited vote successfully." });
       } else {
-        await prisma.themeVote2.create({
+        await db.themeVote2.create({
           data: {
             voteScore: voteType,
             voteRound: 1,
@@ -352,7 +304,7 @@ router.get(
   async (req, res) => {
     const username = res.locals.userSlug;
 
-    const user = await prisma.user.findUnique({
+    const user = await db.user.findUnique({
       where: { slug: username },
     });
 
@@ -361,15 +313,15 @@ router.get(
     }
 
     const activeJam = await getCurrentActiveJam();
-    if (!activeJam || !activeJam.futureJam) {
+    if (!activeJam || !activeJam.jam) {
       return res.status(404).send("No active jam found.");
     }
 
     try {
-      const votes = await prisma.themeVote.findMany({
+      const votes = await db.themeVote.findMany({
         where: {
           userId: user.id,
-          jamId: activeJam.futureJam.id,
+          jamId: activeJam.jam.id,
         },
         select: {
           themeSuggestionId: true,
@@ -403,7 +355,7 @@ router.post(
     }
 
     // Find the user
-    const user = await prisma.user.findUnique({
+    const user = await db.user.findUnique({
       where: { slug: username },
     });
 
@@ -413,16 +365,16 @@ router.post(
 
     // Get the current active jam
     const activeJam = await getCurrentActiveJam();
-    if (!activeJam || !activeJam.futureJam) {
+    if (!activeJam || !activeJam.jam) {
       return res.status(404).send("No active jam found.");
     }
 
     try {
       // Check if the user already voted on this suggestion
-      let existingVote = await prisma.themeVote.findFirst({
+      let existingVote = await db.themeVote.findFirst({
         where: {
           userId: user.id,
-          jamId: activeJam.futureJam.id,
+          jamId: activeJam.jam.id,
           themeSuggestionId: suggestionId,
         },
       });
@@ -432,7 +384,7 @@ router.post(
         const scoreDifference = votingScore - existingVote.votingScore;
 
         // Use transactions for critical operations
-        await prisma.$transaction(async (tx) => {
+        await db.$transaction(async (tx) => {
           // Update vote
           await tx.themeVote.update({
             where: { id: existingVote.id },
@@ -451,17 +403,17 @@ router.post(
         });
       } else {
         // Create a new vote record in ThemeVote table
-        await prisma.themeVote.create({
+        await db.themeVote.create({
           data: {
             votingScore,
             userId: user.id,
-            jamId: activeJam.futureJam.id,
+            jamId: activeJam.jam.id,
             themeSuggestionId: suggestionId,
           },
         });
 
         // Update totalVotingScore in ThemeSuggestion table
-        await prisma.themeSuggestion.update({
+        await db.themeSuggestion.update({
           where: { id: suggestionId },
           data: {
             totalVotingScore: {

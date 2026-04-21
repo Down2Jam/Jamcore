@@ -2,6 +2,10 @@ import { Router } from "express";
 import rateLimit from "@middleware/rateLimit";
 import db from "@helper/db";
 import getTargetUserOptional from "@middleware/getTargetUserOptional";
+import {
+  gamePageInclude,
+  materializeGamePage,
+} from "@helper/gamePages";
 
 const router = Router();
 
@@ -10,7 +14,7 @@ const router = Router();
  */
 router.get(
   "/",
-  rateLimit(),
+  rateLimit(60),
 
   getTargetUserOptional,
 
@@ -33,6 +37,19 @@ router.get(
               secondaryRoles: true,
             },
           },
+          game: {
+            include: {
+              jam: true,
+              pages: {
+                where: {
+                  version: {
+                    in: ["JAM", "POST_JAM"],
+                  },
+                },
+                include: gamePageInclude,
+              },
+            },
+          },
           owner: true,
           rolesWanted: true,
           invites: {
@@ -53,11 +70,39 @@ router.get(
           users: true,
           owner: true,
           rolesWanted: true,
+          game: {
+            include: {
+              jam: true,
+              pages: {
+                where: {
+                  version: {
+                    in: ["JAM", "POST_JAM"],
+                  },
+                },
+                include: gamePageInclude,
+              },
+            },
+          },
         },
       });
     }
 
-    res.send({ message: "Teams fetched", data: teams });
+    res.send({
+      message: "Teams fetched",
+      data: teams.map((team) => ({
+        ...team,
+        game: team.game
+          ? {
+              ...materializeGamePage(team.game),
+              jamPage:
+                team.game.pages.find((page) => page.version === "JAM") ?? null,
+              postJamPage:
+                team.game.pages.find((page) => page.version === "POST_JAM") ??
+                null,
+            }
+          : null,
+      })),
+    });
   }
 );
 

@@ -4,6 +4,10 @@ import jwt from "jsonwebtoken";
 import { checkPasswordHash } from "../../../helper/password";
 import rateLimit from "@middleware/rateLimit";
 import db from "@helper/db";
+import {
+  REFRESH_TOKEN_EXPIRES_IN,
+  SESSION_DURATION_MS,
+} from "@helper/authCookies";
 
 const router = Router();
 
@@ -27,6 +31,10 @@ router.post(
     const user = await db.user.findUnique({
       where: {
         slug: (username as string).toLowerCase(),
+      },
+      select: {
+        slug: true,
+        password: true,
       },
     });
 
@@ -60,7 +68,7 @@ router.post(
       { name: user.slug },
       process.env.TOKEN_SECRET,
       {
-        expiresIn: "1d",
+        expiresIn: REFRESH_TOKEN_EXPIRES_IN,
       }
     );
 
@@ -68,6 +76,7 @@ router.post(
       .cookie("refreshToken", refreshToken, {
         httpOnly: true,
         sameSite: "strict",
+        maxAge: SESSION_DURATION_MS,
       })
       .header("Authorization", accessToken)
       .send({

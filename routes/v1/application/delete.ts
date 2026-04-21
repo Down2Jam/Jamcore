@@ -23,6 +23,13 @@ router.delete(
       where: {
         id: inviteId,
       },
+      include: {
+        team: {
+          include: {
+            game: true,
+          },
+        },
+      },
     });
 
     if (!invite) {
@@ -30,13 +37,12 @@ router.delete(
       return;
     }
 
-    await db.teamApplication.delete({
-      where: {
-        id: inviteId,
-      },
-    });
-
     if (accept) {
+      if (invite.team.game && invite.team.game.category == "ODA") {
+        res.status(401).send({ message: "Your team is a part of O.D.A" });
+        return;
+      }
+
       await db.team.update({
         where: { id: invite.teamId },
         data: {
@@ -48,6 +54,12 @@ router.delete(
         },
       });
     }
+
+    await db.teamApplication.delete({
+      where: {
+        id: inviteId,
+      },
+    });
 
     res.send({ message: "Application accepted" });
   }

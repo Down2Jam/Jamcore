@@ -6,4 +6,7 @@ export interface UserType {
   createdAt: Date;
   mod: boolean;
   admin: boolean;
+  twitch?: string | null;
+  hideRatings?: boolean;
+  autoHideRatingsWhileStreaming?: boolean;
 }

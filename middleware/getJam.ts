@@ -1,13 +1,17 @@
 import { Request, Response, NextFunction } from "express";
 import db from "../helper/db";
 import { getCurrentActiveJam } from "services/jamService";
+import { PageVersion } from "@prisma/client";
 
 async function getJam(
   req: Request,
   res: Response,
   next: NextFunction
 ): Promise<void> {
-  const { jamId } = req.body;
+  const jamIdValue =
+    req.body?.jamId ?? req.query?.jamId ?? req.params?.jamId;
+  const jamId =
+    typeof jamIdValue === "string" ? Number(jamIdValue) : jamIdValue;
 
   // If no jam id provided gets the current jam
   if (!jamId) {
@@ -18,7 +22,8 @@ async function getJam(
       return;
     }
 
-    res.locals.jam = activeJam.futureJam;
+    res.locals.jam = activeJam.jam;
+    res.locals.nextJam = activeJam.nextJam ?? null;
     res.locals.jamPhase = activeJam.phase;
     next();
     return;
@@ -30,6 +35,24 @@ async function getJam(
     },
     include: {
       users: true,
+      games: {
+        include: {
+          ratings: true,
+          ratingCategories: true,
+          pages: {
+            where: {
+              version: PageVersion.JAM,
+            },
+            include: {
+              tracks: {
+                include: {
+                  ratings: true,
+                },
+              },
+            },
+          },
+        },
+      },
     },
   });
 
@@ -38,7 +61,15 @@ async function getJam(
     return;
   }
 
-  res.locals.jam = jam;
+  res.locals.jam = {
+    ...jam,
+    games: (jam.games ?? []).map((game: any) => ({
+      ...game,
+      tracks:
+        game.pages?.find((page: any) => page.version === PageVersion.JAM)
+          ?.tracks ?? [],
+    })),
+  };
   next();
 }
 

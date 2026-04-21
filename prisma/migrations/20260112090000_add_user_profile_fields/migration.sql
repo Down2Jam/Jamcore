@@ -1,0 +1,3 @@
+ALTER TABLE "User" ADD COLUMN "profileBackground" TEXT;
+ALTER TABLE "User" ADD COLUMN "pronouns" TEXT;
+ALTER TABLE "User" ADD COLUMN "links" TEXT[] DEFAULT ARRAY[]::TEXT[];
