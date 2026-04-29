@@ -40,6 +40,9 @@
       "name": "Collections"
     },
     {
+      "name": "Quilts"
+    },
+    {
       "name": "Teams"
     },
     {
@@ -2189,6 +2192,236 @@
       "idempotency": {
         "supported": true,
         "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "listQuilts",
+      "method": "GET",
+      "path": "/quilts",
+      "tag": "Quilts",
+      "summary": "List collaborative pixel art quilts",
+      "auth": {
+        "required": false,
+        "optional": false,
+        "kind": "none",
+        "label": "Public"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "createQuilt",
+      "method": "POST",
+      "path": "/quilts",
+      "tag": "Quilts",
+      "summary": "Create a collaborative pixel art quilt",
+      "requestBody": true,
+      "requestExample": {
+        "name": "Down2Jam Quilt",
+        "slug": "down2jam-quilt",
+        "description": "Collaborative pixel art.",
+        "width": 128,
+        "height": 128,
+        "endsAt": "2026-05-01T00:00:00.000Z"
+      },
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires moderator login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "recommended": true
+      }
+    },
+    {
+      "sdkName": "getQuilt",
+      "method": "GET",
+      "path": "/quilts/{quiltSlug}",
+      "tag": "Quilts",
+      "summary": "Return a quilt canvas, history, pending changes, and rejected changes",
+      "parameters": [
+        {
+          "name": "quiltSlug",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "auth": {
+        "required": false,
+        "optional": true,
+        "kind": "user",
+        "label": "Uses login if present"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "submitQuiltPixels",
+      "method": "POST",
+      "path": "/quilts/{quiltSlug}/submissions",
+      "tag": "Quilts",
+      "summary": "Submit pending pixel changes to a quilt",
+      "requestBody": true,
+      "parameters": [
+        {
+          "name": "quiltSlug",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "requestExample": {
+        "pixels": [
+          {
+            "x": 10,
+            "y": 12,
+            "color": "#f14fb4"
+          },
+          {
+            "x": 11,
+            "y": 12,
+            "color": null
+          }
+        ]
+      },
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "recommended": true
+      }
+    },
+    {
+      "sdkName": "voteQuiltSubmission",
+      "method": "POST",
+      "path": "/quilts/submissions/{submissionId}/vote",
+      "tag": "Quilts",
+      "summary": "Upvote or downvote a pending quilt submission",
+      "requestBody": true,
+      "parameters": [
+        {
+          "name": "submissionId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer"
+          }
+        }
+      ],
+      "requestExample": {
+        "value": 1
+      },
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "recommended": true
+      }
+    },
+    {
+      "sdkName": "updateQuiltSubmission",
+      "method": "PUT",
+      "path": "/quilts/submissions/{submissionId}",
+      "tag": "Quilts",
+      "summary": "Replace the pixels for your own pending quilt submission",
+      "requestBody": true,
+      "parameters": [
+        {
+          "name": "submissionId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer"
+          }
+        }
+      ],
+      "requestExample": {
+        "pixels": [
+          {
+            "x": 10,
+            "y": 12,
+            "color": "#149cff"
+          }
+        ]
+      },
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "recommended": true
+      }
+    },
+    {
+      "sdkName": "removeQuiltSubmission",
+      "method": "DELETE",
+      "path": "/quilts/submissions/{submissionId}",
+      "tag": "Quilts",
+      "summary": "Remove an accepted quilt history entry",
+      "parameters": [
+        {
+          "name": "submissionId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer"
+          }
+        }
+      ],
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires moderator login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
       }
     },
     {

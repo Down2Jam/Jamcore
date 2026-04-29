@@ -81,6 +81,9 @@ model User {
   recommendedTrackHiddenIds     Int[]                   @default([])
   hideRatings                   Boolean                 @default(false)
   autoHideRatingsWhileStreaming Boolean                 @default(false)
+  quiltSubmissions              QuiltSubmission[]       @relation(name: "QuiltSubmissionToAuthor")
+  quiltRemovals                 QuiltSubmission[]       @relation(name: "QuiltSubmissionToRemover")
+  quiltVotes                    QuiltVote[]             @relation(name: "QuiltVoteToUser")
 
   @@index([tenantId])
 }
@@ -94,6 +97,13 @@ enum Priority {
 enum PageVersion {
   JAM
   POST_JAM
+}
+
+enum QuiltSubmissionStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  REMOVED
 }
 
 model TagCategory {
@@ -1274,6 +1284,60 @@ model RadioBan {
   createdAt DateTime @default(now()) @map("created_at")
 
   @@unique([tenantId, trackId])
+}
+
+model Quilt {
+  id          Int      @id @default(autoincrement())
+  slug        String   @unique
+  name        String
+  description String?
+  width       Int
+  height      Int
+  endsAt      DateTime @map("ends_at")
+  tenantId    String?  @map("tenant_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  submissions QuiltSubmission[]
+
+  @@index([tenantId, endsAt])
+}
+
+model QuiltSubmission {
+  id          Int                    @id @default(autoincrement())
+  quiltId     Int                    @map("quilt_id")
+  authorId    Int                    @map("author_id")
+  pixels      Json
+  status      QuiltSubmissionStatus  @default(PENDING)
+  resolvesAt  DateTime               @map("resolves_at")
+  resolvedAt  DateTime?              @map("resolved_at")
+  removedAt   DateTime?              @map("removed_at")
+  removedById Int?                   @map("removed_by_id")
+  createdAt   DateTime               @default(now()) @map("created_at")
+  updatedAt   DateTime               @updatedAt @map("updated_at")
+
+  quilt     Quilt       @relation(fields: [quiltId], references: [id], onDelete: Cascade)
+  author    User        @relation(fields: [authorId], references: [id], name: "QuiltSubmissionToAuthor")
+  removedBy User?       @relation(fields: [removedById], references: [id], name: "QuiltSubmissionToRemover")
+  votes     QuiltVote[]
+
+  @@index([quiltId, status, createdAt])
+  @@index([authorId, createdAt])
+}
+
+model QuiltVote {
+  id           Int      @id @default(autoincrement())
+  submissionId Int      @map("submission_id")
+  userId       Int      @map("user_id")
+  value        Int
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  submission QuiltSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  user       User            @relation(fields: [userId], references: [id], name: "QuiltVoteToUser")
+
+  @@unique([submissionId, userId])
+  @@index([userId, createdAt])
 }
 
 model ReportNote {
