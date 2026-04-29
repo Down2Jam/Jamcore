@@ -1,6 +1,6 @@
 import { Router } from "express";
-import authUser from "@middleware/authUser";
 import rateLimit from "@middleware/rateLimit";
+import { clearSession } from "../../../auth/session.js";
 
 const router = Router();
 
@@ -11,13 +11,8 @@ const router = Router();
 router.delete(
   "/",
   rateLimit(),
-
   async (_req, res) => {
-    res.clearCookie("refreshToken", {
-      httpOnly: true,
-      sameSite: "strict",
-      path: "/",
-    });
+    clearSession(res);
     res.status(200);
     res.send({ message: "Logged out successfully" });
   }

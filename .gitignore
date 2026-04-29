@@ -1,5 +1,9 @@
 node_modules
 # Keep environment variables out of version control
 .env
+.jamcore/
 public/images/*
 dist/
+logs/*.log
+docs/db-index-review.md
+docs/query-plans/

@@ -1,73 +1,40 @@
 import express from "express";
+
 import authUser from "@middleware/authUser";
-import getUser from "@middleware/getUser";
+import getUser from "@loaders/getUser";
 import rateLimit from "@middleware/rateLimit";
-import db from "@helper/db";
+import { asyncHandler } from "@middleware/asyncHandler";
+import {
+  createTrackTimestampComment,
+  createTrackTimestampCommentSchema,
+} from "@features/ratings";
+import { requireRequestUser } from "@lib/locals";
+import { parseBody } from "../../../lib/request.js";
 
 const router = express.Router();
 
-router.post("/", rateLimit(), authUser, getUser, async (req, res) => {
-  try {
-    const { trackId, content, timestamp } = req.body;
-
-    if (
-      !trackId ||
-      typeof content !== "string" ||
-      !content.trim() ||
-      typeof timestamp !== "number" ||
-      Number.isNaN(timestamp) ||
-      timestamp < 0
-    ) {
-      return res.status(400).json({ message: "Invalid timestamp comment." });
-    }
-
-    const track = await db.gamePageTrack.findUnique({
-      where: { id: Number(trackId) },
-      include: {
-        gamePage: {
-          select: {
-            version: true,
-            game: {
-              select: { published: true },
-            },
-          },
-        },
-      },
-    });
-
-    if (!track || !track.gamePage?.game?.published) {
-      return res.status(404).json({ message: "Track not found" });
-    }
-
-    const created = await db.trackTimestampComment.create({
-      data: {
-        trackId: track.id,
-        authorId: res.locals.user.id,
-        content: content.trim(),
-        timestamp,
-      },
-      include: {
-        author: {
-          select: {
-            id: true,
-            slug: true,
-            name: true,
-            profilePicture: true,
-          },
-        },
-      },
+router.post(
+  "/",
+  rateLimit(),
+  authUser,
+  getUser,
+  asyncHandler(async (req, res) => {
+    const input = parseBody(req, createTrackTimestampCommentSchema);
+    const user = requireRequestUser(res);
+    const created = await createTrackTimestampComment({
+      trackId: input.trackId,
+      content: input.content,
+      timestamp: input.timestamp,
+      authorId: user.id,
+      tenantId: res.locals.tenantId,
     });
 
     return res.status(201).json({
       message: "Timestamp comment created",
       data: created,
     });
-  } catch (err) {
-    console.error(err);
-    return res
-      .status(500)
-      .json({ message: "Failed to create timestamp comment" });
-  }
-});
+  }),
+);
 
 export default router;
+

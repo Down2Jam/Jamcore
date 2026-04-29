@@ -1,0 +1,232 @@
+export type JamcoreClientConfig = {
+  baseUrl?: string;
+  fetchImpl?: typeof fetch;
+  headers?: Record<string, string>;
+};
+
+type RequestOptions = {
+  headers?: Record<string, string>;
+  query?: Record<string, string | number | boolean | undefined>;
+  body?: unknown;
+};
+
+function withQuery(url: string, query?: RequestOptions["query"]) {
+  if (!query) return url;
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(query)) {
+    if (value !== undefined) params.set(key, String(value));
+  }
+  const queryString = params.toString();
+  return queryString ? `${url}?${queryString}` : url;
+}
+
+export function createJamcoreClient(config: JamcoreClientConfig = {}) {
+  const fetchImpl = config.fetchImpl ?? fetch;
+  const baseUrl = config.baseUrl ?? "";
+
+  async function request(method: string, route: string, options: RequestOptions = {}) {
+    const response = await fetchImpl(withQuery(`${baseUrl}/api/v1${route}`, options.query), {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+        ...(config.headers ?? {}),
+        ...(options.headers ?? {}),
+      },
+      body: options.body === undefined ? undefined : JSON.stringify(options.body),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Jamcore request failed: ${response.status}`);
+    }
+
+    const contentType = response.headers.get("content-type") ?? "";
+    if (contentType.includes("application/json")) {
+      return response.json();
+    }
+    return response.text();
+  }
+
+  return {
+    getOpenApi: () => request("GET", "/openapi", {  }),
+    undefined: () => request("GET", "/capabilities", {  }),
+    listGames: (query: RequestOptions["query"] = undefined) => request("GET", "/games", { query }),
+    getRandomGame: () => request("GET", "/games/random", {  }),
+    createGame: (body: unknown) => request("POST", "/games", { body }),
+    getGame: (gameSlug: string, query: RequestOptions["query"] = undefined) => request("GET", `/games/${gameSlug}`, { query }),
+    updateGame: (gameSlug: string, body: unknown) => request("PUT", `/games/${gameSlug}`, { body }),
+    createPostJamPage: (gameSlug: string) => request("POST", `/games/${gameSlug}/post-jam`, {  }),
+    listGameDevlogPosts: (gameSlug: string, query: RequestOptions["query"] = undefined) => request("GET", `/games/${gameSlug}/devlog`, { query }),
+    listJams: () => request("GET", "/jams", {  }),
+    getRandomJam: () => request("GET", "/jams/random", {  }),
+    getJam: (jamSlug: string) => request("GET", `/jams/${jamSlug}`, {  }),
+    getJamParticipation: (jamSlug: string) => request("GET", `/jams/${jamSlug}/participation`, {  }),
+    joinJam: (body: unknown) => request("POST", "/join-jam", { body }),
+    getResults: (query: RequestOptions["query"] = undefined) => request("GET", "/results", { query }),
+    getRecap: (query: RequestOptions["query"] = undefined) => request("GET", "/recap", { query }),
+    updateRecap: (body: unknown) => request("PUT", "/recap", { body }),
+    listTracks: (query: RequestOptions["query"] = undefined) => request("GET", "/tracks", { query }),
+    getRandomTrack: () => request("GET", "/tracks/random", {  }),
+    getTrack: (trackSlug: string, query: RequestOptions["query"] = undefined) => request("GET", `/tracks/${trackSlug}`, { query }),
+    updateTrack: (trackSlug: string, body: unknown) => request("PUT", `/tracks/${trackSlug}`, { body }),
+    getMusicFile: (filename: string) => request("GET", `/music/${filename}`, {  }),
+    downloadTrack: (trackSlug: string, query: RequestOptions["query"] = undefined) => request("GET", `/music/track/${trackSlug}/download`, { query }),
+    uploadMusic: (body: unknown) => request("POST", "/music", { body }),
+    getEvent: (eventSlug: string) => request("GET", `/events/${eventSlug}`, {  }),
+    listEvents: (query: RequestOptions["query"] = undefined) => request("GET", "/events", { query }),
+    createEvent: (body: unknown) => request("POST", "/events", { body }),
+    listPosts: (query: RequestOptions["query"] = undefined) => request("GET", "/posts", { query }),
+    getPost: (postSlug: string, query: RequestOptions["query"] = undefined) => request("GET", `/posts/${postSlug}`, { query }),
+    createPost: (body: unknown) => request("POST", "/posts", { body }),
+    updatePost: (postSlug: string, body: unknown) => request("PUT", `/posts/${postSlug}`, { body }),
+    deletePost: (postSlug: string, body: unknown) => request("DELETE", `/posts/${postSlug}`, { body }),
+    previewPost: (previewToken: string) => request("GET", `/posts/preview/${previewToken}`, {  }),
+    listPostRevisions: (postSlug: string) => request("GET", `/posts/${postSlug}/revisions`, {  }),
+    publishPost: (postSlug: string) => request("POST", `/posts/${postSlug}/publish`, {  }),
+    getPostAutosave: (query: RequestOptions["query"] = undefined) => request("GET", "/posts/autosave", { query }),
+    savePostAutosave: (body: unknown) => request("POST", "/posts/autosave", { body }),
+    listPostSeries: (query: RequestOptions["query"] = undefined) => request("GET", "/posts/series", { query }),
+    createPostSeries: (body: unknown) => request("POST", "/posts/series", { body }),
+    getPostSeries: (seriesId: string) => request("GET", `/posts/series/${seriesId}`, {  }),
+    updatePostSeries: (seriesId: string, body: unknown) => request("PUT", `/posts/series/${seriesId}`, { body }),
+    addPostToSeries: (seriesId: string, body: unknown) => request("POST", `/posts/series/${seriesId}/posts`, { body }),
+    removePostFromSeries: (seriesId: string, postId: string) => request("DELETE", `/posts/series/${seriesId}/posts/${postId}`, {  }),
+    listCollections: (query: RequestOptions["query"] = undefined) => request("GET", "/collections", { query }),
+    createCollection: (body: unknown) => request("POST", "/collections", { body }),
+    importCollection: (body: unknown) => request("POST", "/collections/import", { body }),
+    getCollection: (collectionId: string) => request("GET", `/collections/${collectionId}`, {  }),
+    exportCollection: (collectionId: string) => request("GET", `/collections/${collectionId}/export`, {  }),
+    updateCollection: (collectionId: string, body: unknown) => request("PUT", `/collections/${collectionId}`, { body }),
+    deleteCollection: (collectionId: string) => request("DELETE", `/collections/${collectionId}`, {  }),
+    addCollectionItem: (collectionId: string, body: unknown) => request("POST", `/collections/${collectionId}/items`, { body }),
+    removeCollectionItem: (collectionId: string, itemId: string) => request("DELETE", `/collections/${collectionId}/items/${itemId}`, {  }),
+    inviteCollectionCollaborator: (collectionId: string, body: unknown) => request("POST", `/collections/${collectionId}/collaborators`, { body }),
+    respondCollectionCollaborator: (collectionId: string, body: unknown) => request("PUT", `/collections/${collectionId}/collaborators/me`, { body }),
+    forkCollection: (collectionId: string) => request("POST", `/collections/${collectionId}/fork`, {  }),
+    getCollectionPlayback: (collectionId: string, query: RequestOptions["query"] = undefined) => request("GET", `/collections/${collectionId}/playback`, { query }),
+    followCollection: (collectionId: string, body: unknown) => request("POST", `/collections/${collectionId}/follow`, { body }),
+    addCollectionComment: (collectionId: string, body: unknown) => request("POST", `/collections/${collectionId}/comments`, { body }),
+    listCollectionComments: (collectionId: string, query: RequestOptions["query"] = undefined) => request("GET", `/collections/${collectionId}/comments`, { query }),
+    deleteCollectionComment: (collectionId: string, commentId: string) => request("DELETE", `/collections/${collectionId}/comments/${commentId}`, {  }),
+    getRadioState: () => request("GET", "/radio", {  }),
+    voteRadioTrack: (body: unknown) => request("POST", "/radio/vote", { body }),
+    sendRadioEmote: (body: unknown) => request("POST", "/radio/emote", { body }),
+    listenRadioEvents: () => request("GET", "/radio/events", {  }),
+    createComment: (body: unknown) => request("POST", "/comment", { body }),
+    updateComment: (body: unknown) => request("PUT", "/comment", { body }),
+    deleteComment: (body: unknown) => request("DELETE", "/comment", { body }),
+    createTrackTimestampComment: (body: unknown) => request("POST", "/track-timestamp-comments", { body }),
+    createPostReaction: (body: unknown) => request("POST", "/post/reaction", { body }),
+    createCommentReaction: (body: unknown) => request("POST", "/comment/reaction", { body }),
+    likePost: (body: unknown) => request("POST", "/like", { body }),
+    awardAchievement: (body: unknown) => request("POST", "/achievement", { body }),
+    removeAchievement: (body: unknown) => request("DELETE", "/achievement", { body }),
+    listTags: () => request("GET", "/tags", {  }),
+    listGameTags: () => request("GET", "/gametags", {  }),
+    listTrackTags: () => request("GET", "/tracktags", {  }),
+    listFlags: () => request("GET", "/flags", {  }),
+    listTrackFlags: () => request("GET", "/trackflags", {  }),
+    listRatingCategories: (query: RequestOptions["query"] = undefined) => request("GET", "/rating-categories", { query }),
+    listTrackRatingCategories: () => request("GET", "/track-rating-categories", {  }),
+    listTeamRoles: () => request("GET", "/teamroles", {  }),
+    search: (query: RequestOptions["query"] = undefined) => request("GET", "/search", { query }),
+    searchUsers: (query: RequestOptions["query"] = undefined) => request("GET", "/users/search", { query }),
+    resolveMention: (query: RequestOptions["query"] = undefined) => request("GET", "/mentions", { query }),
+    listUsers: (query: RequestOptions["query"] = undefined) => request("GET", "/users", { query }),
+    getUser: (userSlug: string) => request("GET", `/users/${userSlug}`, {  }),
+    createUser: (body: unknown) => request("POST", "/users", { body }),
+    updateUser: (userSlug: string, body: unknown) => request("PUT", `/users/${userSlug}`, { body }),
+    followUser: (userSlug: string, body: unknown) => request("POST", `/users/${userSlug}/follow`, { body }),
+    deleteUser: (userSlug: string, body: unknown) => request("DELETE", `/users/${userSlug}`, { body }),
+    listTeams: (query: RequestOptions["query"] = undefined) => request("GET", "/teams", { query }),
+    getTeam: (teamId: string) => request("GET", `/teams/${teamId}`, {  }),
+    createTeam: (body: unknown) => request("POST", "/teams", { body }),
+    updateTeam: (teamId: string, body: unknown) => request("PUT", `/teams/${teamId}`, { body }),
+    deleteTeam: (teamId: string, body: unknown) => request("DELETE", `/teams/${teamId}`, { body }),
+    leaveTeam: (body: unknown) => request("DELETE", "/leave-team", { body }),
+    createTeamInvite: (body: unknown) => request("POST", "/invite", { body }),
+    deleteTeamInvite: (body: unknown) => request("DELETE", "/invite", { body }),
+    createTeamApplication: (body: unknown) => request("POST", "/application", { body }),
+    deleteTeamApplication: (body: unknown) => request("DELETE", "/application", { body }),
+    listThemesForJam: (query: RequestOptions["query"] = undefined) => request("GET", "/themes", { query }),
+    getTopTheme: (query: RequestOptions["query"] = undefined) => request("GET", "/theme", { query }),
+    listSiteThemes: () => request("GET", "/site-themes", {  }),
+    listThemeSuggestions: () => request("GET", "/themes/suggestion", {  }),
+    createThemeSuggestion: (body: unknown) => request("POST", "/themes/suggestion", { body }),
+    deleteThemeSuggestion: (id: string) => request("DELETE", `/themes/suggestion/${id}`, {  }),
+    listThemeVotes: () => request("GET", "/themes/votes", {  }),
+    saveThemeVote: (body: unknown) => request("POST", "/themes/vote", { body }),
+    saveThemeSlaughterVote: (body: unknown) => request("POST", "/themes/voteSlaughter", { body }),
+    saveThemeVotingVote: (body: unknown) => request("POST", "/themes/voteVoting", { body }),
+    createSession: (body: unknown) => request("POST", "/session", { body }),
+    deleteSession: () => request("DELETE", "/session", {  }),
+    getSelf: () => request("GET", "/self", {  }),
+    getCurrentGame: () => request("GET", "/self/current-game", {  }),
+    listNotifications: (query: RequestOptions["query"] = undefined) => request("GET", "/notifications", { query }),
+    markAllNotificationsRead: () => request("PUT", "/notifications/read-all", {  }),
+    updateNotification: (id: string, body: unknown) => request("PUT", `/notifications/${id}`, { body }),
+    deleteNotification: (id: string) => request("DELETE", `/notifications/${id}`, {  }),
+    getNotificationPreferences: () => request("GET", "/notifications/preferences", {  }),
+    updateNotificationPreferences: (body: unknown) => request("PUT", "/notifications/preferences", { body }),
+    createReport: (body: unknown) => request("POST", "/reports", { body }),
+    getImage: (filename: string) => request("GET", `/image/${filename}`, {  }),
+    uploadImage: (body: unknown) => request("POST", "/image", { body }),
+    getProfilePicture: (filename: string) => request("GET", `/pfp/${filename}`, {  }),
+    listProfilePictures: () => request("GET", "/pfps", {  }),
+    listPressKitMedia: () => request("GET", "/press-kit-media", {  }),
+    createPressKitMedia: (body: unknown) => request("POST", "/press-kit-media", { body }),
+    deletePressKitMedia: (body: unknown) => request("DELETE", "/press-kit-media", { body }),
+    listEmojis: () => request("GET", "/emojis", {  }),
+    createEmoji: (body: unknown) => request("POST", "/emojis", { body }),
+    updateEmoji: (body: unknown) => request("PUT", "/emojis", { body }),
+    deleteEmoji: (body: unknown) => request("DELETE", "/emojis", { body }),
+    saveGameEmoji: (body: unknown) => request("POST", "/emojis/game", { body }),
+    saveUserEmoji: (body: unknown) => request("POST", "/emojis/user", { body }),
+    listFeaturedStreamers: () => request("GET", "/streamers", {  }),
+    saveRating: (body: unknown) => request("POST", "/rating", { body }),
+    saveTrackRating: (body: unknown) => request("POST", "/track-rating", { body }),
+    createScore: (body: unknown) => request("POST", "/score", { body }),
+    deleteScore: (body: unknown) => request("DELETE", "/score", { body }),
+    createModerationAction: (body: unknown) => request("POST", "/mod", { body }),
+    getDocumentationDocument: (query: RequestOptions["query"] = undefined) => request("GET", "/documentation-document", { query }),
+    createDocumentationDocument: (body: unknown) => request("POST", "/documentation-document", { body }),
+    updateDocumentationDocument: (body: unknown) => request("PUT", "/documentation-document", { body }),
+    deleteDocumentationDocument: (body: unknown) => request("DELETE", "/documentation-document", { body }),
+    listDocumentationDocuments: () => request("GET", "/documentation-documents", {  }),
+    listAdminImages: () => request("GET", "/admin/images", {  }),
+    listAuditEntries: (headers?: Record<string, string>) => request("GET", "/platform/audit", { headers }),
+    listWebhooks: (query: RequestOptions["query"] = undefined, headers?: Record<string, string>) => request("GET", "/platform/webhooks", { query, headers }),
+    createWebhook: (body: unknown, headers?: Record<string, string>) => request("POST", "/platform/webhooks", { body, headers }),
+    updateWebhook: (body: unknown, headers?: Record<string, string>) => request("PUT", "/platform/webhooks", { body, headers }),
+    deleteWebhook: (body: unknown, headers?: Record<string, string>) => request("DELETE", "/platform/webhooks", { body, headers }),
+    listPlatformEvents: (query: RequestOptions["query"] = undefined, headers?: Record<string, string>) => request("GET", "/platform/events", { query, headers }),
+    getCheckpoint: (query: RequestOptions["query"] = undefined, headers?: Record<string, string>) => request("GET", "/platform/checkpoints", { query, headers }),
+    saveCheckpoint: (body: unknown, headers?: Record<string, string>) => request("POST", "/platform/checkpoints", { body, headers }),
+    listRoles: (headers?: Record<string, string>) => request("GET", "/platform/roles", { headers }),
+    createRole: (body: unknown, headers?: Record<string, string>) => request("POST", "/platform/roles", { body, headers }),
+    deleteRole: (body: unknown, headers?: Record<string, string>) => request("DELETE", "/platform/roles", { body, headers }),
+    listServiceKeys: (headers?: Record<string, string>) => request("GET", "/platform/service-keys", { headers }),
+    createServiceKey: (body: unknown, headers?: Record<string, string>) => request("POST", "/platform/service-keys", { body, headers }),
+    rotateServiceKey: (body: unknown, headers?: Record<string, string>) => request("PUT", "/platform/service-keys", { body, headers }),
+    revokeServiceKey: (body: unknown, headers?: Record<string, string>) => request("DELETE", "/platform/service-keys", { body, headers }),
+    listJobs: (headers?: Record<string, string>) => request("GET", "/platform/jobs", { headers }),
+    manageJob: (body: unknown, headers?: Record<string, string>) => request("PUT", "/platform/jobs", { body, headers }),
+    incrementalSync: (query: RequestOptions["query"] = undefined, headers?: Record<string, string>) => request("GET", "/platform/sync", { query, headers }),
+    getSearchAdmin: (query: RequestOptions["query"] = undefined, headers?: Record<string, string>) => request("GET", "/platform/search", { query, headers }),
+    createSearchAdminAction: (body: unknown, headers?: Record<string, string>) => request("POST", "/platform/search", { body, headers }),
+    updateSearchSettings: (body: unknown, headers?: Record<string, string>) => request("PUT", "/platform/search", { body, headers }),
+    deleteSearchSynonym: (body: unknown, headers?: Record<string, string>) => request("DELETE", "/platform/search", { body, headers }),
+    exportTenantSnapshot: (query: RequestOptions["query"] = undefined, headers?: Record<string, string>) => request("GET", "/platform/export", { query, headers }),
+    importTenantSnapshot: (body: unknown, headers?: Record<string, string>) => request("POST", "/platform/import", { body, headers }),
+    restoreTenantResource: (body: unknown, headers?: Record<string, string>) => request("POST", "/platform/restore", { body, headers }),
+    getModerationDashboard: (query: RequestOptions["query"] = undefined, headers?: Record<string, string>) => request("GET", "/platform/moderation", { query, headers }),
+    getContentReview: (headers?: Record<string, string>) => request("GET", "/platform/content-review", { headers }),
+    updateContentReview: (body: unknown, headers?: Record<string, string>) => request("PUT", "/platform/content-review", { body, headers }),
+    getReports: (query: RequestOptions["query"] = undefined, headers?: Record<string, string>) => request("GET", "/platform/reports", { query, headers }),
+    updateReport: (body: unknown, headers?: Record<string, string>) => request("PUT", "/platform/reports", { body, headers }),
+    addReportNote: (body: unknown, headers?: Record<string, string>) => request("POST", "/platform/reports/notes", { body, headers }),
+    getFederationControls: (headers?: Record<string, string>) => request("GET", "/platform/federation", { headers }),
+    createFederationControl: (body: unknown, headers?: Record<string, string>) => request("POST", "/platform/federation", { body, headers }),
+    deleteFederationControl: (body: unknown, headers?: Record<string, string>) => request("DELETE", "/platform/federation", { body, headers }),
+    manageRadio: (body: unknown, headers?: Record<string, string>) => request("PUT", "/platform/radio", { body, headers }),
+  };
+}

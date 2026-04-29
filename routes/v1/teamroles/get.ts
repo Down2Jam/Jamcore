@@ -1,10 +1,7 @@
 import { Router } from "express";
 import rateLimit from "@middleware/rateLimit";
-import db from "@helper/db";
-import authenticateUser from "@middleware/authUser";
-import getUser from "@middleware/getUser";
-import getJam from "@middleware/getJam";
-import { checkJamParticipation } from "services/jamService";
+import { asyncHandler } from "../../../middleware/asyncHandler.js";
+import { listTeamRoles } from "@features/taxonomies";
 
 const router = Router();
 
@@ -14,12 +11,11 @@ const router = Router();
 router.get(
   "/",
   rateLimit(),
-
-  async (_req, res) => {
-    const roles = await db.teamRole.findMany();
+  asyncHandler(async (_req, res) => {
+    const roles = await listTeamRoles();
 
     res.send({ message: "Roles fetched", data: roles });
-  }
+  }),
 );
 
 export default router;

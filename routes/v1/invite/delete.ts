@@ -1,68 +1,36 @@
 import { Router } from "express";
+
 import rateLimit from "@middleware/rateLimit";
-import db from "@helper/db";
 import authUser from "@middleware/authUser";
-import getUser from "@middleware/getUser";
+import getUser from "@loaders/getUser";
+import { asyncHandler } from "../../../middleware/asyncHandler.js";
+import {
+  resolveTeamInvite,
+  teamDecisionSchema,
+} from "@features/teams";
+import { requireRequestUser } from "@lib/locals";
+import { parseBody } from "../../../lib/request.js";
 
 const router = Router();
 
-/**
- * Route to delete an invite
- */
 router.delete(
   "/",
   rateLimit(),
-
   authUser,
   getUser,
+  asyncHandler(async (req, res) => {
+    const { accept, inviteId } = parseBody(req, teamDecisionSchema);
+    const user = requireRequestUser(res);
 
-  async (req, res) => {
-    const { accept, inviteId } = req.body;
-
-    const invite = await db.teamInvite.findUnique({
-      where: {
-        id: inviteId,
-      },
-      include: {
-        team: {
-          include: {
-            game: true,
-          },
-        },
-      },
-    });
-
-    if (!invite) {
-      res.status(401).send({ message: "Invalid invite" });
-      return;
-    }
-
-    if (accept) {
-      if (invite.team.game && invite.team.game.category == "ODA") {
-        res.status(401).send({ message: "That team is a part of O.D.A" });
-        return;
-      }
-
-      await db.team.update({
-        where: { id: invite.teamId },
-        data: {
-          users: {
-            connect: {
-              id: res.locals.user.id,
-            },
-          },
-        },
-      });
-    }
-
-    await db.teamInvite.delete({
-      where: {
-        id: inviteId,
-      },
+    await resolveTeamInvite({
+      inviteId,
+      accept,
+      actorUserId: user.id,
     });
 
     res.send({ message: "Invite accepted" });
-  }
+  }),
 );
 
 export default router;
+

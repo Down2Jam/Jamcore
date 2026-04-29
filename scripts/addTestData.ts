@@ -44,6 +44,7 @@ async function main() {
   const jam = await prisma.jam.create({
     data: {
       name: `Test Jam 2026 ${timestamp}`,
+      slug: `test-jam-2026-${timestamp}`,
       isActive: true,
       startTime: new Date("2026-04-12"),
     },
@@ -67,14 +68,10 @@ async function main() {
   const game = await prisma.game.create({
     data: {
       slug: `test-game-${timestamp}`,
-      name: `Test Game ${timestamp}`,
-      description: "A test game for development",
-      short: "Test",
       category: GameCategory.REGULAR,
       teamId: team.id,
       jamId: jam.id,
       published: true,
-      themeJustification: "We made this for testing",
     },
   });
 

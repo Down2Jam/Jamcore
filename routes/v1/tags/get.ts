@@ -1,6 +1,7 @@
 import { Router } from "express";
 import rateLimit from "@middleware/rateLimit";
-import db from "@helper/db";
+import { asyncHandler } from "../../../middleware/asyncHandler.js";
+import { listPostTags } from "@features/taxonomies";
 
 const router = Router();
 
@@ -10,18 +11,11 @@ const router = Router();
 router.get(
   "/",
   rateLimit(),
-
-  async (_req, res) => {
-    const tags = await db.tag.findMany({
-      orderBy: { name: "asc" },
-      include: { category: true },
-      where: {
-        postTag: true,
-      },
-    });
+  asyncHandler(async (_req, res) => {
+    const tags = await listPostTags();
 
     res.send({ message: "Tags fetched", data: tags });
-  }
+  }),
 );
 
 export default router;

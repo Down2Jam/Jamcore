@@ -1,0 +1,10 @@
+[
+  "20250117174728_add_like_and_comment",
+  "20250120162430_add_tag",
+  "20250123172403_update_contributor_relations",
+  "20250320005016_add_rating_and_team_connection_to_game",
+  "20250323063256_merge_tag_tables",
+  "20260413002000_remove_legacy_track_tables",
+  "20260415193000_move_scores_to_gamepage_leaderboards",
+  "20260415195500_move_achievement_users_to_gamepage"
+]

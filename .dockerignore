@@ -1,5 +1,13 @@
 .git
 node_modules
-Dockerfile
-.dockerignore
-docker-compose.yml
+.env
+.env.*
+!.env.example
+.devcontainer
+.github
+logs
+*.log
+coverage
+dist
+tests
+docs/query-plans/latest.json

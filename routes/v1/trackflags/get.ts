@@ -1,18 +1,21 @@
 import { Router } from "express";
 import rateLimit from "@middleware/rateLimit";
-import db from "@helper/db";
+import { asyncHandler } from "../../../middleware/asyncHandler.js";
+import { listTrackFlags } from "@features/taxonomies";
 
 const router = Router();
 
-router.get("/", rateLimit(), async (_req, res) => {
-  const flags = await db.trackFlag.findMany({
-    orderBy: { name: "asc" },
-  });
+router.get(
+  "/",
+  rateLimit(),
+  asyncHandler(async (_req, res) => {
+    const flags = await listTrackFlags();
 
-  res.send({
-    message: "Track flags fetched",
-    data: flags,
-  });
-});
+    res.send({
+      message: "Track flags fetched",
+      data: flags,
+    });
+  }),
+);
 
 export default router;

@@ -1,0 +1,34 @@
+name: backend-quality
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: backend-quality-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: jamcore
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: jamcore/.nvmrc
+          cache: npm
+          cache-dependency-path: jamcore/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - run: npm run generate:sdk
+      - run: npm run check:api-contract
+      - run: npm run check:migrations
+      - run: npm run check:query-plans
+      - run: docker compose --env-file .env.example config --quiet
+      - run: docker compose --env-file .env.example build jamcore
+      - run: docker build --target production --build-arg NODE_VERSION=24.14.0 -t jamcore:ci .

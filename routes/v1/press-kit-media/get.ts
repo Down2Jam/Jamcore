@@ -1,15 +1,16 @@
 import { Router } from "express";
-import db from "@helper/db";
+import { asyncHandler } from "@middleware/asyncHandler";
+import { listPressKitMedia } from "@features/content-admin";
 
 const router = Router();
-const pressKitMedia = (db as any).pressKitMedia;
 
-router.get("/", async function (_req, res) {
-  const media = await pressKitMedia.findMany({
-    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-  });
+router.get(
+  "/",
+  asyncHandler(async (_req, res) => {
+    const media = await listPressKitMedia();
 
-  res.json({ data: media });
-});
+    res.json({ data: media });
+  }),
+);
 
 export default router;

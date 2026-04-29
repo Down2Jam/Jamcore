@@ -1,14 +1,15 @@
-import express from "express";
+﻿import express from "express";
 import authUser from "../../../middleware/authUser";
-import getUser from "../../../middleware/getUser";
-import getTargetTeam from "@middleware/getTargetTeam";
+import getUser from "../../../loaders/getUser.js";
+import getTargetTeam from "@loaders/getTargetTeam";
 import rateLimit from "@middleware/rateLimit";
-import db from "@helper/db";
-import logger from "@helper/logger";
-import assertUserNotTargetTeamOwner from "@middleware/assertUserNotTargetTeamOwner";
-import assertUserIsInTargetTeam from "@middleware/assertUserIsInTargetTeam";
+import assertUserNotTargetTeamOwner from "@guards/assertUserNotTargetTeamOwner";
+import assertUserIsInTargetTeam from "@guards/assertUserIsInTargetTeam";
+import { asyncHandler } from "../../../middleware/asyncHandler.js";
+import { leaveTeamById } from "@features/teams";
+import { requireRequestUser, requireTargetTeam } from "@lib/locals";
 
-var router = express.Router();
+const router = express.Router();
 
 router.delete(
   "/",
@@ -19,26 +20,17 @@ router.delete(
   getTargetTeam,
   assertUserIsInTargetTeam,
   assertUserNotTargetTeamOwner,
+  asyncHandler(async (_req, res) => {
+    const user = requireRequestUser(res);
+    const targetTeam = requireTargetTeam(res);
+    await leaveTeamById({
+      teamId: targetTeam.id,
+      userId: user.id,
+    });
 
-  async (_req, res) => {
-    try {
-      await db.team.update({
-        where: {
-          id: res.locals.targetTeam.id,
-        },
-        data: {
-          users: {
-            disconnect: { id: res.locals.user.id },
-          },
-        },
-      });
-
-      res.status(200).send({ message: "Left team" });
-    } catch (error) {
-      logger.error("Failed to delete team: ", error);
-      res.status(500).send({ message: "Failed to leave team" });
-    }
-  }
+    res.status(200).send({ message: "Left team" });
+  }),
 );
 
 export default router;
+

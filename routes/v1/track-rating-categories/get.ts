@@ -1,18 +1,21 @@
 import { Router } from "express";
 import rateLimit from "@middleware/rateLimit";
-import db from "@helper/db";
+import { asyncHandler } from "../../../middleware/asyncHandler.js";
+import { listTrackRatingCategories } from "@features/taxonomies";
 
 const router = Router();
 
-router.get("/", rateLimit(), async (_req, res) => {
-  const categories = await db.trackRatingCategory.findMany({
-    orderBy: [{ order: "desc" }, { id: "asc" }],
-  });
+router.get(
+  "/",
+  rateLimit(),
+  asyncHandler(async (_req, res) => {
+    const categories = await listTrackRatingCategories();
 
-  res.send({
-    message: "Track rating categories fetched",
-    data: categories,
-  });
-});
+    res.send({
+      message: "Track rating categories fetched",
+      data: categories,
+    });
+  }),
+);
 
 export default router;

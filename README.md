@@ -1,31 +1,58 @@
 # Jamcore
-Backend for a jam site
 
-To run you can first set environment variables for the database in a .env file
+Backend API for Down2Jam.
 
+## Local Development
+
+```bash
+npm install
+npm run dev
 ```
+
+By default the API runs on `http://localhost:3005`.
+
+Create a `.env` file with database and auth settings:
+
+```env
 POSTGRES_USER=jammer
 POSTGRES_PASSWORD=INSERTPASSWORDHERE
 POSTGRES_DB=jamcore
 TOKEN_SECRET=RANDOMSTRINGHERE
 ```
 
-And then run
+## Docker
 
-if you are running Compose v2
-
-(When running v2 make sure to remove `version: "3"` from the docker-compose.yml since it's deprecated in v2)
-
-```
+```bash
 docker compose up --build -d
 ```
-if you are running Compose v1.
-> [!WARNING]
-> if you are running v1 make sure to take a look at [v2 docs](https://docs.docker.com/compose/releases/migrate/)[^1]
-```
-docker-compose up --build -d
+
+This starts Jamcore and its Postgres database.
+
+## Production
+
+```bash
+npm run build
+npm start
 ```
 
-if you have docker and docker compose. This builds the docker image for the backend and then runs it (and also runs the database)
+Useful environment variables:
 
-[^1]: The final Compose V1 release, version 1.29.2, was May 10, 2021. These packages haven't received any security updates since then. Use at your own risk.
+```env
+NODE_ENV=production
+PORT=3005
+CLIENT_ORIGIN=https://d2jam.com
+DATABASE_URL=postgresql://user:password@host:5432/database
+TOKEN_SECRET=RANDOMSTRINGHERE
+```
+
+## Configuration
+
+Optional app overrides can be placed in `app.config.json` or pointed to with `APP_CONFIG_PATH`.
+Use `app.config.example.json` as the starting point.
+
+## Health
+
+- `GET /healthz`
+- `GET /readyz`
+- `GET /metrics`
+- `GET /api/v1/openapi`

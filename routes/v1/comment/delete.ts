@@ -1,51 +1,37 @@
 import { Router } from "express";
+
 import rateLimit from "@middleware/rateLimit";
 import authUser from "@middleware/authUser";
-import getUser from "@middleware/getUser";
-import db from "@helper/db";
-import { cleanupNotificationsForComment } from "@helper/contentModeration";
+import getUser from "@loaders/getUser";
+import { asyncHandler } from "../../../middleware/asyncHandler.js";
+import {
+  deleteCommentById,
+  deleteCommentSchema,
+} from "@features/comments/moderation.service";
+import { requireRequestUser } from "@lib/locals";
+import { parseBody } from "../../../lib/request.js";
 
 const router = Router();
 
-router.delete("/", rateLimit(), authUser, getUser, async (req, res) => {
-  const { commentId, mode } = req.body;
-  const id = Number(commentId);
+router.delete(
+  "/",
+  rateLimit(),
+  authUser,
+  getUser,
+  asyncHandler(async (req, res) => {
+    const { commentId, mode } = parseBody(req, deleteCommentSchema);
+    const user = requireRequestUser(res);
 
-  if (!id || Number.isNaN(id)) {
-    return res.status(400).send({ message: "Invalid comment id." });
-  }
+    const message = await deleteCommentById({
+      commentId,
+      mode,
+      actor: user,
+      tenantId: res.locals.tenantId,
+    });
 
-  const comment = await db.comment.findUnique({
-    where: { id },
-  });
-
-  if (!comment) {
-    return res.status(404).send({ message: "Comment not found." });
-  }
-
-  const isAuthor = comment.authorId === res.locals.user.id;
-  const isModerator = Boolean(res.locals.user.mod || res.locals.user.admin);
-  const isRemoval = mode === "remove";
-
-  if (!isAuthor && !isModerator) {
-    return res.status(403).send({ message: "Not allowed." });
-  }
-
-  if (isRemoval && !isModerator) {
-    return res.status(403).send({ message: "Not allowed." });
-  }
-
-  await cleanupNotificationsForComment(id);
-
-  await db.comment.update({
-    where: { id },
-    data: {
-      deletedAt: !isRemoval ? new Date() : comment.deletedAt,
-      removedAt: isRemoval ? new Date() : comment.removedAt,
-    },
-  });
-
-  return res.send({ message: isRemoval ? "Comment removed" : "Comment deleted" });
-});
+    res.send({ message });
+  }),
+);
 
 export default router;
+

@@ -1,0 +1,129 @@
+{
+  "appName": "My Jam Site",
+  "publicOrigin": "https://example.com",
+  "mentionDomains": ["example.com", "localhost", "127.0.0.1"],
+  "api": {
+    "currentVersion": "v1",
+    "supportedVersions": ["v1"],
+    "deprecationPolicy": "Additive changes only within a version. Breaking changes require a new version and deprecation window."
+  },
+  "platform": {
+    "auditLogPath": "logs/audit.log",
+    "webhookLogPath": ".jamcore/webhook-deliveries.log",
+    "deadLetterLogPath": ".jamcore/dead-letter.log",
+    "serviceKeysPath": ".jamcore/service-keys.json",
+    "idempotency": {
+      "enabled": true,
+      "path": ".jamcore/idempotency-records.json",
+      "ttlMs": 86400000
+    },
+    "jobs": {
+      "path": ".jamcore/jobs.json",
+      "pollIntervalMs": 2000,
+      "retryDelaysMs": [5000, 15000, 60000],
+      "maxRetainedJobs": 1000
+    },
+    "precompute": {
+      "enabled": true,
+      "intervalMs": 300000,
+      "sorts": ["score", "danger", "karma", "recommended", "leastrated"]
+    },
+    "multiTenant": {
+      "defaultTenantId": "default",
+      "tenants": [
+        {
+          "id": "default",
+          "hosts": ["example.com", "localhost", "127.0.0.1"],
+          "appName": "My Jam Site",
+          "publicOrigin": "https://example.com",
+          "mentionDomains": ["example.com", "localhost", "127.0.0.1"]
+        }
+      ]
+    },
+    "webhooks": {
+      "enabled": false,
+      "timeoutMs": 10000,
+      "endpoints": []
+    }
+  },
+  "uploads": {
+    "apiBasePath": "/api/v1",
+    "staticImagesPath": "/images",
+    "imageRoute": "image",
+    "profileImageRoute": "pfp",
+    "musicRoute": "music"
+  },
+  "games": {
+    "categories": {
+      "regular": "REGULAR",
+      "extra": "EXTRA",
+      "oda": "ODA"
+    },
+    "ratingCategoryNames": {
+      "overall": "RatingCategory.Overall.Title",
+      "overallTrack": "Overall"
+    }
+  },
+  "jam": {
+    "phases": {
+      "suggestion": "Suggestion",
+      "elimination": "Elimination",
+      "voting": "Voting",
+      "jamming": "Jamming",
+      "submission": "Submission",
+      "rating": "Rating",
+      "postJamRefinement": "Post-Jam Refinement",
+      "postJamRating": "Post-Jam Rating",
+      "upcoming": "Upcoming Jam",
+      "inactive": "No Active Jams"
+    }
+  },
+  "federation": {
+    "enabled": false,
+    "jamActor": {
+      "username": "jam",
+      "name": "My Jam",
+      "summary": "The main jam community actor for forum discussions, announcements, editions, games, and music."
+    },
+    "nodeInfo": {
+      "softwareName": "jamcore",
+      "softwareVersion": "1.0.0",
+      "protocols": ["activitypub"],
+      "openRegistrations": false
+    },
+    "delivery": {
+      "enabled": false,
+      "userAgent": "jamcore-federation/1.0",
+      "timeoutMs": 10000,
+      "retryDelaysMs": [1000, 5000, 30000]
+    },
+    "security": {
+      "enabled": false,
+      "requireHttpSignatures": false,
+      "maxClockSkewSeconds": 300,
+      "privateKeyPath": ".jamcore/federation-private.pem",
+      "publicKeyPath": ".jamcore/federation-public.pem"
+    },
+    "state": {
+      "enabled": false,
+      "path": ".jamcore/federation-state.json",
+      "maxDeliveries": 500,
+      "maxRemoteActors": 500
+    }
+  },
+  "users": {
+    "defaultPrefixSeed": "jamjar"
+  },
+  "featuredStreamers": {
+    "gameIds": ["1469308723", "509660", "66082", "1599346425"],
+    "priorityTags": ["d2jam", "down2jam"],
+    "desiredTags": ["d2jam", "down2jam", "gamejam", "gamedev"],
+    "tagSynonyms": {
+      "gamedevelopment": "gamedev",
+      "ue5": "unrealengine",
+      "godotengine": "godot",
+      "unity3d": "unity",
+      "down2jam": "d2jam"
+    }
+  }
+}

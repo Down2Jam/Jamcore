@@ -1,84 +1,54 @@
 import express from "express";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-import { readdirSync } from "fs";
-import { fileURLToPath, pathToFileURL } from "url";
-import path from "path";
+import { appConfig } from "../../config/app.js";
+import { authorizationContext } from "../../middleware/authorizationContext.js";
+import { idempotencyMiddleware } from "../../middleware/idempotency.js";
+import { mutationBodyGuard } from "../../middleware/mutationBodyGuard.js";
+import { mutationCacheInvalidation } from "../../middleware/mutationCacheInvalidation.js";
+import { renderVersionDocsPage } from "../docs.js";
+import { loadRoutes } from "./loadRoutes.js";
+import { getStaticV1Routes } from "./registry.js";
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-import games from "./games/index.js";
-import themes from "./themes/index.js";
-import documentationDocumentGet from "./documentation-document/get.js";
-import documentationDocumentPost from "./documentation-document/post.js";
-import documentationDocumentPut from "./documentation-document/put.js";
-import documentationDocumentDelete from "./documentation-document/delete.js";
-import documentationDocumentsGet from "./documentation-documents/get.js";
-import pressKitMediaGet from "./press-kit-media/get.js";
-import pressKitMediaPost from "./press-kit-media/post.js";
-import pressKitMediaDelete from "./press-kit-media/delete.js";
+export async function createV1Router() {
+  const router = express.Router();
 
-var router = express.Router();
+  router.use((_req, res, next) => {
+    res.setHeader("X-API-Version", "v1");
+    res.setHeader(
+      "X-API-Supported-Versions",
+      appConfig.api.supportedVersions.join(","),
+    );
+    next();
+  });
+  router.get("/", (req, res) => {
+    res.setHeader("Cache-Control", "public, max-age=300");
+    res.type("html");
+    const requestOrigin = `${req.protocol}://${req.get("host")}`;
+    res.send(
+      renderVersionDocsPage({
+        appName: res.locals.tenant?.appName ?? appConfig.appName,
+        version: "v1",
+        tenant: res.locals.tenant,
+        publicOrigin: requestOrigin,
+        scriptNonce: res.locals.cspNonce,
+      }),
+    );
+  });
+  router.use(idempotencyMiddleware);
+  router.use(mutationBodyGuard);
+  router.use(mutationCacheInvalidation);
+  router.use(authorizationContext);
 
-function loadRoutes(dir: string, routePath: string) {
-  const files = readdirSync(dir, { withFileTypes: true });
-
-  for (const file of files) {
-    const filePath = path.join(dir, file.name);
-
-    if (file.isDirectory()) {
-      loadRoutes(filePath, routePath + "/" + file.name);
-    } else {
-      const extension = path.extname(file.name);
-      const basename = path.basename(file.name, extension);
-
-      if (basename === "v1" || basename === "index") {
-        continue;
-      }
-
-      if (![".ts", ".js"].includes(extension)) {
-        continue;
-      }
-
-      import(pathToFileURL(filePath).href).then(
-        (module) => {
-          if (!module.default) {
-            console.log(
-              `Route ${path.join(routePath, file.name)} has no default export`
-            );
-            return;
-          }
-
-          const method = basename.toLowerCase();
-
-          if (!["get", "post", "put", "delete"].includes(method)) {
-            console.log(
-              `Route ${path.join(
-                routePath,
-                file.name
-              )} is not a rest api method`
-            );
-            return;
-          }
-
-          router.use(routePath, module.default);
-          console.log(`Loaded route: ${path.join(routePath, file.name)}`);
-        }
-      );
-    }
+  for (const route of getStaticV1Routes()) {
+    router.use(route.path, route.router as express.Router);
   }
+
+  await loadRoutes(router, __dirname);
+
+  return router;
 }
-
-router.use("/games", games);
-router.use("/themes", themes);
-router.use("/documentation-document", documentationDocumentGet);
-router.use("/documentation-document", documentationDocumentPost);
-router.use("/documentation-document", documentationDocumentPut);
-router.use("/documentation-document", documentationDocumentDelete);
-router.use("/documentation-documents", documentationDocumentsGet);
-router.use("/press-kit-media", pressKitMediaGet);
-router.use("/press-kit-media", pressKitMediaPost);
-router.use("/press-kit-media", pressKitMediaDelete);
-
-loadRoutes(__dirname, "");
-
-export default router;

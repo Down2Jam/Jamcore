@@ -33,52 +33,56 @@ model User {
   mod               Boolean  @default(false)
   admin             Boolean  @default(false)
   twitch            String?
+  tenantId          String?  @map("tenant_id")
 
   // Relations
-  posts                 Post[]            @relation(name: "PostToAuthor")
-  likes                 Like[]
-  comments              Comment[]
-  jams                  Jam[]
-  reports               Report[]          @relation(name: "ReportToUser")
-  createdReports        Report[]          @relation(name: "ReportToReporter")
-  themeSuggestions      ThemeSuggestion[] @relation(name: "SuggestionToUser")
-  themeVotes            ThemeVote[]       @relation(name: "VoteToUser")
-  themeVotes2           ThemeVote2[]      @relation(name: "Vote2ToUser")
-  gamePageTracks        GamePageTrack[]   @relation(name: "GamePageTrackToComposer")
-  gamePageTrackCredits  GamePageTrackCredit[] @relation(name: "GamePageTrackCreditToUser")
-  trackTimestampComments TrackTimestampComment[] @relation(name: "TrackTimestampCommentToAuthor")
-  scores                Score[]           @relation(name: "ScoreToUser")
-  ghosts                Ghost[]           @relation(name: "GhostToUser")
-  data                  Data[]            @relation(name: "DataToUser")
-  events                Event[]
-  primaryRoles          TeamRole[]        @relation(name: "PrimaryRolesToUsers")
-  secondaryRoles        TeamRole[]        @relation(name: "SecondaryRolesToUsers")
-  teams                 Team[]
-  ownedTeams            Team[]            @relation(name: "TeamsToOwner")
-  teamApplications      TeamApplication[] @relation(name: "TeamApplicationsToUser")
-  teamInvites           TeamInvite[]      @relation(name: "TeamInvitesToUser")
-  ratings               Rating[]          @relation(name: "RatingToUser")
-  trackRatings          TrackRating[]     @relation(name: "TrackRatingToUser")
-  commentReactions      CommentReaction[]
-  gamePageAchievements  GamePageAchievement[] @relation(name: "GamePageAchievementToUsers")
-  receivedNotifications Notification[]    @relation(name: "NotificationToRecipient")
-  sentNotifications     Notification[]    @relation(name: "NotificationToActor")
-  PostReaction          PostReaction[]
-  reactionsAuthored     Reaction[]        @relation(name: "ReactionToArtist")
-  emotePrefix           String?
-  userEmotes            Reaction[]        @relation(name: "ReactionToUserOwner")
-  reactionsUploaded     Reaction[]        @relation(name: "ReactionToUploader")
-  recommendedGames      Game[]            @relation(name: "UserRecommendedGames")
-  recommendedPosts      Post[]            @relation(name: "UserRecommendedPosts")
-  recommendedTracks     GamePageTrack[]   @relation(name: "UserRecommendedTracks")
-  documentationDocuments DocumentationDocument[]
-  pressKitMedia         PressKitMedia[]
-  recommendedGameOverrideIds Int[]        @default([])
-  recommendedGameHiddenIds   Int[]        @default([])
-  recommendedTrackOverrideIds Int[]       @default([])
-  recommendedTrackHiddenIds   Int[]       @default([])
-  hideRatings               Boolean       @default(false)
-  autoHideRatingsWhileStreaming Boolean   @default(false)
+  posts                         Post[]                  @relation(name: "PostToAuthor")
+  likes                         Like[]
+  comments                      Comment[]
+  jams                          Jam[]
+  reports                       Report[]                @relation(name: "ReportToUser")
+  createdReports                Report[]                @relation(name: "ReportToReporter")
+  assignedReports               Report[]                @relation(name: "ReportToAssignee")
+  themeSuggestions              ThemeSuggestion[]       @relation(name: "SuggestionToUser")
+  themeVotes                    ThemeVote[]             @relation(name: "VoteToUser")
+  themeVotes2                   ThemeVote2[]            @relation(name: "Vote2ToUser")
+  gamePageTracks                GamePageTrack[]         @relation(name: "GamePageTrackToComposer")
+  gamePageTrackCredits          GamePageTrackCredit[]   @relation(name: "GamePageTrackCreditToUser")
+  trackTimestampComments        TrackTimestampComment[] @relation(name: "TrackTimestampCommentToAuthor")
+  scores                        Score[]                 @relation(name: "ScoreToUser")
+  ghosts                        Ghost[]                 @relation(name: "GhostToUser")
+  data                          Data[]                  @relation(name: "DataToUser")
+  events                        Event[]
+  primaryRoles                  TeamRole[]              @relation(name: "PrimaryRolesToUsers")
+  secondaryRoles                TeamRole[]              @relation(name: "SecondaryRolesToUsers")
+  teams                         Team[]
+  ownedTeams                    Team[]                  @relation(name: "TeamsToOwner")
+  teamApplications              TeamApplication[]       @relation(name: "TeamApplicationsToUser")
+  teamInvites                   TeamInvite[]            @relation(name: "TeamInvitesToUser")
+  ratings                       Rating[]                @relation(name: "RatingToUser")
+  trackRatings                  TrackRating[]           @relation(name: "TrackRatingToUser")
+  commentReactions              CommentReaction[]
+  gamePageAchievements          GamePageAchievement[]   @relation(name: "GamePageAchievementToUsers")
+  receivedNotifications         Notification[]          @relation(name: "NotificationToRecipient")
+  sentNotifications             Notification[]          @relation(name: "NotificationToActor")
+  PostReaction                  PostReaction[]
+  reactionsAuthored             Reaction[]              @relation(name: "ReactionToArtist")
+  emotePrefix                   String?
+  userEmotes                    Reaction[]              @relation(name: "ReactionToUserOwner")
+  reactionsUploaded             Reaction[]              @relation(name: "ReactionToUploader")
+  recommendedGames              Game[]                  @relation(name: "UserRecommendedGames")
+  recommendedPosts              Post[]                  @relation(name: "UserRecommendedPosts")
+  recommendedTracks             GamePageTrack[]         @relation(name: "UserRecommendedTracks")
+  documentationDocuments        DocumentationDocument[]
+  pressKitMedia                 PressKitMedia[]
+  recommendedGameOverrideIds    Int[]                   @default([])
+  recommendedGameHiddenIds      Int[]                   @default([])
+  recommendedTrackOverrideIds   Int[]                   @default([])
+  recommendedTrackHiddenIds     Int[]                   @default([])
+  hideRatings                   Boolean                 @default(false)
+  autoHideRatingsWhileStreaming Boolean                 @default(false)
+
+  @@index([tenantId])
 }
 
 enum Priority {
@@ -136,29 +140,35 @@ model CustomTag {
 }
 
 model Post {
-  id        Int      @id @default(autoincrement())
-  slug      String?  @unique
-  title     String
-  content   String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  editedAt  DateTime?
-  deletedAt DateTime?
-  removedAt DateTime?
-  sticky    Boolean  @default(false)
+  id                 Int       @id @default(autoincrement())
+  slug               String?   @unique
+  title              String
+  content            String
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  editedAt           DateTime?
+  deletedAt          DateTime?
+  removedAt          DateTime?
+  sticky             Boolean   @default(false)
+  draftStatus        String    @default("published") @map("draft_status")
+  scheduledPublishAt DateTime? @map("scheduled_publish_at")
+  previewToken       String?   @map("preview_token")
+  tenantId           String?   @map("tenant_id")
 
   // Relations
-  author        User           @relation(fields: [authorId], references: [id], name: "PostToAuthor")
-  authorId      Int
-  tags          Tag[]
-  customTags    CustomTag[]
-  comments      Comment[]
-  likes         Like[]         @relation(name: "LikeToPost")
-  reports       Report[]       @relation(name: "ReportToPost")
-  reactions     Reaction[]     @relation(name: "PostToReactions")
-  postReactions PostReaction[]
-  notifications Notification[] @relation(name: "post")
-  recommendedByUsers User[]     @relation(name: "UserRecommendedPosts")
+  author             User           @relation(fields: [authorId], references: [id], name: "PostToAuthor")
+  authorId           Int
+  tags               Tag[]
+  customTags         CustomTag[]
+  comments           Comment[]
+  likes              Like[]         @relation(name: "LikeToPost")
+  reports            Report[]       @relation(name: "ReportToPost")
+  reactions          Reaction[]     @relation(name: "PostToReactions")
+  postReactions      PostReaction[]
+  notifications      Notification[] @relation(name: "post")
+  recommendedByUsers User[]         @relation(name: "UserRecommendedPosts")
+
+  @@index([tenantId, createdAt])
 }
 
 enum DocumentationSection {
@@ -213,12 +223,12 @@ model Reaction {
   updatedAt   DateTime      @updatedAt
 
   // Relations
-  artistUser    User?          @relation(fields: [artistId], references: [id], name: "ReactionToArtist")
-  uploaderUser  User?          @relation(fields: [uploaderId], references: [id], name: "ReactionToUploader")
-  ownerUser     User?          @relation(fields: [scopeUserId], references: [id], name: "ReactionToUserOwner")
-  ownerGame     Game?          @relation(fields: [scopeGameId], references: [id], name: "ReactionToGameOwner")
-  posts         Post[]         @relation(name: "PostToReactions")
-  postReactions PostReaction[]
+  artistUser       User?             @relation(fields: [artistId], references: [id], name: "ReactionToArtist")
+  uploaderUser     User?             @relation(fields: [uploaderId], references: [id], name: "ReactionToUploader")
+  ownerUser        User?             @relation(fields: [scopeUserId], references: [id], name: "ReactionToUserOwner")
+  ownerGame        Game?             @relation(fields: [scopeGameId], references: [id], name: "ReactionToGameOwner")
+  posts            Post[]            @relation(name: "PostToReactions")
+  postReactions    PostReaction[]
   commentReactions CommentReaction[]
 }
 
@@ -252,54 +262,56 @@ model CommentReaction {
 }
 
 model Comment {
-  id        Int      @id @default(autoincrement())
+  id        Int       @id @default(autoincrement())
   content   String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
   editedAt  DateTime?
   deletedAt DateTime?
   removedAt DateTime?
 
   // Relations
-  post          Post?          @relation(fields: [postId], references: [id])
-  postId        Int?
-  comment       Comment?       @relation(fields: [commentId], references: [id], name: "CommentToComments")
-  commentId     Int?
-  game          Game?          @relation(fields: [gameId], references: [id], name: "CommentToGame")
-  gameId        Int?
-  gamePage      GamePage?      @relation(fields: [gamePageId], references: [id], name: "CommentToGamePage")
-  gamePageId    Int?
-  track         GamePageTrack? @relation(fields: [trackId], references: [id], name: "CommentToTrack")
-  trackId       Int?
-  author        User           @relation(fields: [authorId], references: [id])
-  authorId      Int
-  likes         Like[]         @relation(name: "LikeToComment")
+  post             Post?             @relation(fields: [postId], references: [id])
+  postId           Int?
+  comment          Comment?          @relation(fields: [commentId], references: [id], name: "CommentToComments")
+  commentId        Int?
+  game             Game?             @relation(fields: [gameId], references: [id], name: "CommentToGame")
+  gameId           Int?
+  gamePage         GamePage?         @relation(fields: [gamePageId], references: [id], name: "CommentToGamePage")
+  gamePageId       Int?
+  track            GamePageTrack?    @relation(fields: [trackId], references: [id], name: "CommentToTrack")
+  trackId          Int?
+  author           User              @relation(fields: [authorId], references: [id])
+  authorId         Int
+  likes            Like[]            @relation(name: "LikeToComment")
   commentReactions CommentReaction[]
-  reports       Report[]       @relation(name: "ReportToComment")
-  children      Comment[]      @relation(name: "CommentToComments")
-  notifications Notification[] @relation(name: "NotificationToComment")
+  reports          Report[]          @relation(name: "ReportToComment")
+  children         Comment[]         @relation(name: "CommentToComments")
+  notifications    Notification[]    @relation(name: "NotificationToComment")
 }
 
 model Jam {
-  id              Int      @id @default(autoincrement())
-  name            String
-  startTime       DateTime @default(now())
-  suggestionHours Int      @default(168)
-  slaughterHours  Int      @default(96)
-  votingHours     Int      @default(72)
-  jammingHours    Int      @default(72)
-  ratingHours     Int      @default(334)
-  submissionHours Int      @default(2)
-  postJamRefinementHours Int @default(336)
-  postJamRatingHours     Int @default(336)
-  isActive        Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  themePerUser    Int      @default(3)
-  themePerRound   Int      @default(15)
-  noOfRounds      Int      @default(1)
-  icon            String?
-  color           String?
+  id                     Int      @id @default(autoincrement())
+  name                   String
+  slug                   String   @unique
+  startTime              DateTime @default(now())
+  suggestionHours        Int      @default(168)
+  slaughterHours         Int      @default(96)
+  votingHours            Int      @default(72)
+  jammingHours           Int      @default(72)
+  ratingHours            Int      @default(334)
+  submissionHours        Int      @default(2)
+  postJamRefinementHours Int      @default(336)
+  postJamRatingHours     Int      @default(336)
+  isActive               Boolean  @default(true)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+  themePerUser           Int      @default(3)
+  themePerRound          Int      @default(15)
+  noOfRounds             Int      @default(1)
+  icon                   String?
+  color                  String?
+  tenantId               String?  @map("tenant_id")
 
   // Relations
   games            Game[]            @relation(name: "GameToJam")
@@ -308,6 +320,8 @@ model Jam {
   themeVotes       ThemeVote[]       @relation(name: "VoteToJam")
   themeVotes2      ThemeVote2[]      @relation(name: "Vote2ToJam")
   teams            Team[]            @relation(name: "TeamsToJam")
+
+  @@index([tenantId, startTime])
 }
 
 model Event {
@@ -354,59 +368,62 @@ model Game {
   ratingCategories    RatingCategory[]
   majRatingCategories RatingCategory[] @relation(name: "GameToMajorityContentRating")
   published           Boolean          @default(false)
+  tenantId            String?          @map("tenant_id")
 
   // Relations
-  team          Team               @relation(fields: [teamId], references: [id], name: "GameToTeam")
-  teamId        Int                @unique
-  jam           Jam                @relation(fields: [jamId], references: [id], name: "GameToJam")
-  jamId         Int
-  reports       Report[]           @relation(name: "ReportToGame")
-  downloadLinks GameDownloadLink[] @relation(name: "LinkToGame")
-  ratings       Rating[]           @relation(name: "RatingToGame")
-  flags         Flag[]             @relation(name: "GamesToFlags")
-  tags          Tag[]              @relation(name: "GamesToTags")
-  comments      Comment[]          @relation(name: "CommentToGame")
-  notifications Notification[]     @relation(name: "NotificationToGame")
-  gameEmotes    Reaction[]         @relation(name: "ReactionToGameOwner")
-  recommendedByUsers User[]        @relation(name: "UserRecommendedGames")
-  pages         GamePage[]         @relation(name: "GameToPages")
+  team               Team               @relation(fields: [teamId], references: [id], name: "GameToTeam")
+  teamId             Int                @unique
+  jam                Jam                @relation(fields: [jamId], references: [id], name: "GameToJam")
+  jamId              Int
+  reports            Report[]           @relation(name: "ReportToGame")
+  downloadLinks      GameDownloadLink[] @relation(name: "LinkToGame")
+  ratings            Rating[]           @relation(name: "RatingToGame")
+  flags              Flag[]             @relation(name: "GamesToFlags")
+  tags               Tag[]              @relation(name: "GamesToTags")
+  comments           Comment[]          @relation(name: "CommentToGame")
+  notifications      Notification[]     @relation(name: "NotificationToGame")
+  gameEmotes         Reaction[]         @relation(name: "ReactionToGameOwner")
+  recommendedByUsers User[]             @relation(name: "UserRecommendedGames")
+  pages              GamePage[]         @relation(name: "GameToPages")
+
+  @@index([tenantId, jamId])
 }
 
 model GamePage {
-  id                   Int              @id @default(autoincrement())
+  id                   Int         @id @default(autoincrement())
   version              PageVersion
   name                 String
   description          String?
   short                String?
   thumbnail            String?
   banner               String?
-  screenshots          String[]         @default([])
+  screenshots          String[]    @default([])
   trailerUrl           String?
   itchEmbedUrl         String?
   itchEmbedAspectRatio String?
-  inputMethods         String[]         @default([])
+  inputMethods         String[]    @default([])
   estOneRun            String?
   estAnyPercent        String?
   estHundredPercent    String?
-  createdAt            DateTime         @default(now())
-  updatedAt            DateTime         @updatedAt
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
   themeJustification   String?
   emotePrefix          String?
 
-  game                 Game             @relation(fields: [gameId], references: [id], name: "GameToPages")
-  gameId               Int
-  ratingCategories     RatingCategory[]
-  majRatingCategories  RatingCategory[] @relation(name: "GamePageToMajorityContentRating")
-  flags                Flag[]           @relation(name: "GamePagesToFlags")
-  tags                 Tag[]            @relation(name: "GamePagesToTags")
-  downloadLinks        GamePageDownloadLink[] @relation(name: "LinkToGamePage")
-  tracks               GamePageTrack[]       @relation(name: "TrackToGamePage")
-  leaderboards         GamePageLeaderboard[] @relation(name: "LeaderboardToGamePage")
-  achievements         GamePageAchievement[] @relation(name: "AchievementToGamePage")
-  comments             Comment[]             @relation(name: "CommentToGamePage")
-  ghosts               Ghost[]               @relation(name: "GhostToGamePage")
-  data                 Data[]                @relation(name: "DataToGamePage")
-  ratings              Rating[]              @relation(name: "RatingToGamePage")
+  game                Game                   @relation(fields: [gameId], references: [id], name: "GameToPages")
+  gameId              Int
+  ratingCategories    RatingCategory[]
+  majRatingCategories RatingCategory[]       @relation(name: "GamePageToMajorityContentRating")
+  flags               Flag[]                 @relation(name: "GamePagesToFlags")
+  tags                Tag[]                  @relation(name: "GamePagesToTags")
+  downloadLinks       GamePageDownloadLink[] @relation(name: "LinkToGamePage")
+  tracks              GamePageTrack[]        @relation(name: "TrackToGamePage")
+  leaderboards        GamePageLeaderboard[]  @relation(name: "LeaderboardToGamePage")
+  achievements        GamePageAchievement[]  @relation(name: "AchievementToGamePage")
+  comments            Comment[]              @relation(name: "CommentToGamePage")
+  ghosts              Ghost[]                @relation(name: "GhostToGamePage")
+  data                Data[]                 @relation(name: "DataToGamePage")
+  ratings             Rating[]               @relation(name: "RatingToGamePage")
 
   @@unique([gameId, version])
 }
@@ -472,8 +489,8 @@ model TrackTag {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  category   TrackTagCategory @relation(fields: [categoryId], references: [id])
-  categoryId Int
+  category       TrackTagCategory @relation(fields: [categoryId], references: [id])
+  categoryId     Int
   gamePageTracks GamePageTrack[]
 }
 
@@ -508,16 +525,16 @@ model Rating {
 }
 
 model TrackRating {
-  id         Int      @id @default(autoincrement())
-  value      Int
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id        Int      @id @default(autoincrement())
+  value     Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   category   TrackRatingCategory @relation(fields: [categoryId], references: [id], name: "TrackRatingToCategory")
   categoryId Int
-  user       User           @relation(fields: [userId], references: [id], name: "TrackRatingToUser")
+  user       User                @relation(fields: [userId], references: [id], name: "TrackRatingToUser")
   userId     Int
-  track      GamePageTrack  @relation(fields: [trackId], references: [id], name: "TrackRatingToTrack")
+  track      GamePageTrack       @relation(fields: [trackId], references: [id], name: "TrackRatingToTrack")
   trackId    Int
 
   @@unique([trackId, categoryId, userId])
@@ -530,41 +547,41 @@ model TrackTimestampComment {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  author   User  @relation(fields: [authorId], references: [id], name: "TrackTimestampCommentToAuthor")
+  author   User          @relation(fields: [authorId], references: [id], name: "TrackTimestampCommentToAuthor")
   authorId Int
   track    GamePageTrack @relation(fields: [trackId], references: [id], name: "TrackTimestampCommentToTrack")
   trackId  Int
 }
 
 model GamePageTrack {
-  id                           Int      @id @default(autoincrement())
-  slug                         String
-  url                          String
-  name                         String
-  license                      String?
-  allowDownload                Boolean  @default(false)
-  allowBackgroundUse           Boolean  @default(false)
-  allowBackgroundUseAttribution Boolean @default(false)
-  bpm                          Int?
-  musicalKey                   String?
-  softwareUsed                 String[] @default([])
-  createdAt                    DateTime @default(now())
-  updatedAt                    DateTime @updatedAt
-  commentary                   String?
+  id                            Int      @id @default(autoincrement())
+  slug                          String
+  url                           String
+  name                          String
+  license                       String?
+  allowDownload                 Boolean  @default(false)
+  allowBackgroundUse            Boolean  @default(false)
+  allowBackgroundUseAttribution Boolean  @default(false)
+  bpm                           Int?
+  musicalKey                    String?
+  softwareUsed                  String[] @default([])
+  createdAt                     DateTime @default(now())
+  updatedAt                     DateTime @updatedAt
+  commentary                    String?
 
-  composer   User     @relation(fields: [composerId], references: [id], name: "GamePageTrackToComposer")
-  composerId Int
-  gamePage   GamePage  @relation(fields: [gamePageId], references: [id], name: "TrackToGamePage")
-  gamePageId Int
-  tags       TrackTag[]
-  flags      TrackFlag[]
-  links      GamePageTrackLink[]   @relation(name: "GamePageTrackToLinks")
-  credits    GamePageTrackCredit[] @relation(name: "GamePageTrackToCredits")
-  comments   Comment[]             @relation(name: "CommentToTrack")
-  ratings    TrackRating[]         @relation(name: "TrackRatingToTrack")
-  notifications Notification[]     @relation(name: "NotificationToTrack")
-  timestampComments TrackTimestampComment[] @relation(name: "TrackTimestampCommentToTrack")
-  recommendedByUsers User[]        @relation(name: "UserRecommendedTracks")
+  composer           User                    @relation(fields: [composerId], references: [id], name: "GamePageTrackToComposer")
+  composerId         Int
+  gamePage           GamePage                @relation(fields: [gamePageId], references: [id], name: "TrackToGamePage")
+  gamePageId         Int
+  tags               TrackTag[]
+  flags              TrackFlag[]
+  links              GamePageTrackLink[]     @relation(name: "GamePageTrackToLinks")
+  credits            GamePageTrackCredit[]   @relation(name: "GamePageTrackToCredits")
+  comments           Comment[]               @relation(name: "CommentToTrack")
+  ratings            TrackRating[]           @relation(name: "TrackRatingToTrack")
+  notifications      Notification[]          @relation(name: "NotificationToTrack")
+  timestampComments  TrackTimestampComment[] @relation(name: "TrackTimestampCommentToTrack")
+  recommendedByUsers User[]                  @relation(name: "UserRecommendedTracks")
 
   @@unique([gamePageId, slug])
 }
@@ -712,22 +729,31 @@ model FeaturedStreamer {
 }
 
 model Report {
-  id        Int      @id @default(autoincrement())
-  resolved  Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         Int       @id @default(autoincrement())
+  resolved   Boolean   @default(false)
+  status     String    @default("open")
+  priority   String    @default("normal")
+  reason     String?
+  details    String?
+  resolvedAt DateTime? @map("resolved_at")
+  resolution String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
   // Relations
-  reporter   User     @relation(fields: [reporterId], references: [id], name: "ReportToReporter")
-  reporterId Int
-  user       User?    @relation(fields: [userId], references: [id], name: "ReportToUser")
-  userId     Int
-  post       Post?    @relation(fields: [postId], references: [id], name: "ReportToPost")
-  postId     Int?
-  comment    Comment? @relation(fields: [commentId], references: [id], name: "ReportToComment")
-  commentId  Int?
-  game       Game?    @relation(fields: [gameId], references: [id], name: "ReportToGame")
-  gameId     Int?
+  reporter            User     @relation(fields: [reporterId], references: [id], name: "ReportToReporter")
+  reporterId          Int
+  user                User?    @relation(fields: [userId], references: [id], name: "ReportToUser")
+  userId              Int?
+  post                Post?    @relation(fields: [postId], references: [id], name: "ReportToPost")
+  postId              Int?
+  comment             Comment? @relation(fields: [commentId], references: [id], name: "ReportToComment")
+  commentId           Int?
+  game                Game?    @relation(fields: [gameId], references: [id], name: "ReportToGame")
+  gameId              Int?
+  assignedTo          User?    @relation(fields: [assignedToId], references: [id], name: "ReportToAssignee")
+  assignedToId        Int?     @map("assigned_to_id")
+  collectionCommentId String?  @map("collection_comment_id")
 }
 
 enum NotificationType {
@@ -746,12 +772,14 @@ model Notification {
   id   Int              @id @default(autoincrement())
   type NotificationType
 
-  title     String?
-  body      String?
-  link      String?
-  data      Json?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  title      String?
+  body       String?
+  link       String?
+  data       Json?
+  readAt     DateTime? @map("read_at")
+  archivedAt DateTime? @map("archived_at")
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
   // who triggered it
   actor   User? @relation(fields: [actorId], references: [id], name: "NotificationToActor")
@@ -822,6 +850,7 @@ model Team {
   applicationsOpen Boolean    @default(false)
   rolesWanted      TeamRole[]
   description      String?
+  tenantId         String?    @map("tenant_id")
 
   // Relations
   owner         User              @relation(fields: [ownerId], references: [id], name: "TeamsToOwner")
@@ -833,6 +862,8 @@ model Team {
   applications  TeamApplication[] @relation(name: "TeamApplicationsToTeam")
   game          Game?             @relation(name: "GameToTeam")
   notifications Notification[]    @relation(name: "team")
+
+  @@index([tenantId, jamId])
 }
 
 model TeamRole {
@@ -892,4 +923,500 @@ model ThemeVote2 {
   jamId             Int
   themeSuggestion   ThemeSuggestion @relation(fields: [themeSuggestionId], references: [id])
   themeSuggestionId Int
+}
+
+model ServiceKey {
+  id           String    @id
+  name         String
+  scopes       Json
+  tenantId     String?   @map("tenant_id")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @default(now()) @map("updated_at")
+  deprecatedAt DateTime? @map("deprecated_at")
+  revokedAt    DateTime? @map("revoked_at")
+  lastUsedAt   DateTime? @map("last_used_at")
+  keyPrefix    String    @map("key_prefix")
+  keyHash      String    @map("key_hash")
+  usageCount   Int       @default(0) @map("usage_count")
+}
+
+model PlatformJob {
+  id        String    @id
+  type      String
+  payload   Json
+  status    String
+  attempts  Int       @default(0)
+  runAt     DateTime  @map("run_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @default(now()) @map("updated_at")
+  lastError String?   @map("last_error")
+  lockedAt  DateTime? @map("locked_at")
+  lockToken String?   @map("lock_token")
+
+  @@index([status, runAt])
+}
+
+model IdempotencyRecord {
+  idempotencyKey String   @id @map("idempotency_key")
+  requestHash    String   @map("request_hash")
+  status         String
+  responseStatus Int?     @map("response_status")
+  responseKind   String?  @map("response_kind")
+  responseBody   Json?    @map("response_body")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @default(now()) @map("updated_at")
+  expiresAt      DateTime @map("expires_at")
+
+  @@index([expiresAt])
+}
+
+model DomainEvent {
+  eventId    String   @id @map("event_id")
+  type       String
+  tenantId   String?  @map("tenant_id")
+  payload    Json
+  occurredAt DateTime @map("occurred_at")
+
+  @@index([occurredAt])
+}
+
+model WebhookSubscription {
+  id             String    @id
+  endpoint       String
+  events         Json
+  secret         String?
+  headers        Json?
+  tenantId       String?   @map("tenant_id")
+  status         String    @default("active")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @default(now()) @map("updated_at")
+  lastDeliveryAt DateTime? @map("last_delivery_at")
+  failureCount   Int       @default(0) @map("failure_count")
+}
+
+model EventCheckpoint {
+  consumerId     String    @id @map("consumer_id")
+  lastEventId    String?   @map("last_event_id")
+  lastOccurredAt DateTime? @map("last_occurred_at")
+  tenantId       String?   @map("tenant_id")
+  updatedAt      DateTime  @default(now()) @map("updated_at")
+}
+
+model RoleGrant {
+  id           String   @id
+  subjectType  String   @map("subject_type")
+  subjectId    String   @map("subject_id")
+  role         String
+  tenantId     String?  @map("tenant_id")
+  resourceType String?  @map("resource_type")
+  resourceId   String?  @map("resource_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @default(now()) @map("updated_at")
+}
+
+model SearchSynonym {
+  id        String   @id
+  tenantId  String?  @map("tenant_id")
+  term      String
+  synonym   String
+  groupKey  String?  @map("group_key")
+  notes     String?
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @map("updated_at")
+}
+
+model SearchSettings {
+  tenantId               String   @id @map("tenant_id")
+  exactMatchBoost        Float    @default(3) @map("exact_match_boost")
+  prefixMatchBoost       Float    @default(2) @map("prefix_match_boost")
+  substringMatchBoost    Float    @default(1) @map("substring_match_boost")
+  fuzzyThreshold         Float    @default(0.1) @map("fuzzy_threshold")
+  gameWeight             Float    @default(1.2) @map("game_weight")
+  trackWeight            Float    @default(1) @map("track_weight")
+  postWeight             Float    @default(1) @map("post_weight")
+  userWeight             Float    @default(1) @map("user_weight")
+  teamWeight             Float    @default(0.9) @map("team_weight")
+  freshnessHalfLifeHours Int      @default(168) @map("freshness_half_life_hours")
+  updatedAt              DateTime @default(now()) @map("updated_at")
+}
+
+model SearchDocument {
+  documentId      String   @id @map("document_id")
+  tenantId        String   @map("tenant_id")
+  entityType      String   @map("entity_type")
+  entityId        Int      @map("entity_id")
+  variant         String?
+  title           String
+  subtitle        String?
+  body            String
+  slug            String?
+  tags            Json
+  visibility      String
+  metadata        Json
+  sourceUpdatedAt DateTime @map("source_updated_at")
+  indexedAt       DateTime @default(now()) @map("indexed_at")
+
+  @@index([tenantId, entityType, entityId])
+}
+
+model SearchReindexRun {
+  id             String    @id
+  tenantId       String?   @map("tenant_id")
+  scope          String
+  status         String
+  batchSize      Int       @map("batch_size")
+  entityTypes    Json      @map("entity_types")
+  perEntityState Json      @map("per_entity_state")
+  totalCount     Int       @map("total_count")
+  processedCount Int       @default(0) @map("processed_count")
+  lastError      String?   @map("last_error")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @default(now()) @map("updated_at")
+  startedAt      DateTime? @map("started_at")
+  completedAt    DateTime? @map("completed_at")
+}
+
+model PostRevision {
+  id        String   @id
+  postId    Int      @map("post_id")
+  editorId  Int?     @map("editor_id")
+  title     String
+  content   String
+  sticky    Boolean  @default(false)
+  tags      Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([postId, createdAt])
+}
+
+model Collection {
+  id           String   @id
+  tenantId     String?  @map("tenant_id")
+  ownerId      Int      @map("owner_id")
+  slug         String
+  title        String
+  description  String?
+  visibility   String   @default("private")
+  forkedFromId String?  @map("forked_from_id")
+  playbackMode String   @default("manual") @map("playback_mode")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @default(now()) @map("updated_at")
+
+  @@unique([tenantId, ownerId, slug])
+  @@index([tenantId, visibility, updatedAt])
+}
+
+model CollectionItem {
+  id           String   @id
+  collectionId String   @map("collection_id")
+  itemType     String   @map("item_type")
+  itemId       Int      @map("item_id")
+  note         String?
+  position     Int      @default(0)
+  addedAt      DateTime @default(now()) @map("added_at")
+
+  @@unique([collectionId, itemType, itemId])
+  @@index([collectionId, position, addedAt])
+  @@index([itemType, itemId])
+}
+
+model CollectionCollaborator {
+  id           String   @id
+  collectionId String   @map("collection_id")
+  userId       Int      @map("user_id")
+  role         String   @default("viewer")
+  status       String   @default("pending")
+  invitedBy    Int?     @map("invited_by")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @default(now()) @map("updated_at")
+
+  @@unique([collectionId, userId])
+}
+
+model CollectionComment {
+  id           String    @id
+  collectionId String    @map("collection_id")
+  authorId     Int       @map("author_id")
+  content      String
+  deletedAt    DateTime? @map("deleted_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @default(now()) @map("updated_at")
+
+  @@index([collectionId, createdAt])
+}
+
+model CollectionFollow {
+  collectionId String   @map("collection_id")
+  userId       Int      @map("user_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@id([collectionId, userId])
+  @@index([userId, createdAt])
+}
+
+model CollectionImport {
+  id           String   @id
+  collectionId String   @map("collection_id")
+  importedBy   Int      @map("imported_by")
+  sourceName   String?  @map("source_name")
+  sourceFormat String   @default("jamcore") @map("source_format")
+  importedAt   DateTime @default(now()) @map("imported_at")
+}
+
+model FederationBlock {
+  id        String   @id
+  tenantId  String?  @map("tenant_id")
+  blockType String   @map("block_type")
+  value     String
+  reason    String?
+  createdBy Int?     @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([tenantId, blockType, value])
+}
+
+model FederationTrustSetting {
+  tenantId  String   @id @map("tenant_id")
+  mode      String   @default("open")
+  updatedAt DateTime @default(now()) @map("updated_at")
+}
+
+model FederationAllowlistEntry {
+  id        String   @id
+  tenantId  String?  @map("tenant_id")
+  allowType String   @map("allow_type")
+  value     String
+  createdBy Int?     @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([tenantId, allowType, value])
+}
+
+model FederationReputation {
+  id                  String   @id
+  tenantId            String?  @map("tenant_id")
+  host                String
+  trustLevel          String   @default("unknown") @map("trust_level")
+  deliveriesFailed    Int      @default(0) @map("deliveries_failed")
+  deliveriesSucceeded Int      @default(0) @map("deliveries_succeeded")
+  rejectedActivities  Int      @default(0) @map("rejected_activities")
+  acceptedActivities  Int      @default(0) @map("accepted_activities")
+  reportCount         Int      @default(0) @map("report_count")
+  notes               String?
+  updatedBy           Int?     @map("updated_by")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @default(now()) @map("updated_at")
+
+  @@unique([tenantId, host])
+}
+
+model FederationPreviewQueueItem {
+  id           String    @id
+  tenantId     String?   @map("tenant_id")
+  actorId      String    @map("actor_id")
+  activityId   String?   @map("activity_id")
+  activityType String?   @map("activity_type")
+  objectType   String?   @map("object_type")
+  summary      String?
+  payload      Json
+  status       String    @default("pending")
+  reviewedBy   Int?      @map("reviewed_by")
+  reviewedAt   DateTime? @map("reviewed_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  @@index([tenantId, status, createdAt])
+}
+
+model RadioSession {
+  tenantId        String    @id @map("tenant_id")
+  enabled         Boolean   @default(true)
+  currentTrackId  Int?      @map("current_track_id")
+  startedAt       DateTime? @map("started_at")
+  durationSeconds Int       @default(180) @map("duration_seconds")
+  voteRound       String    @map("vote_round")
+  voteOptions     Json      @map("vote_options")
+  history         Json
+  updatedAt       DateTime  @default(now()) @map("updated_at")
+}
+
+model RadioVote {
+  id        String   @id
+  tenantId  String   @map("tenant_id")
+  voteRound String   @map("vote_round")
+  userId    Int      @map("user_id")
+  trackId   Int      @map("track_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @map("updated_at")
+
+  @@unique([tenantId, voteRound, userId])
+  @@index([tenantId, voteRound, trackId])
+}
+
+model RadioEmote {
+  id        String   @id
+  tenantId  String   @map("tenant_id")
+  userId    Int      @map("user_id")
+  emote     String
+  x         Float?
+  y         Float?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([tenantId, createdAt])
+}
+
+model RadioBan {
+  id        String   @id
+  tenantId  String   @map("tenant_id")
+  trackId   Int      @map("track_id")
+  reason    String?
+  createdBy Int?     @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([tenantId, trackId])
+}
+
+model ReportNote {
+  id        String   @id
+  reportId  Int      @map("report_id")
+  authorId  Int      @map("author_id")
+  note      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([reportId, createdAt])
+}
+
+model NotificationPreference {
+  userId       Int      @id @map("user_id")
+  mutedTypes   Json     @map("muted_types")
+  emailEnabled Boolean  @default(false) @map("email_enabled")
+  updatedAt    DateTime @default(now()) @map("updated_at")
+}
+
+model PostAutosave {
+  id        String   @id
+  postId    Int?     @map("post_id")
+  authorId  Int      @map("author_id")
+  tenantId  String?  @map("tenant_id")
+  title     String?
+  content   String
+  sticky    Boolean  @default(false)
+  tags      Json?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @map("updated_at")
+
+  @@unique([tenantId, authorId, postId])
+}
+
+model PostGameLink {
+  postId       Int      @map("post_id")
+  gameId       Int      @map("game_id")
+  relationType String   @default("devlog") @map("relation_type")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@id([postId, gameId])
+  @@index([gameId, createdAt])
+}
+
+model PostCollaborator {
+  postId    Int      @map("post_id")
+  userId    Int      @map("user_id")
+  role      String   @default("coauthor")
+  status    String   @default("accepted")
+  invitedBy Int?     @map("invited_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @map("updated_at")
+
+  @@id([postId, userId])
+}
+
+model ContentReviewSettings {
+  tenantId             String   @id @map("tenant_id")
+  requirePostReview    Boolean  @default(false) @map("require_post_review")
+  reviewFirstPostsOnly Boolean  @default(false) @map("review_first_posts_only")
+  updatedBy            Int?     @map("updated_by")
+  updatedAt            DateTime @default(now()) @map("updated_at")
+}
+
+model PostSeries {
+  id          String   @id
+  tenantId    String?  @map("tenant_id")
+  ownerId     Int      @map("owner_id")
+  slug        String
+  title       String
+  description String?
+  visibility  String   @default("public")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @map("updated_at")
+
+  @@unique([tenantId, ownerId, slug])
+  @@index([tenantId, visibility, updatedAt])
+}
+
+model PostSeriesPost {
+  seriesId String   @map("series_id")
+  postId   Int      @map("post_id")
+  position Int      @default(0)
+  addedAt  DateTime @default(now()) @map("added_at")
+
+  @@id([seriesId, postId])
+  @@index([postId])
+}
+
+model UserFollow {
+  followerId  Int      @map("follower_id")
+  followingId Int      @map("following_id")
+  tenantId    String?  @map("tenant_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@id([followerId, followingId])
+  @@index([tenantId, followingId, createdAt])
+  @@index([tenantId, followerId, createdAt])
+}
+
+model RemoteFeedPost {
+  id          String    @id
+  tenantId    String?   @map("tenant_id")
+  activityId  String?   @map("activity_id")
+  objectId    String    @map("object_id")
+  actorId     String    @map("actor_id")
+  actorName   String?   @map("actor_name")
+  actorUrl    String?   @map("actor_url")
+  sourceHost  String?   @map("source_host")
+  title       String?
+  content     String
+  url         String?
+  tags        Json
+  sourceType  String    @default("activitypub") @map("source_type")
+  status      String    @default("published")
+  publishedAt DateTime? @map("published_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @default(now()) @map("updated_at")
+
+  @@unique([tenantId, objectId])
+  @@index([tenantId, status, publishedAt, createdAt])
+}
+
+model RemoteComment {
+  id          String    @id
+  tenantId    String?   @map("tenant_id")
+  activityId  String?   @map("activity_id")
+  objectId    String    @map("object_id")
+  actorId     String    @map("actor_id")
+  actorName   String?   @map("actor_name")
+  actorUrl    String?   @map("actor_url")
+  sourceHost  String?   @map("source_host")
+  content     String
+  url         String?
+  targetKind  String    @map("target_kind")
+  targetId    Int?      @map("target_id")
+  targetSlug  String?   @map("target_slug")
+  status      String    @default("published")
+  publishedAt DateTime? @map("published_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @default(now()) @map("updated_at")
+
+  @@unique([tenantId, objectId])
+  @@index([tenantId, status, targetKind, targetId], map: "remote_comments_target_id_idx")
+  @@index([tenantId, status, targetKind, targetSlug], map: "remote_comments_target_slug_idx")
 }

@@ -1,6 +1,7 @@
 import { Router } from "express";
 import rateLimit from "@middleware/rateLimit";
-import db from "@helper/db";
+import { asyncHandler } from "../../../middleware/asyncHandler.js";
+import { listFlags } from "@features/taxonomies";
 
 const router = Router();
 
@@ -10,15 +11,14 @@ const router = Router();
 router.get(
   "/",
   rateLimit(),
-
-  async (_req, res) => {
-    const flags = await db.flag.findMany({});
+  asyncHandler(async (_req, res) => {
+    const flags = await listFlags();
 
     res.send({
       message: "Flags fetched",
       data: flags,
     });
-  }
+  }),
 );
 
 export default router;

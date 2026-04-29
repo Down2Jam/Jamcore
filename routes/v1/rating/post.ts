@@ -1,10 +1,15 @@
 import express from "express";
-import authUser from "../../../middleware/authUser";
-import getUser from "../../../middleware/getUser";
-import getPostOrComment from "../../../middleware/getPostOrComment";
-import db from "../../../helper/db";
-import getGame from "@middleware/getGame";
-import { PageVersion } from "@prisma/client";
+
+import getGame from "@loaders/getGame";
+import authUser from "../../../middleware/authUser.js";
+import getUser from "../../../loaders/getUser.js";
+import { asyncHandler } from "../../../middleware/asyncHandler.js";
+import {
+  createGameRatingSchema,
+  saveGameRating,
+} from "@features/ratings";
+import { requireRequestUser } from "@lib/locals";
+import { parseBody } from "../../../lib/request.js";
 
 var router = express.Router();
 
@@ -14,64 +19,22 @@ router.post(
   authUser,
   getUser,
   getGame,
-
-  async function (req, res) {
-    const { categoryId, value, gamePageId, pageVersion } = req.body;
-    let targetGamePageId = Number(gamePageId);
-
-    if (!Number.isInteger(targetGamePageId)) {
-      const targetPageVersion =
-        pageVersion === "POST_JAM" ? PageVersion.POST_JAM : PageVersion.JAM;
-      const targetGamePage = await db.gamePage.findFirst({
-        where: {
-          gameId: res.locals.game.id,
-          version: targetPageVersion,
-        },
-        select: {
-          id: true,
-        },
-      });
-
-      if (!targetGamePage) {
-        return res.status(404).send({ message: "Game page missing." });
-      }
-
-      targetGamePageId = targetGamePage.id;
-    }
-
-    const currentRating = await db.rating.findUnique({
-      where: {
-        gamePageId_categoryId_userId: {
-          gamePageId: targetGamePageId,
-          userId: res.locals.user.id,
-          categoryId,
-        },
-      },
+  asyncHandler(async (req, res) => {
+    const input = parseBody(req, createGameRatingSchema);
+    const user = requireRequestUser(res);
+    await saveGameRating({
+      gameId: res.locals.game.id,
+      gamePageId: input.gamePageId,
+      pageVersion: input.pageVersion,
+      categoryId: input.categoryId,
+      value: input.value,
+      userId: user.id,
+      tenantId: res.locals.tenantId,
     });
 
-    if (currentRating) {
-      await db.rating.update({
-        where: {
-          id: currentRating.id,
-        },
-        data: {
-          value: value,
-        },
-      });
-    } else {
-      await db.rating.create({
-        data: {
-          value: value,
-          gameId: res.locals.game.id,
-          gamePageId: targetGamePageId,
-          userId: res.locals.user.id,
-          categoryId,
-        },
-      });
-    }
-
     res.send({ message: "Rating created" });
-  }
+  }),
 );
 
 export default router;
+

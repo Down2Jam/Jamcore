@@ -1,59 +1,48 @@
 import { Router } from "express";
-import rateLimit from "@middleware/rateLimit";
-import db from "@helper/db";
+
+import getTargetTeam from "@loaders/getTargetTeam";
+import assertTargetTeamApplicationsOpen from "@guards/assertTargetTeamApplicationsOpen";
+import assertUserHasNotAppliedForTargetTeam from "@guards/assertUserHasNotAppliedForTargetTeam";
+import assertUserIsNotInTargetTeam from "@guards/assertUserIsNotInTargetTeam";
+import { asyncHandler } from "@middleware/asyncHandler";
 import authUser from "@middleware/authUser";
-import getUser from "@middleware/getUser";
-import getTargetTeam from "@middleware/getTargetTeam";
-import assertTargetTeamApplicationsOpen from "@middleware/assertTargetTeamApplicationsOpen";
-import assertUserHasNotAppliedForTargetTeam from "@middleware/assertUserHasNotAppliedForTargetTeam";
-import assertUserIsNotInTargetTeam from "@middleware/assertUserIsNotInTargetTeam";
+import getUser from "@loaders/getUser";
+import rateLimit from "@middleware/rateLimit";
+import {
+  createTeamApplication,
+  teamMessageSchema,
+} from "@features/teams";
+import {
+  requireRequestUser,
+  requireTargetTeam,
+} from "@lib/locals";
+import { parseBody } from "../../../lib/request.js";
 
 const router = Router();
 
-/**
- * Route to create an application to a team.
- */
 router.post(
   "/",
   rateLimit(),
-
   authUser,
   getUser,
   getTargetTeam,
   assertTargetTeamApplicationsOpen,
   assertUserHasNotAppliedForTargetTeam,
   assertUserIsNotInTargetTeam,
+  asyncHandler(async (req, res) => {
+    const { content } = parseBody(req, teamMessageSchema);
+    const user = requireRequestUser(res);
+    const targetTeam = requireTargetTeam(res);
 
-  async (req, res) => {
-    const { content } = req.body;
-
-    if (
-      res.locals.targetTeam.game &&
-      res.locals.targetTeam.game.category == "ODA"
-    ) {
-      res.status(401).send({ message: "That team is a part of O.D.A" });
-      return;
-    }
-
-    const application = await db.teamApplication.create({
-      data: {
-        userId: res.locals.user.id,
-        teamId: res.locals.targetTeam.id,
-        content: content ? content : null,
-      },
-    });
-
-    await db.notification.create({
-      data: {
-        teamApplicationId: application.id,
-        recipientId: res.locals.targetTeam.ownerId,
-        actorId: res.locals.user.id,
-        type: "TEAM_APPLICATION",
-      },
+    await createTeamApplication({
+      actor: user,
+      team: targetTeam,
+      content,
     });
 
     res.send({ message: "Application created" });
-  }
+  }),
 );
 
 export default router;
+

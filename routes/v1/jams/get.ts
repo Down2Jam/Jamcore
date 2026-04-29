@@ -1,7 +1,7 @@
 import { Router } from "express";
 import rateLimit from "@middleware/rateLimit";
-import logger from "@helper/logger";
-import db from "@helper/db";
+import { asyncHandler } from "../../../middleware/asyncHandler.js";
+import { listJams } from "@features/jams";
 
 const router = Router();
 
@@ -11,24 +11,11 @@ const router = Router();
 router.get(
   "/",
   rateLimit(),
-
-  async (_req, res) => {
-    logger.info(`Jams fetched`);
-    const jams = await db.jam.findMany({
-      take: 10,
-      orderBy: { id: "desc" },
-    });
-
-    const now = Date.now();
-
-    const activeJams = jams.filter((jam) => {
-      const jamEnd = new Date(jam.startTime).getTime();
-
-      return jamEnd < now;
-    });
-
-    res.send(activeJams);
-  }
+  asyncHandler(async (_req, res) => {
+    const jams = await listJams(res.locals.tenantId);
+    res.setHeader("Cache-Control", "public, max-age=60, stale-while-revalidate=120");
+    res.send(jams);
+  }),
 );
 
 export default router;

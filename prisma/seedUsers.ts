@@ -11,7 +11,7 @@ async function main() {
     slug: faker.internet.userName(),
     name: faker.name.fullName(),
     email: faker.internet.email(),
-    password: faker.internet.password(8), // Use bcrypt in production
+    password: faker.internet.password({ length: 8 }), // Use bcrypt in production
     bio: faker.lorem.sentence(),
   }));
 

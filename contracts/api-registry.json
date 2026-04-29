@@ -1,0 +1,5251 @@
+{
+  "tags": [
+    {
+      "name": "Operational"
+    },
+    {
+      "name": "Games"
+    },
+    {
+      "name": "Jams"
+    },
+    {
+      "name": "Music"
+    },
+    {
+      "name": "Posts"
+    },
+    {
+      "name": "Comments"
+    },
+    {
+      "name": "Reactions"
+    },
+    {
+      "name": "Tags"
+    },
+    {
+      "name": "Taxonomies"
+    },
+    {
+      "name": "Events"
+    },
+    {
+      "name": "Search"
+    },
+    {
+      "name": "Users"
+    },
+    {
+      "name": "Collections"
+    },
+    {
+      "name": "Teams"
+    },
+    {
+      "name": "Themes"
+    },
+    {
+      "name": "Ratings"
+    },
+    {
+      "name": "Session"
+    },
+    {
+      "name": "Notifications"
+    },
+    {
+      "name": "Media"
+    },
+    {
+      "name": "Social"
+    },
+    {
+      "name": "Applications"
+    },
+    {
+      "name": "Achievements"
+    },
+    {
+      "name": "Moderation"
+    },
+    {
+      "name": "Content"
+    },
+    {
+      "name": "Admin"
+    },
+    {
+      "name": "Platform"
+    }
+  ],
+  "routes": [
+    {
+      "sdkName": "getOpenApi",
+      "method": "GET",
+      "path": "/openapi",
+      "tag": "Operational",
+      "summary": "Return the OpenAPI document for the v1 API",
+      "auth": {
+        "required": false,
+        "optional": false,
+        "kind": "none",
+        "label": "Public"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/capabilities",
+      "tag": "Operational",
+      "summary": "Return enabled API capabilities, limits, auth modes, and version metadata",
+      "auth": {
+        "required": false,
+        "optional": false,
+        "kind": "none",
+        "label": "Public"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "listGames",
+      "method": "GET",
+      "path": "/games",
+      "tag": "Games",
+      "summary": "List published games",
+      "parameters": [
+        {
+          "name": "sort",
+          "in": "query",
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "jamSlug",
+          "in": "query",
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "jamId",
+          "in": "query",
+          "schema": {
+            "type": "integer"
+          }
+        },
+        {
+          "name": "pageVersion",
+          "in": "query",
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "cursor",
+          "in": "query",
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "limit",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50
+          }
+        }
+      ],
+      "auth": {
+        "required": false,
+        "optional": false,
+        "kind": "none",
+        "label": "Public"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "pagination": {
+        "style": "cursor",
+        "response": "itemsPageInfo"
+      }
+    },
+    {
+      "sdkName": "getRandomGame",
+      "method": "GET",
+      "path": "/games/random",
+      "tag": "Games",
+      "summary": "Return a random published game",
+      "auth": {
+        "required": false,
+        "optional": true,
+        "kind": "user",
+        "label": "Uses login if present"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "createGame",
+      "method": "POST",
+      "path": "/games",
+      "tag": "Games",
+      "summary": "Create a game",
+      "requestBody": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      },
+      "pagination": {
+        "style": "cursor",
+        "response": "itemsPageInfo"
+      }
+    },
+    {
+      "sdkName": "getGame",
+      "method": "GET",
+      "path": "/games/{gameSlug}",
+      "tag": "Games",
+      "summary": "Return detailed data for a game",
+      "pathParams": [
+        "gameSlug"
+      ],
+      "parameters": [
+        {
+          "name": "gameSlug",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "recap",
+          "in": "query",
+          "schema": {
+            "type": "boolean"
+          }
+        },
+        {
+          "name": "preview",
+          "in": "query",
+          "schema": {
+            "type": "boolean"
+          }
+        }
+      ],
+      "auth": {
+        "required": false,
+        "optional": true,
+        "kind": "user",
+        "label": "Uses login if present"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "updateGame",
+      "method": "PUT",
+      "path": "/games/{gameSlug}",
+      "tag": "Games",
+      "summary": "Update a game by slug",
+      "requestBody": true,
+      "parameters": [
+        {
+          "name": "gameSlug",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "createPostJamPage",
+      "method": "POST",
+      "path": "/games/{gameSlug}/post-jam",
+      "tag": "Games",
+      "summary": "Create a post-jam page for a game",
+      "parameters": [
+        {
+          "name": "gameSlug",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "listGameDevlogPosts",
+      "method": "GET",
+      "path": "/games/{gameSlug}/devlog",
+      "tag": "Games",
+      "summary": "List devlog, release, postmortem, and announcement posts linked to a game",
+      "parameters": [
+        {
+          "name": "gameSlug",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "relationType",
+          "in": "query",
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "limit",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50
+          }
+        }
+      ],
+      "auth": {
+        "required": false,
+        "optional": true,
+        "kind": "user",
+        "label": "Uses login if present"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "listJams",
+      "method": "GET",
+      "path": "/jams",
+      "tag": "Jams",
+      "summary": "List recent jams",
+      "auth": {
+        "required": false,
+        "optional": false,
+        "kind": "none",
+        "label": "Public"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "pagination": {
+        "style": "cursor",
+        "response": "itemsPageInfo"
+      }
+    },
+    {
+      "sdkName": "getRandomJam",
+      "method": "GET",
+      "path": "/jams/random",
+      "tag": "Jams",
+      "summary": "Return a random jam",
+      "auth": {
+        "required": false,
+        "optional": false,
+        "kind": "none",
+        "label": "Public"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "getJam",
+      "method": "GET",
+      "path": "/jams/{jamSlug}",
+      "tag": "Jams",
+      "summary": "Return detailed data for a jam",
+      "parameters": [
+        {
+          "name": "jamSlug",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "auth": {
+        "required": false,
+        "optional": false,
+        "kind": "none",
+        "label": "Public"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "getJamParticipation",
+      "method": "GET",
+      "path": "/jams/{jamSlug}/participation",
+      "tag": "Jams",
+      "summary": "Check whether the authenticated user has joined a jam",
+      "parameters": [
+        {
+          "name": "jamSlug",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "joinJam",
+      "method": "POST",
+      "path": "/join-jam",
+      "tag": "Jams",
+      "summary": "Join the active or selected jam",
+      "requestBody": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "getResults",
+      "method": "GET",
+      "path": "/results",
+      "tag": "Jams",
+      "summary": "Return jam results",
+      "parameters": [
+        {
+          "name": "jamSlug",
+          "in": "query",
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "jamId",
+          "in": "query",
+          "schema": {
+            "type": "integer"
+          }
+        }
+      ],
+      "auth": {
+        "required": false,
+        "optional": true,
+        "kind": "user",
+        "label": "Uses login if present"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "getRecap",
+      "method": "GET",
+      "path": "/recap",
+      "tag": "Jams",
+      "summary": "Return recap visibility and recap data",
+      "parameters": [
+        {
+          "name": "userSlug",
+          "in": "query",
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "jamSlug",
+          "in": "query",
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "jamId",
+          "in": "query",
+          "schema": {
+            "type": "integer"
+          }
+        }
+      ],
+      "auth": {
+        "required": false,
+        "optional": true,
+        "kind": "user",
+        "label": "Uses login if present"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "updateRecap",
+      "method": "PUT",
+      "path": "/recap",
+      "tag": "Jams",
+      "summary": "Update recap settings or recap content",
+      "requestBody": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "listTracks",
+      "method": "GET",
+      "path": "/tracks",
+      "tag": "Music",
+      "summary": "List published tracks",
+      "parameters": [
+        {
+          "name": "jamSlug",
+          "in": "query",
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "jamId",
+          "in": "query",
+          "schema": {
+            "type": "integer"
+          }
+        },
+        {
+          "name": "sort",
+          "in": "query",
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "pageVersion",
+          "in": "query",
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "auth": {
+        "required": false,
+        "optional": true,
+        "kind": "user",
+        "label": "Uses login if present"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "pagination": {
+        "style": "cursor",
+        "response": "itemsPageInfo"
+      }
+    },
+    {
+      "sdkName": "getRandomTrack",
+      "method": "GET",
+      "path": "/tracks/random",
+      "tag": "Music",
+      "summary": "Return a random published track",
+      "auth": {
+        "required": false,
+        "optional": true,
+        "kind": "user",
+        "label": "Uses login if present"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "getTrack",
+      "method": "GET",
+      "path": "/tracks/{trackSlug}",
+      "tag": "Music",
+      "summary": "Return detailed data for a track",
+      "pathParams": [
+        "trackSlug"
+      ],
+      "parameters": [
+        {
+          "name": "trackSlug",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "pageVersion",
+          "in": "query",
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "auth": {
+        "required": false,
+        "optional": true,
+        "kind": "user",
+        "label": "Uses login if present"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "updateTrack",
+      "method": "PUT",
+      "path": "/tracks/{trackSlug}",
+      "tag": "Music",
+      "summary": "Update a track by slug",
+      "requestBody": true,
+      "parameters": [
+        {
+          "name": "trackSlug",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "pageVersion",
+          "in": "query",
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "getMusicFile",
+      "method": "GET",
+      "path": "/music/{filename}",
+      "tag": "Music",
+      "summary": "Fetch an uploaded music file by filename",
+      "parameters": [
+        {
+          "name": "filename",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "auth": {
+        "required": false,
+        "optional": false,
+        "kind": "none",
+        "label": "Public"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "downloadTrack",
+      "method": "GET",
+      "path": "/music/track/{trackSlug}/download",
+      "tag": "Music",
+      "summary": "Download a track file by slug",
+      "parameters": [
+        {
+          "name": "trackSlug",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "pageVersion",
+          "in": "query",
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "auth": {
+        "required": false,
+        "optional": false,
+        "kind": "none",
+        "label": "Public"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "uploadMusic",
+      "method": "POST",
+      "path": "/music",
+      "tag": "Music",
+      "summary": "Upload a music file",
+      "requestBody": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "getEvent",
+      "method": "GET",
+      "path": "/events/{eventSlug}",
+      "tag": "Events",
+      "summary": "Return detailed data for an event",
+      "parameters": [
+        {
+          "name": "eventSlug",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "auth": {
+        "required": false,
+        "optional": false,
+        "kind": "none",
+        "label": "Public"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "listEvents",
+      "method": "GET",
+      "path": "/events",
+      "tag": "Events",
+      "summary": "List upcoming and recent events",
+      "parameters": [
+        {
+          "name": "filter",
+          "in": "query",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "upcoming",
+              "current",
+              "past"
+            ]
+          }
+        }
+      ],
+      "auth": {
+        "required": false,
+        "optional": false,
+        "kind": "none",
+        "label": "Public"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "pagination": {
+        "style": "cursor",
+        "response": "itemsPageInfo"
+      }
+    },
+    {
+      "sdkName": "createEvent",
+      "method": "POST",
+      "path": "/events",
+      "tag": "Events",
+      "summary": "Create an event",
+      "requestBody": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      },
+      "pagination": {
+        "style": "cursor",
+        "response": "itemsPageInfo"
+      }
+    },
+    {
+      "sdkName": "listPosts",
+      "method": "GET",
+      "path": "/posts",
+      "tag": "Posts",
+      "summary": "List posts",
+      "parameters": [
+        {
+          "name": "sort",
+          "in": "query",
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "time",
+          "in": "query",
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "user",
+          "in": "query",
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "tags",
+          "in": "query",
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "sticky",
+          "in": "query",
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "following",
+          "in": "query",
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "cursor",
+          "in": "query",
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "limit",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50
+          }
+        }
+      ],
+      "auth": {
+        "required": false,
+        "optional": true,
+        "kind": "user",
+        "label": "Uses login if present"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "pagination": {
+        "style": "cursor",
+        "response": "itemsPageInfo"
+      }
+    },
+    {
+      "sdkName": "getPost",
+      "method": "GET",
+      "path": "/posts/{postSlug}",
+      "tag": "Posts",
+      "summary": "Return detailed data for a post",
+      "parameters": [
+        {
+          "name": "postSlug",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "user",
+          "in": "query",
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "auth": {
+        "required": false,
+        "optional": true,
+        "kind": "user",
+        "label": "Uses login if present"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "createPost",
+      "method": "POST",
+      "path": "/posts",
+      "tag": "Posts",
+      "summary": "Create a post",
+      "requestBody": true,
+      "requestExample": {
+        "title": "Devlog 1",
+        "content": "Progress notes",
+        "draftStatus": "published",
+        "gameLinks": [
+          {
+            "gameId": 1,
+            "relationType": "devlog"
+          }
+        ]
+      },
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      },
+      "pagination": {
+        "style": "cursor",
+        "response": "itemsPageInfo"
+      }
+    },
+    {
+      "sdkName": "updatePost",
+      "method": "PUT",
+      "path": "/posts/{postSlug}",
+      "tag": "Posts",
+      "summary": "Update a post",
+      "requestBody": true,
+      "parameters": [
+        {
+          "name": "postSlug",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "deletePost",
+      "method": "DELETE",
+      "path": "/posts/{postSlug}",
+      "tag": "Posts",
+      "summary": "Delete or remove a post",
+      "requestBody": true,
+      "parameters": [
+        {
+          "name": "postSlug",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "previewPost",
+      "method": "GET",
+      "path": "/posts/preview/{previewToken}",
+      "tag": "Posts",
+      "summary": "Preview a draft or scheduled post by token",
+      "parameters": [
+        {
+          "name": "previewToken",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "auth": {
+        "required": false,
+        "optional": true,
+        "kind": "user",
+        "label": "Uses login if present"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "listPostRevisions",
+      "method": "GET",
+      "path": "/posts/{postSlug}/revisions",
+      "tag": "Posts",
+      "summary": "List revision history for a post",
+      "parameters": [
+        {
+          "name": "postSlug",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "publishPost",
+      "method": "POST",
+      "path": "/posts/{postSlug}/publish",
+      "tag": "Posts",
+      "summary": "Publish a draft or scheduled post",
+      "parameters": [
+        {
+          "name": "postSlug",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "getPostAutosave",
+      "method": "GET",
+      "path": "/posts/autosave",
+      "tag": "Posts",
+      "summary": "Return the current user's post autosave",
+      "parameters": [
+        {
+          "name": "postId",
+          "in": "query",
+          "schema": {
+            "type": "integer"
+          }
+        }
+      ],
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "savePostAutosave",
+      "method": "POST",
+      "path": "/posts/autosave",
+      "tag": "Posts",
+      "summary": "Autosave a draft post body",
+      "requestBody": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "listPostSeries",
+      "method": "GET",
+      "path": "/posts/series",
+      "tag": "Posts",
+      "summary": "List post series",
+      "parameters": [
+        {
+          "name": "mine",
+          "in": "query",
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "user",
+          "in": "query",
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "limit",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50
+          }
+        }
+      ],
+      "auth": {
+        "required": false,
+        "optional": true,
+        "kind": "user",
+        "label": "Uses login if present"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "pagination": {
+        "style": "cursor",
+        "response": "itemsPageInfo"
+      }
+    },
+    {
+      "sdkName": "createPostSeries",
+      "method": "POST",
+      "path": "/posts/series",
+      "tag": "Posts",
+      "summary": "Create a post series",
+      "requestBody": true,
+      "requestExample": {
+        "title": "Making My Game",
+        "description": "A development series",
+        "visibility": "public"
+      },
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      },
+      "pagination": {
+        "style": "cursor",
+        "response": "itemsPageInfo"
+      }
+    },
+    {
+      "sdkName": "getPostSeries",
+      "method": "GET",
+      "path": "/posts/series/{seriesId}",
+      "tag": "Posts",
+      "summary": "Return a post series",
+      "parameters": [
+        {
+          "name": "seriesId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "auth": {
+        "required": false,
+        "optional": true,
+        "kind": "user",
+        "label": "Uses login if present"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "updatePostSeries",
+      "method": "PUT",
+      "path": "/posts/series/{seriesId}",
+      "tag": "Posts",
+      "summary": "Update a post series",
+      "requestBody": true,
+      "parameters": [
+        {
+          "name": "seriesId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "requestExample": {
+        "title": "Making My Game",
+        "visibility": "unlisted"
+      },
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "addPostToSeries",
+      "method": "POST",
+      "path": "/posts/series/{seriesId}/posts",
+      "tag": "Posts",
+      "summary": "Add or reorder a post in a series",
+      "requestBody": true,
+      "parameters": [
+        {
+          "name": "seriesId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "requestExample": {
+        "postId": 1,
+        "position": 1
+      },
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "removePostFromSeries",
+      "method": "DELETE",
+      "path": "/posts/series/{seriesId}/posts/{postId}",
+      "tag": "Posts",
+      "summary": "Remove a post from a series",
+      "parameters": [
+        {
+          "name": "seriesId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "postId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer"
+          }
+        }
+      ],
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "listCollections",
+      "method": "GET",
+      "path": "/collections",
+      "tag": "Collections",
+      "summary": "Discover public, owned, or shared saved collections",
+      "parameters": [
+        {
+          "name": "userSlug",
+          "in": "query",
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "mine",
+          "in": "query",
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "q",
+          "in": "query",
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "itemType",
+          "in": "query",
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "sort",
+          "in": "query",
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "cursor",
+          "in": "query",
+          "schema": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        {
+          "name": "limit",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50
+          }
+        }
+      ],
+      "auth": {
+        "required": false,
+        "optional": true,
+        "kind": "user",
+        "label": "Uses login if present"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "pagination": {
+        "style": "cursor",
+        "response": "itemsPageInfo"
+      }
+    },
+    {
+      "sdkName": "createCollection",
+      "method": "POST",
+      "path": "/collections",
+      "tag": "Collections",
+      "summary": "Create a saved collection",
+      "requestBody": true,
+      "requestExample": {
+        "title": "Favorite OSTs",
+        "visibility": "public",
+        "playbackMode": "shuffle"
+      },
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      },
+      "pagination": {
+        "style": "cursor",
+        "response": "itemsPageInfo"
+      }
+    },
+    {
+      "sdkName": "importCollection",
+      "method": "POST",
+      "path": "/collections/import",
+      "tag": "Collections",
+      "summary": "Import a saved collection",
+      "requestBody": true,
+      "requestExample": {
+        "sourceName": "playlist.json",
+        "visibility": "private",
+        "items": [
+          {
+            "itemType": "track",
+            "itemId": 1,
+            "position": 1
+          }
+        ]
+      },
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "getCollection",
+      "method": "GET",
+      "path": "/collections/{collectionId}",
+      "tag": "Collections",
+      "summary": "Return a saved collection",
+      "parameters": [
+        {
+          "name": "collectionId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "auth": {
+        "required": false,
+        "optional": true,
+        "kind": "user",
+        "label": "Uses login if present"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "exportCollection",
+      "method": "GET",
+      "path": "/collections/{collectionId}/export",
+      "tag": "Collections",
+      "summary": "Export a saved collection",
+      "parameters": [
+        {
+          "name": "collectionId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "auth": {
+        "required": false,
+        "optional": true,
+        "kind": "user",
+        "label": "Uses login if present"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "updateCollection",
+      "method": "PUT",
+      "path": "/collections/{collectionId}",
+      "tag": "Collections",
+      "summary": "Update a saved collection",
+      "requestBody": true,
+      "parameters": [
+        {
+          "name": "collectionId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "requestExample": {
+        "title": "Favorite OSTs",
+        "visibility": "unlisted"
+      },
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "deleteCollection",
+      "method": "DELETE",
+      "path": "/collections/{collectionId}",
+      "tag": "Collections",
+      "summary": "Delete a saved collection",
+      "parameters": [
+        {
+          "name": "collectionId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "addCollectionItem",
+      "method": "POST",
+      "path": "/collections/{collectionId}/items",
+      "tag": "Collections",
+      "summary": "Add or update an item in a saved collection",
+      "requestBody": true,
+      "parameters": [
+        {
+          "name": "collectionId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "requestExample": {
+        "itemType": "game",
+        "itemId": 1,
+        "note": "Great entry",
+        "position": 1
+      },
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "removeCollectionItem",
+      "method": "DELETE",
+      "path": "/collections/{collectionId}/items/{itemId}",
+      "tag": "Collections",
+      "summary": "Remove an item from a saved collection",
+      "parameters": [
+        {
+          "name": "collectionId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "itemId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "inviteCollectionCollaborator",
+      "method": "POST",
+      "path": "/collections/{collectionId}/collaborators",
+      "tag": "Collections",
+      "summary": "Invite or update a collection collaborator",
+      "requestBody": true,
+      "parameters": [
+        {
+          "name": "collectionId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "requestExample": {
+        "userSlug": "alice",
+        "role": "editor"
+      },
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "respondCollectionCollaborator",
+      "method": "PUT",
+      "path": "/collections/{collectionId}/collaborators/me",
+      "tag": "Collections",
+      "summary": "Accept or decline a collection collaboration invite",
+      "requestBody": true,
+      "parameters": [
+        {
+          "name": "collectionId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "requestExample": {
+        "status": "accepted"
+      },
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "forkCollection",
+      "method": "POST",
+      "path": "/collections/{collectionId}/fork",
+      "tag": "Collections",
+      "summary": "Fork a visible collection into the current user's private collections",
+      "parameters": [
+        {
+          "name": "collectionId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "getCollectionPlayback",
+      "method": "GET",
+      "path": "/collections/{collectionId}/playback",
+      "tag": "Collections",
+      "summary": "Return playable track queue for a collection",
+      "parameters": [
+        {
+          "name": "collectionId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "shuffle",
+          "in": "query",
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "auth": {
+        "required": false,
+        "optional": true,
+        "kind": "user",
+        "label": "Uses login if present"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "followCollection",
+      "method": "POST",
+      "path": "/collections/{collectionId}/follow",
+      "tag": "Collections",
+      "summary": "Follow or unfollow a collection",
+      "requestBody": true,
+      "parameters": [
+        {
+          "name": "collectionId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "requestExample": {
+        "follow": true
+      },
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "addCollectionComment",
+      "method": "POST",
+      "path": "/collections/{collectionId}/comments",
+      "tag": "Collections",
+      "summary": "Comment on a collection",
+      "requestBody": true,
+      "parameters": [
+        {
+          "name": "collectionId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "requestExample": {
+        "content": "Great collection."
+      },
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      },
+      "pagination": {
+        "style": "cursor",
+        "response": "itemsPageInfo"
+      }
+    },
+    {
+      "sdkName": "listCollectionComments",
+      "method": "GET",
+      "path": "/collections/{collectionId}/comments",
+      "tag": "Collections",
+      "summary": "List collection comments",
+      "parameters": [
+        {
+          "name": "collectionId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "cursor",
+          "in": "query",
+          "schema": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        {
+          "name": "limit",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          }
+        }
+      ],
+      "auth": {
+        "required": false,
+        "optional": true,
+        "kind": "user",
+        "label": "Uses login if present"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "pagination": {
+        "style": "cursor",
+        "response": "itemsPageInfo"
+      }
+    },
+    {
+      "sdkName": "deleteCollectionComment",
+      "method": "DELETE",
+      "path": "/collections/{collectionId}/comments/{commentId}",
+      "tag": "Collections",
+      "summary": "Delete a collection comment",
+      "parameters": [
+        {
+          "name": "collectionId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "commentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "getRadioState",
+      "method": "GET",
+      "path": "/radio",
+      "tag": "Music",
+      "summary": "Return synchronized music radio state",
+      "auth": {
+        "required": false,
+        "optional": true,
+        "kind": "user",
+        "label": "Uses login if present"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "voteRadioTrack",
+      "method": "POST",
+      "path": "/radio/vote",
+      "tag": "Music",
+      "summary": "Vote for the next music radio track",
+      "requestBody": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "sendRadioEmote",
+      "method": "POST",
+      "path": "/radio/emote",
+      "tag": "Music",
+      "summary": "Send an ephemeral music radio emote",
+      "requestBody": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "listenRadioEvents",
+      "method": "GET",
+      "path": "/radio/events",
+      "tag": "Music",
+      "summary": "Subscribe to music radio server-sent events",
+      "auth": {
+        "required": false,
+        "optional": true,
+        "kind": "user",
+        "label": "Uses login if present"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "createComment",
+      "method": "POST",
+      "path": "/comment",
+      "tag": "Comments",
+      "summary": "Create a comment",
+      "requestBody": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      },
+      "deprecated": false
+    },
+    {
+      "sdkName": "updateComment",
+      "method": "PUT",
+      "path": "/comment",
+      "tag": "Comments",
+      "summary": "Update a comment",
+      "requestBody": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      },
+      "deprecated": false
+    },
+    {
+      "sdkName": "deleteComment",
+      "method": "DELETE",
+      "path": "/comment",
+      "tag": "Comments",
+      "summary": "Delete or remove a comment",
+      "requestBody": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      },
+      "deprecated": false
+    },
+    {
+      "sdkName": "createTrackTimestampComment",
+      "method": "POST",
+      "path": "/track-timestamp-comments",
+      "tag": "Comments",
+      "summary": "Create a timestamped track comment",
+      "requestBody": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      },
+      "deprecated": false
+    },
+    {
+      "sdkName": "createPostReaction",
+      "method": "POST",
+      "path": "/post/reaction",
+      "tag": "Reactions",
+      "summary": "Add or toggle a reaction on a post",
+      "requestBody": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      },
+      "deprecated": false
+    },
+    {
+      "sdkName": "createCommentReaction",
+      "method": "POST",
+      "path": "/comment/reaction",
+      "tag": "Reactions",
+      "summary": "Add or toggle a reaction on a comment",
+      "requestBody": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "likePost",
+      "method": "POST",
+      "path": "/like",
+      "tag": "Reactions",
+      "summary": "Like or unlike a post",
+      "requestBody": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      },
+      "deprecated": false
+    },
+    {
+      "sdkName": "awardAchievement",
+      "method": "POST",
+      "path": "/achievement",
+      "tag": "Achievements",
+      "summary": "Connect an achievement to the current user",
+      "requestBody": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      },
+      "deprecated": false
+    },
+    {
+      "sdkName": "removeAchievement",
+      "method": "DELETE",
+      "path": "/achievement",
+      "tag": "Achievements",
+      "summary": "Remove an achievement connection",
+      "requestBody": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      },
+      "deprecated": false
+    },
+    {
+      "sdkName": "listTags",
+      "method": "GET",
+      "path": "/tags",
+      "tag": "Tags",
+      "summary": "List available post tags",
+      "auth": {
+        "required": false,
+        "optional": false,
+        "kind": "none",
+        "label": "Public"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "listGameTags",
+      "method": "GET",
+      "path": "/gametags",
+      "tag": "Taxonomies",
+      "summary": "List available game tags",
+      "auth": {
+        "required": false,
+        "optional": false,
+        "kind": "none",
+        "label": "Public"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "listTrackTags",
+      "method": "GET",
+      "path": "/tracktags",
+      "tag": "Taxonomies",
+      "summary": "List available track tags",
+      "auth": {
+        "required": false,
+        "optional": false,
+        "kind": "none",
+        "label": "Public"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "listFlags",
+      "method": "GET",
+      "path": "/flags",
+      "tag": "Taxonomies",
+      "summary": "List available game flags",
+      "auth": {
+        "required": false,
+        "optional": false,
+        "kind": "none",
+        "label": "Public"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "listTrackFlags",
+      "method": "GET",
+      "path": "/trackflags",
+      "tag": "Taxonomies",
+      "summary": "List available track flags",
+      "auth": {
+        "required": false,
+        "optional": false,
+        "kind": "none",
+        "label": "Public"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "listRatingCategories",
+      "method": "GET",
+      "path": "/rating-categories",
+      "tag": "Taxonomies",
+      "summary": "List game rating categories",
+      "parameters": [
+        {
+          "name": "jamSlug",
+          "in": "query",
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "jamId",
+          "in": "query",
+          "schema": {
+            "type": "integer"
+          }
+        }
+      ],
+      "auth": {
+        "required": false,
+        "optional": false,
+        "kind": "none",
+        "label": "Public"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "listTrackRatingCategories",
+      "method": "GET",
+      "path": "/track-rating-categories",
+      "tag": "Taxonomies",
+      "summary": "List track rating categories",
+      "auth": {
+        "required": false,
+        "optional": false,
+        "kind": "none",
+        "label": "Public"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "listTeamRoles",
+      "method": "GET",
+      "path": "/teamroles",
+      "tag": "Taxonomies",
+      "summary": "List available team roles",
+      "auth": {
+        "required": false,
+        "optional": false,
+        "kind": "none",
+        "label": "Public"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "search",
+      "method": "GET",
+      "path": "/search",
+      "tag": "Search",
+      "summary": "Search games, users, posts, tracks, and teams",
+      "parameters": [
+        {
+          "name": "query",
+          "in": "query",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "type",
+          "in": "query",
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "limit",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10
+          }
+        },
+        {
+          "name": "debug",
+          "in": "query",
+          "schema": {
+            "type": "boolean"
+          }
+        },
+        {
+          "name": "includeFacets",
+          "in": "query",
+          "schema": {
+            "type": "boolean"
+          }
+        }
+      ],
+      "auth": {
+        "required": false,
+        "optional": false,
+        "kind": "none",
+        "label": "Public"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "searchUsers",
+      "method": "GET",
+      "path": "/users/search",
+      "tag": "Search",
+      "summary": "Search for users by name",
+      "parameters": [
+        {
+          "name": "q",
+          "in": "query",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "auth": {
+        "required": false,
+        "optional": false,
+        "kind": "none",
+        "label": "Public"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "resolveMention",
+      "method": "GET",
+      "path": "/mentions",
+      "tag": "Search",
+      "summary": "Resolve a mention target",
+      "parameters": [
+        {
+          "name": "query",
+          "in": "query",
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "auth": {
+        "required": false,
+        "optional": false,
+        "kind": "none",
+        "label": "Public"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "listUsers",
+      "method": "GET",
+      "path": "/users",
+      "tag": "Users",
+      "summary": "List users",
+      "parameters": [
+        {
+          "name": "cursor",
+          "in": "query",
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "limit",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50
+          }
+        }
+      ],
+      "auth": {
+        "required": false,
+        "optional": false,
+        "kind": "none",
+        "label": "Public"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "getUser",
+      "method": "GET",
+      "path": "/users/{userSlug}",
+      "tag": "Users",
+      "summary": "Return detailed data for a user",
+      "parameters": [
+        {
+          "name": "userSlug",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "auth": {
+        "required": false,
+        "optional": false,
+        "kind": "none",
+        "label": "Public"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "createUser",
+      "method": "POST",
+      "path": "/users",
+      "tag": "Users",
+      "summary": "Create a user profile",
+      "requestBody": true,
+      "auth": {
+        "required": false,
+        "optional": false,
+        "kind": "none",
+        "label": "Public"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "updateUser",
+      "method": "PUT",
+      "path": "/users/{userSlug}",
+      "tag": "Users",
+      "summary": "Update a user profile",
+      "requestBody": true,
+      "parameters": [
+        {
+          "name": "userSlug",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "followUser",
+      "method": "POST",
+      "path": "/users/{userSlug}/follow",
+      "tag": "Social",
+      "summary": "Follow or unfollow a user",
+      "requestBody": true,
+      "parameters": [
+        {
+          "name": "userSlug",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "requestExample": {
+        "follow": true
+      },
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "deleteUser",
+      "method": "DELETE",
+      "path": "/users/{userSlug}",
+      "tag": "Users",
+      "summary": "Delete a user account",
+      "requestBody": true,
+      "parameters": [
+        {
+          "name": "userSlug",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "listTeams",
+      "method": "GET",
+      "path": "/teams",
+      "tag": "Teams",
+      "summary": "List teams",
+      "parameters": [
+        {
+          "name": "cursor",
+          "in": "query",
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "limit",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50
+          }
+        }
+      ],
+      "auth": {
+        "required": false,
+        "optional": false,
+        "kind": "none",
+        "label": "Public"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "pagination": {
+        "style": "cursor",
+        "response": "itemsPageInfo"
+      }
+    },
+    {
+      "sdkName": "getTeam",
+      "method": "GET",
+      "path": "/teams/{teamId}",
+      "tag": "Teams",
+      "summary": "Return detailed data for a team",
+      "parameters": [
+        {
+          "name": "teamId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer"
+          }
+        }
+      ],
+      "auth": {
+        "required": false,
+        "optional": false,
+        "kind": "none",
+        "label": "Public"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "createTeam",
+      "method": "POST",
+      "path": "/teams",
+      "tag": "Teams",
+      "summary": "Create a team",
+      "requestBody": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      },
+      "pagination": {
+        "style": "cursor",
+        "response": "itemsPageInfo"
+      }
+    },
+    {
+      "sdkName": "updateTeam",
+      "method": "PUT",
+      "path": "/teams/{teamId}",
+      "tag": "Teams",
+      "summary": "Update a team",
+      "requestBody": true,
+      "parameters": [
+        {
+          "name": "teamId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer"
+          }
+        }
+      ],
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "deleteTeam",
+      "method": "DELETE",
+      "path": "/teams/{teamId}",
+      "tag": "Teams",
+      "summary": "Delete a team",
+      "requestBody": true,
+      "parameters": [
+        {
+          "name": "teamId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer"
+          }
+        }
+      ],
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "leaveTeam",
+      "method": "DELETE",
+      "path": "/leave-team",
+      "tag": "Teams",
+      "summary": "Leave a team",
+      "requestBody": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "createTeamInvite",
+      "method": "POST",
+      "path": "/invite",
+      "tag": "Teams",
+      "summary": "Invite a user to a team",
+      "requestBody": true,
+      "parameters": [
+        {
+          "name": "targetTeamId",
+          "in": "query",
+          "schema": {
+            "type": "integer"
+          }
+        },
+        {
+          "name": "targetUserId",
+          "in": "query",
+          "schema": {
+            "type": "integer"
+          }
+        },
+        {
+          "name": "targetUserSlug",
+          "in": "query",
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "deleteTeamInvite",
+      "method": "DELETE",
+      "path": "/invite",
+      "tag": "Teams",
+      "summary": "Delete a team invite",
+      "requestBody": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "createTeamApplication",
+      "method": "POST",
+      "path": "/application",
+      "tag": "Applications",
+      "summary": "Apply to join a team",
+      "requestBody": true,
+      "parameters": [
+        {
+          "name": "targetTeamId",
+          "in": "query",
+          "schema": {
+            "type": "integer"
+          }
+        }
+      ],
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "deleteTeamApplication",
+      "method": "DELETE",
+      "path": "/application",
+      "tag": "Applications",
+      "summary": "Withdraw or delete a team application",
+      "requestBody": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "listThemesForJam",
+      "method": "GET",
+      "path": "/themes",
+      "tag": "Themes",
+      "summary": "List themes for a jam",
+      "parameters": [
+        {
+          "name": "jamSlug",
+          "in": "query",
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "jamId",
+          "in": "query",
+          "schema": {
+            "type": "integer"
+          }
+        },
+        {
+          "name": "isVoting",
+          "in": "query",
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "getTopTheme",
+      "method": "GET",
+      "path": "/theme",
+      "tag": "Themes",
+      "summary": "Return the top theme for a jam",
+      "parameters": [
+        {
+          "name": "jamSlug",
+          "in": "query",
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "jamId",
+          "in": "query",
+          "schema": {
+            "type": "integer"
+          }
+        }
+      ],
+      "auth": {
+        "required": false,
+        "optional": false,
+        "kind": "none",
+        "label": "Public"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "listSiteThemes",
+      "method": "GET",
+      "path": "/site-themes",
+      "tag": "Themes",
+      "summary": "List available site themes",
+      "auth": {
+        "required": false,
+        "optional": false,
+        "kind": "none",
+        "label": "Public"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "listThemeSuggestions",
+      "method": "GET",
+      "path": "/themes/suggestion",
+      "tag": "Themes",
+      "summary": "List the authenticated user's theme suggestions",
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "createThemeSuggestion",
+      "method": "POST",
+      "path": "/themes/suggestion",
+      "tag": "Themes",
+      "summary": "Create a theme suggestion",
+      "requestBody": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "deleteThemeSuggestion",
+      "method": "DELETE",
+      "path": "/themes/suggestion/{id}",
+      "tag": "Themes",
+      "summary": "Delete a theme suggestion",
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer"
+          }
+        }
+      ],
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "listThemeVotes",
+      "method": "GET",
+      "path": "/themes/votes",
+      "tag": "Themes",
+      "summary": "List the authenticated user's theme votes",
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "saveThemeVote",
+      "method": "POST",
+      "path": "/themes/vote",
+      "tag": "Themes",
+      "summary": "Save a theme vote",
+      "requestBody": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "saveThemeSlaughterVote",
+      "method": "POST",
+      "path": "/themes/voteSlaughter",
+      "tag": "Themes",
+      "summary": "Save an elimination-phase theme vote",
+      "requestBody": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "saveThemeVotingVote",
+      "method": "POST",
+      "path": "/themes/voteVoting",
+      "tag": "Themes",
+      "summary": "Save a voting-round theme vote",
+      "requestBody": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "createSession",
+      "method": "POST",
+      "path": "/session",
+      "tag": "Session",
+      "summary": "Create a user session",
+      "requestBody": true,
+      "auth": {
+        "required": false,
+        "optional": false,
+        "kind": "none",
+        "label": "Public"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "deleteSession",
+      "method": "DELETE",
+      "path": "/session",
+      "tag": "Session",
+      "summary": "Delete the current user session",
+      "auth": {
+        "required": false,
+        "optional": false,
+        "kind": "none",
+        "label": "Public"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "getSelf",
+      "method": "GET",
+      "path": "/self",
+      "tag": "Session",
+      "summary": "Return the authenticated user's profile",
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "getCurrentGame",
+      "method": "GET",
+      "path": "/self/current-game",
+      "tag": "Session",
+      "summary": "Return the authenticated user's games for the active jam",
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "listNotifications",
+      "method": "GET",
+      "path": "/notifications",
+      "tag": "Notifications",
+      "summary": "List the authenticated user's notifications",
+      "parameters": [
+        {
+          "name": "status",
+          "in": "query",
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "limit",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          }
+        }
+      ],
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "pagination": {
+        "style": "cursor",
+        "response": "itemsPageInfo"
+      }
+    },
+    {
+      "sdkName": "markAllNotificationsRead",
+      "method": "PUT",
+      "path": "/notifications/read-all",
+      "tag": "Notifications",
+      "summary": "Mark all current user's notifications as read",
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "updateNotification",
+      "method": "PUT",
+      "path": "/notifications/{id}",
+      "tag": "Notifications",
+      "summary": "Mark or archive a notification",
+      "requestBody": true,
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer"
+          }
+        }
+      ],
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "deleteNotification",
+      "method": "DELETE",
+      "path": "/notifications/{id}",
+      "tag": "Notifications",
+      "summary": "Delete a notification by id",
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer"
+          }
+        }
+      ],
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "getNotificationPreferences",
+      "method": "GET",
+      "path": "/notifications/preferences",
+      "tag": "Notifications",
+      "summary": "Return notification inbox preferences",
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "updateNotificationPreferences",
+      "method": "PUT",
+      "path": "/notifications/preferences",
+      "tag": "Notifications",
+      "summary": "Update notification inbox preferences",
+      "requestBody": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "createReport",
+      "method": "POST",
+      "path": "/reports",
+      "tag": "Moderation",
+      "summary": "Create a user report",
+      "requestBody": true,
+      "requestExample": {
+        "targetType": "collection_comment",
+        "targetId": "comment-id",
+        "reason": "Spam"
+      },
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "getImage",
+      "method": "GET",
+      "path": "/image/{filename}",
+      "tag": "Media",
+      "summary": "Fetch an uploaded image by filename",
+      "parameters": [
+        {
+          "name": "filename",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "auth": {
+        "required": false,
+        "optional": false,
+        "kind": "none",
+        "label": "Public"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "uploadImage",
+      "method": "POST",
+      "path": "/image",
+      "tag": "Media",
+      "summary": "Upload an image",
+      "requestBody": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "getProfilePicture",
+      "method": "GET",
+      "path": "/pfp/{filename}",
+      "tag": "Media",
+      "summary": "Fetch a profile picture by filename",
+      "parameters": [
+        {
+          "name": "filename",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "auth": {
+        "required": false,
+        "optional": false,
+        "kind": "none",
+        "label": "Public"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "listProfilePictures",
+      "method": "GET",
+      "path": "/pfps",
+      "tag": "Media",
+      "summary": "List bundled profile picture URLs",
+      "auth": {
+        "required": false,
+        "optional": false,
+        "kind": "none",
+        "label": "Public"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "listPressKitMedia",
+      "method": "GET",
+      "path": "/press-kit-media",
+      "tag": "Media",
+      "summary": "List press kit media assets",
+      "auth": {
+        "required": false,
+        "optional": false,
+        "kind": "none",
+        "label": "Public"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "createPressKitMedia",
+      "method": "POST",
+      "path": "/press-kit-media",
+      "tag": "Media",
+      "summary": "Create a press kit media entry",
+      "requestBody": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "internal",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "deletePressKitMedia",
+      "method": "DELETE",
+      "path": "/press-kit-media",
+      "tag": "Media",
+      "summary": "Delete a press kit media entry",
+      "requestBody": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "internal",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "listEmojis",
+      "method": "GET",
+      "path": "/emojis",
+      "tag": "Social",
+      "summary": "List available custom emojis",
+      "auth": {
+        "required": false,
+        "optional": false,
+        "kind": "none",
+        "label": "Public"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "createEmoji",
+      "method": "POST",
+      "path": "/emojis",
+      "tag": "Social",
+      "summary": "Create a custom emoji",
+      "requestBody": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "internal",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "updateEmoji",
+      "method": "PUT",
+      "path": "/emojis",
+      "tag": "Social",
+      "summary": "Update a custom emoji",
+      "requestBody": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "deleteEmoji",
+      "method": "DELETE",
+      "path": "/emojis",
+      "tag": "Social",
+      "summary": "Delete a custom emoji",
+      "requestBody": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "saveGameEmoji",
+      "method": "POST",
+      "path": "/emojis/game",
+      "tag": "Social",
+      "summary": "Attach an emoji reaction to a game",
+      "requestBody": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "saveUserEmoji",
+      "method": "POST",
+      "path": "/emojis/user",
+      "tag": "Social",
+      "summary": "Attach an emoji reaction to a user",
+      "requestBody": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "listFeaturedStreamers",
+      "method": "GET",
+      "path": "/streamers",
+      "tag": "Social",
+      "summary": "List featured streamers",
+      "auth": {
+        "required": false,
+        "optional": false,
+        "kind": "none",
+        "label": "Public"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "saveRating",
+      "method": "POST",
+      "path": "/rating",
+      "tag": "Ratings",
+      "summary": "Create or update a game rating",
+      "requestBody": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "saveTrackRating",
+      "method": "POST",
+      "path": "/track-rating",
+      "tag": "Ratings",
+      "summary": "Create or update a track rating",
+      "requestBody": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "createScore",
+      "method": "POST",
+      "path": "/score",
+      "tag": "Ratings",
+      "summary": "Create a score entry",
+      "requestBody": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "deleteScore",
+      "method": "DELETE",
+      "path": "/score",
+      "tag": "Ratings",
+      "summary": "Delete a score entry",
+      "requestBody": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "createModerationAction",
+      "method": "POST",
+      "path": "/mod",
+      "tag": "Moderation",
+      "summary": "Create a moderation action",
+      "requestBody": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "internal",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "getDocumentationDocument",
+      "method": "GET",
+      "path": "/documentation-document",
+      "tag": "Content",
+      "summary": "Return a documentation document",
+      "parameters": [
+        {
+          "name": "slug",
+          "in": "query",
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "auth": {
+        "required": false,
+        "optional": false,
+        "kind": "none",
+        "label": "Public"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "createDocumentationDocument",
+      "method": "POST",
+      "path": "/documentation-document",
+      "tag": "Content",
+      "summary": "Create a documentation document",
+      "requestBody": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "internal",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "updateDocumentationDocument",
+      "method": "PUT",
+      "path": "/documentation-document",
+      "tag": "Content",
+      "summary": "Update a documentation document",
+      "requestBody": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "internal",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "deleteDocumentationDocument",
+      "method": "DELETE",
+      "path": "/documentation-document",
+      "tag": "Content",
+      "summary": "Delete a documentation document",
+      "requestBody": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "internal",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "listDocumentationDocuments",
+      "method": "GET",
+      "path": "/documentation-documents",
+      "tag": "Content",
+      "summary": "List documentation documents",
+      "auth": {
+        "required": false,
+        "optional": false,
+        "kind": "none",
+        "label": "Public"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "listAdminImages",
+      "method": "GET",
+      "path": "/admin/images",
+      "tag": "Admin",
+      "summary": "List admin-managed uploaded images",
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "internal",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "listAuditEntries",
+      "method": "GET",
+      "path": "/platform/audit",
+      "tag": "Platform",
+      "summary": "Return recent audit log entries",
+      "headers": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "platform",
+        "label": "Requires platform auth"
+      },
+      "visibility": "internal",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "listWebhooks",
+      "method": "GET",
+      "path": "/platform/webhooks",
+      "tag": "Platform",
+      "summary": "Return recent webhook deliveries or stored subscriptions",
+      "headers": true,
+      "parameters": [
+        {
+          "name": "mode",
+          "in": "query",
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "platform",
+        "label": "Requires platform auth"
+      },
+      "visibility": "internal",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "createWebhook",
+      "method": "POST",
+      "path": "/platform/webhooks",
+      "tag": "Platform",
+      "summary": "Create a webhook subscription",
+      "requestBody": true,
+      "headers": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "platform",
+        "label": "Requires platform auth"
+      },
+      "visibility": "internal",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "updateWebhook",
+      "method": "PUT",
+      "path": "/platform/webhooks",
+      "tag": "Platform",
+      "summary": "Update or pause a webhook subscription",
+      "requestBody": true,
+      "headers": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "platform",
+        "label": "Requires platform auth"
+      },
+      "visibility": "internal",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "deleteWebhook",
+      "method": "DELETE",
+      "path": "/platform/webhooks",
+      "tag": "Platform",
+      "summary": "Delete a webhook subscription",
+      "requestBody": true,
+      "headers": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "platform",
+        "label": "Requires platform auth"
+      },
+      "visibility": "internal",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "listPlatformEvents",
+      "method": "GET",
+      "path": "/platform/events",
+      "tag": "Platform",
+      "summary": "Return recent domain events or stream them over SSE",
+      "headers": true,
+      "parameters": [
+        {
+          "name": "after",
+          "in": "query",
+          "schema": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        {
+          "name": "limit",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200
+          }
+        }
+      ],
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "platform",
+        "label": "Requires platform auth"
+      },
+      "visibility": "internal",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "pagination": {
+        "style": "cursor",
+        "response": "itemsPageInfo"
+      }
+    },
+    {
+      "sdkName": "getCheckpoint",
+      "method": "GET",
+      "path": "/platform/checkpoints",
+      "tag": "Platform",
+      "summary": "Read a stored consumer replay checkpoint",
+      "headers": true,
+      "parameters": [
+        {
+          "name": "consumerId",
+          "in": "query",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "platform",
+        "label": "Requires platform auth"
+      },
+      "visibility": "internal",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "saveCheckpoint",
+      "method": "POST",
+      "path": "/platform/checkpoints",
+      "tag": "Platform",
+      "summary": "Store or update a consumer replay checkpoint",
+      "requestBody": true,
+      "headers": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "platform",
+        "label": "Requires platform auth"
+      },
+      "visibility": "internal",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "listRoles",
+      "method": "GET",
+      "path": "/platform/roles",
+      "tag": "Platform",
+      "summary": "List role grants for users and services",
+      "headers": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "platform",
+        "label": "Requires platform auth"
+      },
+      "visibility": "internal",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "createRole",
+      "method": "POST",
+      "path": "/platform/roles",
+      "tag": "Platform",
+      "summary": "Create a role grant",
+      "requestBody": true,
+      "headers": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "platform",
+        "label": "Requires platform auth"
+      },
+      "visibility": "internal",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "deleteRole",
+      "method": "DELETE",
+      "path": "/platform/roles",
+      "tag": "Platform",
+      "summary": "Delete a role grant",
+      "requestBody": true,
+      "headers": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "platform",
+        "label": "Requires platform auth"
+      },
+      "visibility": "internal",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "listServiceKeys",
+      "method": "GET",
+      "path": "/platform/service-keys",
+      "tag": "Platform",
+      "summary": "Return configured service key metadata",
+      "headers": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "platform",
+        "label": "Requires platform auth"
+      },
+      "visibility": "internal",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "createServiceKey",
+      "method": "POST",
+      "path": "/platform/service-keys",
+      "tag": "Platform",
+      "summary": "Create a persistent service key",
+      "requestBody": true,
+      "headers": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "platform",
+        "label": "Requires platform auth"
+      },
+      "visibility": "internal",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "rotateServiceKey",
+      "method": "PUT",
+      "path": "/platform/service-keys",
+      "tag": "Platform",
+      "summary": "Rotate a persistent service key",
+      "requestBody": true,
+      "headers": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "platform",
+        "label": "Requires platform auth"
+      },
+      "visibility": "internal",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "revokeServiceKey",
+      "method": "DELETE",
+      "path": "/platform/service-keys",
+      "tag": "Platform",
+      "summary": "Revoke a persistent service key",
+      "requestBody": true,
+      "headers": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "platform",
+        "label": "Requires platform auth"
+      },
+      "visibility": "internal",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "listJobs",
+      "method": "GET",
+      "path": "/platform/jobs",
+      "tag": "Platform",
+      "summary": "Return queued background jobs and retry state",
+      "headers": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "platform",
+        "label": "Requires platform auth"
+      },
+      "visibility": "internal",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "manageJob",
+      "method": "PUT",
+      "path": "/platform/jobs",
+      "tag": "Platform",
+      "summary": "Retry or delete a queued background job",
+      "requestBody": true,
+      "headers": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "platform",
+        "label": "Requires platform auth"
+      },
+      "visibility": "internal",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "incrementalSync",
+      "method": "GET",
+      "path": "/platform/sync",
+      "tag": "Platform",
+      "summary": "Return incremental sync data for supporting apps",
+      "headers": true,
+      "parameters": [
+        {
+          "name": "since",
+          "in": "query",
+          "schema": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        {
+          "name": "limit",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200
+          }
+        }
+      ],
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "platform",
+        "label": "Requires platform auth"
+      },
+      "visibility": "internal",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "getSearchAdmin",
+      "method": "GET",
+      "path": "/platform/search",
+      "tag": "Platform",
+      "summary": "Return search synonyms, tuning state, or indexed documents",
+      "headers": true,
+      "parameters": [
+        {
+          "name": "mode",
+          "in": "query",
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "entityType",
+          "in": "query",
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "entityId",
+          "in": "query",
+          "schema": {
+            "type": "integer"
+          }
+        },
+        {
+          "name": "limit",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200
+          }
+        }
+      ],
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "platform",
+        "label": "Requires platform auth"
+      },
+      "visibility": "internal",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "createSearchAdminAction",
+      "method": "POST",
+      "path": "/platform/search",
+      "tag": "Platform",
+      "summary": "Create search synonyms or queue a reindex",
+      "requestBody": true,
+      "headers": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "platform",
+        "label": "Requires platform auth"
+      },
+      "visibility": "internal",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "updateSearchSettings",
+      "method": "PUT",
+      "path": "/platform/search",
+      "tag": "Platform",
+      "summary": "Update search tuning weights",
+      "requestBody": true,
+      "headers": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "platform",
+        "label": "Requires platform auth"
+      },
+      "visibility": "internal",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "deleteSearchSynonym",
+      "method": "DELETE",
+      "path": "/platform/search",
+      "tag": "Platform",
+      "summary": "Delete a search synonym",
+      "requestBody": true,
+      "headers": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "platform",
+        "label": "Requires platform auth"
+      },
+      "visibility": "internal",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "exportTenantSnapshot",
+      "method": "GET",
+      "path": "/platform/export",
+      "tag": "Platform",
+      "summary": "Export a tenant content snapshot",
+      "headers": true,
+      "parameters": [
+        {
+          "name": "includeSecrets",
+          "in": "query",
+          "schema": {
+            "type": "boolean"
+          }
+        }
+      ],
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "platform",
+        "label": "Requires platform auth"
+      },
+      "visibility": "internal",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "importTenantSnapshot",
+      "method": "POST",
+      "path": "/platform/import",
+      "tag": "Platform",
+      "summary": "Validate or import a tenant content snapshot",
+      "requestBody": true,
+      "headers": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "platform",
+        "label": "Requires platform auth"
+      },
+      "visibility": "internal",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "restoreTenantResource",
+      "method": "POST",
+      "path": "/platform/restore",
+      "tag": "Platform",
+      "summary": "Restore a soft-deleted tenant resource",
+      "requestBody": true,
+      "headers": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "platform",
+        "label": "Requires platform auth"
+      },
+      "visibility": "internal",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "getModerationDashboard",
+      "method": "GET",
+      "path": "/platform/moderation",
+      "tag": "Moderation",
+      "summary": "Return moderation dashboard counts, reports, and federation health",
+      "headers": true,
+      "parameters": [
+        {
+          "name": "limit",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          }
+        }
+      ],
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "platform",
+        "label": "Requires platform auth"
+      },
+      "visibility": "internal",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "getContentReview",
+      "method": "GET",
+      "path": "/platform/content-review",
+      "tag": "Moderation",
+      "summary": "Return content review settings and pending posts",
+      "headers": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "platform",
+        "label": "Requires platform auth"
+      },
+      "visibility": "internal",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "updateContentReview",
+      "method": "PUT",
+      "path": "/platform/content-review",
+      "tag": "Moderation",
+      "summary": "Update content review settings or approve/reject a pending post",
+      "requestBody": true,
+      "headers": true,
+      "requestExample": {
+        "requirePostReview": true,
+        "reviewFirstPostsOnly": true
+      },
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "platform",
+        "label": "Requires platform auth"
+      },
+      "visibility": "internal",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "getReports",
+      "method": "GET",
+      "path": "/platform/reports",
+      "tag": "Moderation",
+      "summary": "Return the full moderation report queue",
+      "headers": true,
+      "parameters": [
+        {
+          "name": "status",
+          "in": "query",
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "limit",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          }
+        }
+      ],
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "platform",
+        "label": "Requires platform auth"
+      },
+      "visibility": "internal",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "pagination": {
+        "style": "cursor",
+        "response": "itemsPageInfo"
+      }
+    },
+    {
+      "sdkName": "updateReport",
+      "method": "PUT",
+      "path": "/platform/reports",
+      "tag": "Moderation",
+      "summary": "Update report queue status, priority, assignment, or resolution",
+      "requestBody": true,
+      "headers": true,
+      "parameters": [
+        {
+          "name": "id",
+          "in": "query",
+          "required": true,
+          "schema": {
+            "type": "integer"
+          }
+        }
+      ],
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "platform",
+        "label": "Requires platform auth"
+      },
+      "visibility": "internal",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      },
+      "pagination": {
+        "style": "cursor",
+        "response": "itemsPageInfo"
+      }
+    },
+    {
+      "sdkName": "addReportNote",
+      "method": "POST",
+      "path": "/platform/reports/notes",
+      "tag": "Moderation",
+      "summary": "Add an internal note to a report",
+      "requestBody": true,
+      "headers": true,
+      "parameters": [
+        {
+          "name": "id",
+          "in": "query",
+          "required": true,
+          "schema": {
+            "type": "integer"
+          }
+        }
+      ],
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "platform",
+        "label": "Requires platform auth"
+      },
+      "visibility": "internal",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "getFederationControls",
+      "method": "GET",
+      "path": "/platform/federation",
+      "tag": "Platform",
+      "summary": "Return federation block, allowlist, trust, reputation, preview queue, and delivery state",
+      "headers": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "platform",
+        "label": "Requires platform auth"
+      },
+      "visibility": "internal",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "createFederationControl",
+      "method": "POST",
+      "path": "/platform/federation",
+      "tag": "Platform",
+      "summary": "Update federation trust/reputation, preview decisions, or create a block/allowlist entry",
+      "requestBody": true,
+      "headers": true,
+      "requestExample": {
+        "mode": "moderated"
+      },
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "platform",
+        "label": "Requires platform auth"
+      },
+      "visibility": "internal",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "deleteFederationControl",
+      "method": "DELETE",
+      "path": "/platform/federation",
+      "tag": "Platform",
+      "summary": "Remove a federation block or allowlist entry",
+      "requestBody": true,
+      "headers": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "platform",
+        "label": "Requires platform auth"
+      },
+      "visibility": "internal",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "manageRadio",
+      "method": "PUT",
+      "path": "/platform/radio",
+      "tag": "Platform",
+      "summary": "Moderate the music radio session",
+      "requestBody": true,
+      "headers": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "platform",
+        "label": "Requires platform auth"
+      },
+      "visibility": "internal",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    }
+  ]
+}

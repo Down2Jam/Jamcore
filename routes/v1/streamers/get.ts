@@ -1,7 +1,7 @@
 import { Router } from "express";
 import rateLimit from "@middleware/rateLimit";
-import logger from "@helper/logger";
-import db from "@helper/db";
+import { asyncHandler } from "../../../middleware/asyncHandler.js";
+import { listFeaturedStreamers } from "@features/streamers";
 
 const router = Router();
 
@@ -11,16 +11,10 @@ const router = Router();
 router.get(
   "/",
   rateLimit(),
-
-  async (_req, res) => {
-    try {
-      const featuredStreamers = await db.featuredStreamer.findMany();
-      res.json({ message: "Fetched streamers", data: featuredStreamers });
-    } catch (error) {
-      logger.error("Error fetching featured streamers:", error);
-      res.status(500).json({ message: "Internal Server Error" });
-    }
-  }
+  asyncHandler(async (_req, res) => {
+    const featuredStreamers = await listFeaturedStreamers();
+    res.json({ message: "Fetched streamers", data: featuredStreamers });
+  }),
 );
 
 export default router;

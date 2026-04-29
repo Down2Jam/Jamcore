@@ -1,54 +1,36 @@
 import express from "express";
-import authUser from "../../../middleware/authUser";
-import getUser from "../../../middleware/getUser";
-import rateLimit from "@middleware/rateLimit";
-import db from "@helper/db";
-import logger from "@helper/logger";
-import { body } from "express-validator";
-import getLeaderboard from "@middleware/getLeaderboard";
 
-var router = express.Router();
+import authUser from "../../../middleware/authUser";
+import getUser from "../../../loaders/getUser.js";
+import rateLimit from "@middleware/rateLimit";
+import getLeaderboard from "@loaders/getLeaderboard";
+import { asyncHandler } from "../../../middleware/asyncHandler.js";
+import { createScore, createScoreSchema } from "@features/scores";
+import { requireLoadedLeaderboard, requireRequestUser } from "@lib/locals";
+import { parseBody } from "../../../lib/request.js";
+
+const router = express.Router();
 
 router.post(
   "/",
   rateLimit(),
-
-  body("score").isNumeric().withMessage({
-    message: "Please enter a valid score",
-  }),
-  body("evidenceUrl").isString().withMessage({
-    message: "Please enter a valid evidence url",
-  }),
-
   authUser,
   getUser,
   getLeaderboard,
+  asyncHandler(async (req, res) => {
+    const input = parseBody(req, createScoreSchema);
+    const actor = requireRequestUser(res);
+    const leaderboard = requireLoadedLeaderboard(res);
 
-  async (req, res) => {
-    const { score, evidence } = req.body;
+    await createScore({
+      input,
+      actor,
+      leaderboard,
+    });
 
-    try {
-      await db.score.create({
-        data: {
-          evidence,
-          data:
-            score *
-            10 **
-              (res.locals.leaderboard.type == "SCORE" ||
-              res.locals.leaderboard.type == "GOLF"
-                ? res.locals.leaderboard.decimalPlaces
-                : 0),
-          userId: res.locals.user.id,
-          leaderboardId: res.locals.leaderboard.id,
-        },
-      });
-
-      res.status(200).send({ message: "Score added" });
-    } catch (error) {
-      logger.error("Failed to add score: ", error);
-      res.status(500).send({ message: "Failed to add score" });
-    }
-  }
+    res.status(200).send({ message: "Score added" });
+  }),
 );
 
 export default router;
+

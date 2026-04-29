@@ -1,13 +1,12 @@
 import { Router } from "express";
 import rateLimit from "@middleware/rateLimit";
-import path from "path";
-import process from "process";
-
+import { asyncHandler } from "@middleware/asyncHandler";
+import {
+  assetFilenameParamsSchema,
+  getStoredAssetByFilename,
+} from "@features/uploads";
+import { parseParams } from "@lib/request";
 const router = Router();
-import { existsSync } from "fs";
-import { GetS3File } from "@helper/s3";
-import mime from "mime-types";
-const SAFE_IMAGE_FILE = /^[A-Za-z0-9._-]+\.(png|jpe?g|gif|webp)$/i;
 
 /**
  * Route to get an image
@@ -15,43 +14,21 @@ const SAFE_IMAGE_FILE = /^[A-Za-z0-9._-]+\.(png|jpe?g|gif|webp)$/i;
 router.get(
   "/:filename",
   rateLimit(9999),
+  asyncHandler(async (req, res) => {
+    const { filename } = parseParams(req, assetFilenameParamsSchema);
+    const image = await getStoredAssetByFilename({
+      folder: "images",
+      filename,
+    });
 
-  async (req, res) => {
-    const { filename } = req.params;
-    if (!SAFE_IMAGE_FILE.test(filename)) {
-      return res.status(400).send("Invalid filename");
-    }
-
-    const imagePath = path.join(
-      process.cwd(),
-      "public",
-      "images",
-      `${filename}`
-    );
-
-    if (existsSync(imagePath)) {
-      res.sendFile(imagePath, (err) => {
-        if (err) {
-          res.status(404).send("Image not found");
-        }
-      });
+    if (image.kind === "local") {
+      res.sendFile(image.path);
       return;
     }
 
-    try {
-      const imageBuffer = await GetS3File("images", filename);
-      if (imageBuffer) {
-        const contentType = mime.lookup(filename) || "application/octet-stream";
-        res.setHeader("Content-Type", contentType);
-        res.send(imageBuffer);
-        return;
-      }
-    } catch (err) {
-      console.error("Error getting image from S3:", err);
-    }
-
-    return res.status(404).send("Image not found");
-  }
+    res.setHeader("Content-Type", image.contentType);
+    res.send(image.buffer);
+  }),
 );
 
 export default router;

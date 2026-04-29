@@ -1,44 +1,33 @@
-import express from "express";
-import authUser from "../../../middleware/authUser";
-import getUser from "../../../middleware/getUser";
-import db from "../../../helper/db";
+import { Router } from "express";
 
-var router = express.Router();
+import authUser from "../../../middleware/authUser.js";
+import getUser from "../../../loaders/getUser.js";
+import { asyncHandler } from "../../../middleware/asyncHandler.js";
+import {
+  achievementConnectionSchema,
+  connectAchievementToUser,
+} from "@features/achievements";
+import { requireRequestUser } from "@lib/locals";
+import { parseBody } from "../../../lib/request.js";
+
+const router = Router();
 
 router.post(
   "/",
-
   authUser,
   getUser,
+  asyncHandler(async (req, res) => {
+    const { achievementId } = parseBody(req, achievementConnectionSchema);
+    const user = requireRequestUser(res);
 
-  async function (req, res) {
-    const { achievementId } = req.body;
-
-    const achievement = await db.gamePageAchievement.findFirst({
-      where: {
-        id: achievementId,
-      },
-    });
-
-    if (!achievement) {
-      res.status(404);
-      res.send({ message: "No achievement exists with that id" });
-      return;
-    }
-
-    await db.gamePageAchievement.update({
-      where: {
-        id: achievementId,
-      },
-      data: {
-        users: {
-          connect: { id: res.locals.user.id },
-        },
-      },
+    await connectAchievementToUser({
+      achievementId,
+      userId: user.id,
+      tenantId: res.locals.tenantId,
     });
 
     res.send({ message: "Achievement connection created" });
-  }
+  }),
 );
 
 export default router;

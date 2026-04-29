@@ -1,23 +1,30 @@
 import { Router } from "express";
-import rateLimit from "@middleware/rateLimit";
-import db from "@helper/db";
+
+import assertTargetTeamHasNotInvitedTargetUser from "@guards/assertTargetTeamHasNotInvitedTargetUser";
+import assertTargetUserIsNotInTargetTeam from "@guards/assertTargetUserIsNotInTargetTeam";
+import getTargetTeam from "@loaders/getTargetTeam";
+import getTargetUser from "@loaders/getTargetUser";
+import assertUserTargetTeamOwner from "@guards/assertUserModOrUserTargetTeamOwner";
+import { asyncHandler } from "@middleware/asyncHandler";
 import authUser from "@middleware/authUser";
-import getUser from "@middleware/getUser";
-import getTargetTeam from "@middleware/getTargetTeam";
-import assertUserTargetTeamOwner from "@middleware/assertUserModOrUserTargetTeamOwner";
-import getTargetUser from "@middleware/getTargetUser";
-import assertTargetTeamHasNotInvitedTargetUser from "@middleware/assertTargetTeamHasNotInvitedTargetUser";
-import assertTargetUserIsNotInTargetTeam from "@middleware/assertTargetUserIsNotInTargetTeam";
+import getUser from "@loaders/getUser";
+import rateLimit from "@middleware/rateLimit";
+import {
+  createTeamInvite,
+  teamMessageSchema,
+} from "@features/teams";
+import {
+  requireRequestUser,
+  requireTargetTeam,
+  requireTargetUser,
+} from "@lib/locals";
+import { parseBody } from "../../../lib/request.js";
 
 const router = Router();
 
-/**
- * Route to create an invite to a team.
- */
 router.post(
   "/",
   rateLimit(),
-
   authUser,
   getUser,
   getTargetTeam,
@@ -25,40 +32,22 @@ router.post(
   getTargetUser,
   assertTargetTeamHasNotInvitedTargetUser,
   assertTargetUserIsNotInTargetTeam,
+  asyncHandler(async (req, res) => {
+    const { content } = parseBody(req, teamMessageSchema);
+    const user = requireRequestUser(res);
+    const targetTeam = requireTargetTeam(res);
+    const targetUser = requireTargetUser(res);
 
-  async (req, res) => {
-    const { content } = req.body;
-
-    if (
-      res.locals.targetTeam.game &&
-      res.locals.targetTeam.game.category == "ODA"
-    ) {
-      res.status(401).send({ message: "Your team is a part of O.D.A" });
-      return;
-    }
-
-    const invite = await db.teamInvite.create({
-      data: {
-        userId: res.locals.targetUser.id,
-        teamId: res.locals.targetTeam.id,
-        content: content ? content : null,
-      },
-      include: {
-        user: true,
-      },
-    });
-
-    await db.notification.create({
-      data: {
-        teamInviteId: invite.id,
-        recipientId: res.locals.targetUser.id,
-        actorId: res.locals.user.id,
-        type: "TEAM_INVITE",
-      },
+    const invite = await createTeamInvite({
+      actor: user,
+      team: targetTeam,
+      targetUser,
+      content,
     });
 
     res.send({ message: "Invite created", data: invite });
-  }
+  }),
 );
 
 export default router;
+
