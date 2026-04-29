@@ -3,9 +3,9 @@ import { GameCategory, PageVersion } from "@prisma/client";
 import db from "../../infra/db.js";
 import { materializeGamePage } from "../games/page.helpers.js";
 import {
-  ODA_GAME_CATEGORY,
   OVERALL_RATING_CATEGORY_NAME,
   REGULAR_GAME_CATEGORY,
+  isAllowedJamRater,
 } from "../games/policies.js";
 
 type ResultCategory = {
@@ -47,6 +47,25 @@ function ratingBelongsToResultVersion(
   return version === PageVersion.POST_JAM
     ? ratingVersion === PageVersion.JAM || ratingVersion === PageVersion.POST_JAM
     : ratingVersion === version;
+}
+
+function isAllowedResultRater(
+  rating: {
+    user: {
+      teams: Array<{
+        game: {
+          published: boolean;
+          jamId?: number | null;
+          category?: GameCategory | null;
+        } | null;
+      }>;
+    };
+  },
+  jamId: number,
+) {
+  return rating.user.teams.some((team) => {
+    return isAllowedJamRater(team.game, jamId);
+  });
 }
 
 function gameSortCategoryName(sort?: string) {
@@ -210,6 +229,8 @@ export async function loadGameResults({
                   game: {
                     select: {
                       published: true,
+                      jamId: true,
+                      category: true,
                     },
                   },
                 },
@@ -268,7 +289,7 @@ export async function loadGameResults({
         const categoryRatings = filteredRatings.filter(
           (rating) =>
             rating.categoryId === ratingCategory.id &&
-            rating.user.teams.filter((team) => team.game?.published).length > 0,
+            isAllowedResultRater(rating, game.jamId),
         );
 
         const averageScore =
