@@ -56,6 +56,12 @@ export const radioEmoteSchema = z.object({
   y: z.coerce.number().min(0).max(1).optional(),
 });
 
+export const radioDurationSchema = z.object({
+  trackId: z.coerce.number().int().positive(),
+  station: radioStationSchema.optional().default("all"),
+  durationSeconds: z.coerce.number().min(5).max(60 * 60 * 4),
+});
+
 export const radioAdminActionSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("skip") }),
   z.object({ action: z.literal("regenerate-options") }),
@@ -461,6 +467,41 @@ export async function sendRadioEmote({
   };
   broadcastRadioEvent(radioTenantKey(normalizedTenantId, station), { type: "emote", payload: emote });
   return emote;
+}
+
+export async function updateRadioTrackDuration({
+  tenantId,
+  input,
+}: {
+  tenantId?: string | null;
+  input: z.infer<typeof radioDurationSchema>;
+}) {
+  const normalizedTenantId = resolvedTenantId(tenantId);
+  const station = input.station;
+  const sessionTenantId = radioTenantKey(normalizedTenantId, station);
+  const session = await ensureRadioSession(normalizedTenantId, station);
+  if (session.currentTrackId !== input.trackId) {
+    return getRadioState({ tenantId: normalizedTenantId, station });
+  }
+
+  const durationSeconds = Math.max(5, Math.ceil(input.durationSeconds));
+  if (Math.abs(session.durationSeconds - durationSeconds) <= 1) {
+    return presentRadioState(session, null);
+  }
+
+  await saveSession({
+    tenantId: sessionTenantId,
+    durationSeconds,
+  });
+
+  const startedAtMs = session.startedAt?.getTime() ?? 0;
+  if (startedAtMs > 0 && Date.now() >= startedAtMs + durationSeconds * 1000) {
+    await advanceRadioIfNeeded(normalizedTenantId, false, station);
+  }
+
+  const state = await getRadioState({ tenantId: normalizedTenantId, station });
+  broadcastRadioEvent(sessionTenantId, { type: "state", payload: state });
+  return state;
 }
 
 export async function advanceRadioIfNeeded(

@@ -11,11 +11,13 @@ import { parseBody } from "../../lib/request.js";
 import {
   addRadioClient,
   getRadioState,
+  radioDurationSchema,
   radioEmoteSchema,
   radioVoteSchema,
   resolveRadioStation,
   saveRadioVote,
   sendRadioEmote,
+  updateRadioTrackDuration,
 } from "./index.js";
 
 export function createRadioRouter() {
@@ -57,6 +59,19 @@ export function createRadioRouter() {
       const state = await getRadioState({ tenantId: baseTenantId, station });
       res.write(`event: state\n`);
       res.write(`data: ${JSON.stringify(state)}\n\n`);
+    }),
+  );
+
+  router.post(
+    "/duration",
+    rateLimit(60, 60_000),
+    asyncHandler(async (req, res) => {
+      const input = parseBody(req, radioDurationSchema);
+      const state = await updateRadioTrackDuration({
+        tenantId: res.locals.tenantId,
+        input,
+      });
+      res.json(state);
     }),
   );
 
