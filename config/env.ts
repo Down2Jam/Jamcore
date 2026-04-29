@@ -29,20 +29,29 @@ for (const [key, value] of Object.entries(process.env)) {
   }
 }
 
+const optionalString = (schema: z.ZodString) =>
+  z.preprocess(
+    (value) =>
+      typeof value === "string" && value.trim().length === 0
+        ? undefined
+        : value,
+    schema.optional(),
+  );
+
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().int().positive().default(3005),
   FRONT_DEV_PORT: z.coerce.number().int().positive().default(3000),
-  CLIENT_ORIGIN: z.string().url().optional(),
-  FEDERATION_ORIGIN: z.string().url().optional(),
-  APP_CONFIG_PATH: z.string().optional(),
+  CLIENT_ORIGIN: optionalString(z.string().url()),
+  FEDERATION_ORIGIN: optionalString(z.string().url()),
+  APP_CONFIG_PATH: optionalString(z.string()),
   FEATURED_STREAMERS_CRON: z.string().default("*/5 * * * *"),
   CACHE_PROVIDER: z.enum(["memory", "redis"]).default("memory"),
   RATE_LIMIT_PROVIDER: z.enum(["memory", "redis"]).default("memory"),
-  REDIS_URL: z.string().url().optional(),
+  REDIS_URL: optionalString(z.string().url()),
   RUNTIME_ROLE: z.enum(["api", "worker", "all"]).default("all"),
-  SERVICE_API_KEYS: z.string().optional(),
-  TOKEN_SECRET: z.string().min(1).optional(),
+  SERVICE_API_KEYS: optionalString(z.string()),
+  TOKEN_SECRET: optionalString(z.string().min(1)),
 });
 
 const parsed = envSchema.parse(process.env);
