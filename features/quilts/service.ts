@@ -100,6 +100,18 @@ function scoreSubmission(submission: { votes: Array<{ value: number }> }) {
   return submission.votes.reduce((total, vote) => total + vote.value, 0);
 }
 
+function canonicalPixels(pixels: QuiltPixel[]) {
+  return JSON.stringify(
+    pixels
+      .map((pixel) => ({
+        x: pixel.x,
+        y: pixel.y,
+        color: pixel.color,
+      }))
+      .sort((a, b) => a.y - b.y || a.x - b.x),
+  );
+}
+
 function serializeSubmission(
   submission: QuiltSubmissionWithRelations,
   viewerId?: number,
@@ -303,19 +315,6 @@ export async function submitQuiltPixels({
   if (quilt.endsAt.getTime() <= Date.now()) {
     throw new BadRequestError("This quilt has ended.");
   }
-  const existingPending = await db.quiltSubmission.findFirst({
-    where: {
-      quiltId: quilt.id,
-      authorId: actor.id,
-      status: QuiltSubmissionStatus.PENDING,
-    },
-    select: { id: true },
-  });
-  if (existingPending) {
-    throw new BadRequestError(
-      "You already have a pending quilt change. Edit it instead of submitting another one.",
-    );
-  }
   const unique = new Map<string, QuiltPixel>();
   for (const pixel of input.pixels) {
     if (pixel.x >= quilt.width || pixel.y >= quilt.height) {
@@ -323,12 +322,32 @@ export async function submitQuiltPixels({
     }
     unique.set(`${pixel.x}:${pixel.y}`, pixel);
   }
+
+  const normalizedPixels = Array.from(unique.values());
+  const existingPending = await db.quiltSubmission.findMany({
+    where: {
+      quiltId: quilt.id,
+      authorId: actor.id,
+      status: QuiltSubmissionStatus.PENDING,
+    },
+    select: { pixels: true },
+  });
+  const normalized = canonicalPixels(normalizedPixels);
+  if (
+    existingPending.some(
+      (submission) => canonicalPixels(parsePixels(submission.pixels)) === normalized,
+    )
+  ) {
+    throw new BadRequestError(
+      "You already submitted this quilt change. Edit the existing submission to update it.",
+    );
+  }
   const now = new Date();
   const submission = await db.quiltSubmission.create({
     data: {
       quiltId: quilt.id,
       authorId: actor.id,
-      pixels: Array.from(unique.values()),
+      pixels: normalizedPixels,
       resolvesAt: new Date(now.getTime() + REVIEW_WINDOW_MS),
     },
   });
