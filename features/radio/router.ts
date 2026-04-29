@@ -47,8 +47,13 @@ export function createRadioRouter() {
       res.setHeader("Content-Type", "text/event-stream");
       res.setHeader("Cache-Control", "no-cache, no-transform");
       res.setHeader("Connection", "keep-alive");
+      res.setHeader("X-Accel-Buffering", "no");
       res.flushHeaders?.();
       addRadioClient(tenantId, res);
+      const heartbeat = setInterval(() => {
+        res.write(": heartbeat\n\n");
+      }, 25_000);
+      res.on("close", () => clearInterval(heartbeat));
       const state = await getRadioState({ tenantId: baseTenantId, station });
       res.write(`event: state\n`);
       res.write(`data: ${JSON.stringify(state)}\n\n`);

@@ -369,6 +369,16 @@ export async function getRadioState({
 }) {
   const normalizedTenantId = resolvedTenantId(tenantId);
   const session = await ensureRadioSession(normalizedTenantId, station);
+  const startedAtMs = session.startedAt?.getTime() ?? 0;
+  if (
+    session.currentTrackId &&
+    startedAtMs > 0 &&
+    Date.now() >= startedAtMs + session.durationSeconds * 1000
+  ) {
+    await advanceRadioIfNeeded(normalizedTenantId, false, station);
+    const advancedSession = await ensureRadioSession(normalizedTenantId, station);
+    return presentRadioState(advancedSession, actor);
+  }
   return presentRadioState(session, actor);
 }
 
