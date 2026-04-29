@@ -40,6 +40,56 @@ function ratingBelongsToScoreVersion(rating: RatingCategoryRef, version: PageVer
   return ratingVersion === version;
 }
 
+function categoryScore(
+  game: { id: number; categoryAverages: CategoryAverage[] },
+  categoryId: number,
+  categoryName?: string,
+) {
+  const categoryAverage = game.categoryAverages.find((avg) =>
+    categoryId >= 0
+      ? avg.categoryId === categoryId
+      : avg.categoryName === categoryName,
+  );
+  return categoryAverage?.averageScore ?? 0;
+}
+
+function categoryRatingCount(
+  game: { id: number; categoryAverages: CategoryAverage[] },
+  categoryId: number,
+  categoryName?: string,
+) {
+  const categoryAverage = game.categoryAverages.find((avg) =>
+    categoryId >= 0
+      ? avg.categoryId === categoryId
+      : avg.categoryName === categoryName,
+  );
+  return categoryAverage?.ratingCount ?? 0;
+}
+
+function compareGamesByRawCategoryScore(
+  a: { id: number; categoryAverages: CategoryAverage[] },
+  b: { id: number; categoryAverages: CategoryAverage[] },
+  categoryId: number,
+  categoryName?: string,
+) {
+  const scoreDiff =
+    categoryScore(b, categoryId, categoryName) -
+    categoryScore(a, categoryId, categoryName);
+  if (scoreDiff !== 0) return scoreDiff;
+
+  const countDiff =
+    categoryRatingCount(b, categoryId, categoryName) -
+    categoryRatingCount(a, categoryId, categoryName);
+  if (countDiff !== 0) return countDiff;
+
+  const overallDiff =
+    categoryScore(b, -1, OVERALL_RATING_CATEGORY_NAME) -
+    categoryScore(a, -1, OVERALL_RATING_CATEGORY_NAME);
+  if (overallDiff !== 0) return overallDiff;
+
+  return a.id - b.id;
+}
+
 export async function buildVersionScores({
   game,
   version,
@@ -276,19 +326,18 @@ export async function buildVersionScores({
     rankedGames.forEach((entry) => {
       entry.categoryAverages.forEach((category: CategoryAverage) => {
         const rankedGamesInCategory = rankedGames
-          .map((candidate) => {
-            const categoryAvg = candidate.categoryAverages.find(
-              (cat: CategoryAverage) => cat.categoryId === category.categoryId,
-            );
-            return {
-              gameId: candidate.id,
-              score: categoryAvg ? categoryAvg.averageScore : 0,
-            };
-          })
-          .sort((a, b) => b.score - a.score);
+          .slice()
+          .sort((a, b) =>
+            compareGamesByRawCategoryScore(
+              a,
+              b,
+              category.categoryId,
+              category.categoryName,
+            ),
+          );
 
         const gamePlacement = rankedGamesInCategory.findIndex(
-          (rankedGame) => rankedGame.gameId === entry.id,
+          (rankedGame) => rankedGame.id === entry.id,
         );
 
         category.placement = gamePlacement + 1;

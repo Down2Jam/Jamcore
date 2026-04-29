@@ -368,6 +368,14 @@
             "minimum": 1,
             "maximum": 50
           }
+        },
+        {
+          "name": "cursor",
+          "in": "query",
+          "schema": {
+            "type": "string",
+            "format": "date-time"
+          }
         }
       ],
       "auth": {
@@ -509,17 +517,45 @@
       "summary": "Return jam results",
       "parameters": [
         {
-          "name": "jamSlug",
+          "name": "jam",
           "in": "query",
           "schema": {
             "type": "string"
           }
         },
         {
-          "name": "jamId",
+          "name": "category",
           "in": "query",
           "schema": {
-            "type": "integer"
+            "type": "string"
+          }
+        },
+        {
+          "name": "contentType",
+          "in": "query",
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "sort",
+          "in": "query",
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "preview",
+          "in": "query",
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "recap",
+          "in": "query",
+          "schema": {
+            "type": "string"
           }
         }
       ],
@@ -2161,6 +2197,20 @@
       "path": "/radio",
       "tag": "Music",
       "summary": "Return synchronized music radio state",
+      "parameters": [
+        {
+          "name": "station",
+          "in": "query",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "all",
+              "safe"
+            ],
+            "default": "all"
+          }
+        }
+      ],
       "auth": {
         "required": false,
         "optional": true,
@@ -2180,6 +2230,10 @@
       "tag": "Music",
       "summary": "Vote for the next music radio track",
       "requestBody": true,
+      "requestExample": {
+        "trackId": 123,
+        "station": "all"
+      },
       "auth": {
         "required": true,
         "optional": false,
@@ -2197,12 +2251,42 @@
       }
     },
     {
+      "sdkName": "reportRadioTrackDuration",
+      "method": "POST",
+      "path": "/radio/duration",
+      "tag": "Music",
+      "summary": "Report the actual audio duration for the current radio track",
+      "requestBody": true,
+      "requestExample": {
+        "trackId": 123,
+        "durationSeconds": 142.5,
+        "station": "all"
+      },
+      "auth": {
+        "required": false,
+        "optional": false,
+        "kind": "none",
+        "label": "Public"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
       "sdkName": "sendRadioEmote",
       "method": "POST",
       "path": "/radio/emote",
       "tag": "Music",
       "summary": "Send an ephemeral music radio emote",
       "requestBody": true,
+      "requestExample": {
+        "emote": "jam",
+        "station": "all",
+        "x": 0.8,
+        "y": 0.9
+      },
       "auth": {
         "required": true,
         "optional": false,
@@ -2225,6 +2309,20 @@
       "path": "/radio/events",
       "tag": "Music",
       "summary": "Subscribe to music radio server-sent events",
+      "parameters": [
+        {
+          "name": "station",
+          "in": "query",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "all",
+              "safe"
+            ],
+            "default": "all"
+          }
+        }
+      ],
       "auth": {
         "required": false,
         "optional": true,

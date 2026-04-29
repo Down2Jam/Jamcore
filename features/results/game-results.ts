@@ -69,6 +69,56 @@ function gameSortCategoryName(sort?: string) {
   }
 }
 
+function categoryScore(
+  game: ResultGame,
+  categoryId: number,
+  categoryName?: string,
+) {
+  const categoryAverage = game.categoryAverages.find((avg) =>
+    categoryId >= 0
+      ? avg.categoryId === categoryId
+      : avg.categoryName === categoryName,
+  );
+  return categoryAverage?.averageScore ?? 0;
+}
+
+function categoryRatingCount(
+  game: ResultGame,
+  categoryId: number,
+  categoryName?: string,
+) {
+  const categoryAverage = game.categoryAverages.find((avg) =>
+    categoryId >= 0
+      ? avg.categoryId === categoryId
+      : avg.categoryName === categoryName,
+  );
+  return categoryAverage?.ratingCount ?? 0;
+}
+
+function compareGamesByRawCategoryScore(
+  a: ResultGame,
+  b: ResultGame,
+  categoryId: number,
+  categoryName?: string,
+) {
+  const scoreDiff =
+    categoryScore(b, categoryId, categoryName) -
+    categoryScore(a, categoryId, categoryName);
+  if (scoreDiff !== 0) return scoreDiff;
+
+  const countDiff =
+    categoryRatingCount(b, categoryId, categoryName) -
+    categoryRatingCount(a, categoryId, categoryName);
+  if (countDiff !== 0) return countDiff;
+
+  const overallDiff =
+    categoryScore(b, -1, OVERALL_RATING_CATEGORY_NAME) -
+    categoryScore(a, -1, OVERALL_RATING_CATEGORY_NAME);
+  if (overallDiff !== 0) return overallDiff;
+
+  return a.id - b.id;
+}
+
 export async function loadGameResults({
   jamId,
   category,
@@ -274,20 +324,18 @@ export async function loadGameResults({
   qualifiedGames.forEach((game) => {
     game.categoryAverages.forEach((ratingCategory) => {
       const rankedGamesInCategory = qualifiedGames
-        .map((candidate) => {
-          const categoryAverage = candidate.categoryAverages.find(
-            (cat: ResultGame["categoryAverages"][number]) =>
-              cat.categoryId === ratingCategory.categoryId,
-          );
-          return {
-            gameId: candidate.id,
-            score: categoryAverage ? categoryAverage.averageScore : 0,
-          };
-        })
-        .sort((a, b) => b.score - a.score);
+        .slice()
+        .sort((a, b) =>
+          compareGamesByRawCategoryScore(
+            a,
+            b,
+            ratingCategory.categoryId,
+            ratingCategory.categoryName,
+          ),
+        );
 
       const gamePlacement = rankedGamesInCategory.findIndex(
-        (rankedGame) => rankedGame.gameId === game.id,
+        (rankedGame) => rankedGame.id === game.id,
       );
 
       ratingCategory.placement = gamePlacement + 1;
@@ -303,15 +351,15 @@ export async function loadGameResults({
   });
 
   qualifiedGames.sort((a, b) => {
-    const aOverall =
-      a.categoryAverages.find((avg) => avg.categoryName === sortCategoryName)
-        ?.averageScore || 0;
-
-    const bOverall =
-      b.categoryAverages.find((avg) => avg.categoryName === sortCategoryName)
-        ?.averageScore || 0;
-
-    return bOverall - aOverall;
+    const sortCategory = a.categoryAverages.find(
+      (avg) => avg.categoryName === sortCategoryName,
+    );
+    return compareGamesByRawCategoryScore(
+      a,
+      b,
+      sortCategory?.categoryId ?? -1,
+      sortCategoryName,
+    );
   });
 
   return qualifiedGames.filter((game) => {

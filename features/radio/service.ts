@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
+import { PageVersion } from "@prisma/client";
 
 import { appConfig } from "../../config/app.js";
 import { filterCoreEntityIdsByTenant } from "../../infra/coreTenantStore.js";
@@ -42,6 +43,18 @@ type RadioEmoteRow = {
   x: number | null;
   y: number | null;
   createdAt: Date;
+};
+
+type RadioTrackCandidate = {
+  id: number;
+  slug: string;
+  gamePage: {
+    version?: PageVersion | null;
+    gameId?: number | null;
+    game: {
+      id: number;
+    };
+  };
 };
 
 export const radioVoteSchema = z.object({
@@ -177,6 +190,8 @@ async function getEligibleTracks(
       composer: { select: { id: true, slug: true, name: true } },
       gamePage: {
         select: {
+          version: true,
+          gameId: true,
           name: true,
           thumbnail: true,
           banner: true,
@@ -202,14 +217,22 @@ async function getEligibleTracks(
       strictIsolation: appConfig.platform.multiTenant.strictIsolation,
     }),
   );
+  const excludedEquivalentKeys = new Set(
+    tracks
+      .filter((track) => excludeIds.includes(track.id))
+      .map((track) => getRadioTrackEquivalentKey(track)),
+  );
   const tenantTracks = tracks.filter(
-    (track) => allowedGameIds.has(track.gamePage.game.id) && !excluded.has(track.id),
+    (track) =>
+      allowedGameIds.has(track.gamePage.game.id) &&
+      !excluded.has(track.id) &&
+      !excludedEquivalentKeys.has(getRadioTrackEquivalentKey(track)),
   );
   if (station === "safe") {
-    return tenantTracks.filter((track) => track.allowBackgroundUse);
+    return preferPostJamRadioTracks(tenantTracks.filter((track) => track.allowBackgroundUse));
   }
   const licensed = tenantTracks.filter((track) => track.allowBackgroundUse || track.allowDownload);
-  return licensed.length >= VOTE_OPTION_COUNT ? licensed : tenantTracks;
+  return preferPostJamRadioTracks(licensed.length >= VOTE_OPTION_COUNT ? licensed : tenantTracks);
 }
 
 function pickRandomTracks<T extends { id: number }>(tracks: T[], count: number) {
@@ -221,6 +244,24 @@ function pickRandomTracks<T extends { id: number }>(tracks: T[], count: number) 
     if (track) picked.push(track);
   }
   return picked;
+}
+
+function getRadioTrackEquivalentKey(track: RadioTrackCandidate) {
+  return `${track.gamePage.gameId ?? track.gamePage.game.id}:${track.slug}`;
+}
+
+function preferPostJamRadioTracks<T extends RadioTrackCandidate>(tracks: T[]) {
+  const tracksByKey = new Map<string, T>();
+
+  tracks.forEach((track) => {
+    const key = getRadioTrackEquivalentKey(track);
+    const existing = tracksByKey.get(key);
+    if (!existing || track.gamePage.version === PageVersion.POST_JAM) {
+      tracksByKey.set(key, track);
+    }
+  });
+
+  return [...tracksByKey.values()];
 }
 
 async function getTrackSummaries(trackIds: number[]) {
@@ -238,6 +279,8 @@ async function getTrackSummaries(trackIds: number[]) {
       composer: { select: { id: true, slug: true, name: true } },
       gamePage: {
         select: {
+          version: true,
+          gameId: true,
           name: true,
           thumbnail: true,
           banner: true,
@@ -253,7 +296,67 @@ async function getTrackSummaries(trackIds: number[]) {
     },
   });
   const byId = new Map(tracks.map((track) => [track.id, track]));
-  return trackIds.map((id) => byId.get(id)).filter(Boolean);
+  return trackIds
+    .map((id) => byId.get(id))
+    .filter((track): track is NonNullable<typeof track> => Boolean(track));
+}
+
+async function repairDuplicateVoteOptions(
+  session: RadioSessionRow,
+  tenantId: string,
+  station: RadioStation,
+) {
+  const optionIds = parseJsonArray(session.voteOptions);
+  if (optionIds.length === 0) return session;
+
+  const optionTracks = await getTrackSummaries(optionIds);
+  const keptTracks: NonNullable<(typeof optionTracks)[number]>[] = [];
+  const keyToIndex = new Map<string, number>();
+
+  optionTracks.forEach((track) => {
+    const key = getRadioTrackEquivalentKey(track);
+    const existingIndex = keyToIndex.get(key);
+    if (existingIndex === undefined) {
+      keyToIndex.set(key, keptTracks.length);
+      keptTracks.push(track);
+      return;
+    }
+
+    const existing = keptTracks[existingIndex];
+    if (
+      existing &&
+      existing.gamePage.version !== PageVersion.POST_JAM &&
+      track.gamePage.version === PageVersion.POST_JAM
+    ) {
+      keptTracks[existingIndex] = track;
+    }
+  });
+
+  const keptIds = keptTracks.map((track) => track.id);
+  const changed =
+    keptIds.length !== optionIds.length ||
+    keptIds.some((id, index) => id !== optionIds[index]);
+  if (!changed) {
+    return session;
+  }
+
+  const excludeIds = [
+    session.currentTrackId,
+    ...parseJsonArray(session.history),
+    ...keptIds,
+  ].filter((id): id is number => typeof id === "number" && Number.isFinite(id));
+  const extraOptions = pickRandomTracks(
+    await getEligibleTracks(tenantId, excludeIds, station),
+    Math.max(0, VOTE_OPTION_COUNT - keptIds.length),
+  ).map((track) => track.id);
+  const voteOptions = [...keptIds, ...extraOptions].slice(0, VOTE_OPTION_COUNT);
+
+  await saveSession({
+    tenantId: session.tenantId,
+    voteRound: randomUUID(),
+    voteOptions,
+  });
+  return (await getSession(session.tenantId)) ?? session;
 }
 
 async function countVotes(tenantId: string, voteRound: string) {
@@ -374,7 +477,8 @@ export async function getRadioState({
   station?: RadioStation;
 }) {
   const normalizedTenantId = resolvedTenantId(tenantId);
-  const session = await ensureRadioSession(normalizedTenantId, station);
+  let session: RadioSessionRow = await ensureRadioSession(normalizedTenantId, station);
+  session = await repairDuplicateVoteOptions(session, normalizedTenantId, station);
   const startedAtMs = session.startedAt?.getTime() ?? 0;
   if (
     session.currentTrackId &&
@@ -399,7 +503,11 @@ export async function saveRadioVote({
 }) {
   const normalizedTenantId = resolvedTenantId(tenantId);
   const station = input.station;
-  const session = await ensureRadioSession(normalizedTenantId, station);
+  const session = await repairDuplicateVoteOptions(
+    await ensureRadioSession(normalizedTenantId, station),
+    normalizedTenantId,
+    station,
+  );
   const options = parseJsonArray(session.voteOptions);
   if (!session.enabled) throw new ForbiddenError("Radio is disabled");
   if (!options.includes(input.trackId)) {
