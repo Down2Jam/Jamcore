@@ -113,6 +113,7 @@ export function createJamcoreClient(config: JamcoreClientConfig = {}) {
     submitQuiltPixels: (quiltSlug: string, body: unknown) => request("POST", `/quilts/${quiltSlug}/submissions`, { body }),
     voteQuiltSubmission: (submissionId: string, body: unknown) => request("POST", `/quilts/submissions/${submissionId}/vote`, { body }),
     updateQuiltSubmission: (submissionId: string, body: unknown) => request("PUT", `/quilts/submissions/${submissionId}`, { body }),
+    acceptQuiltSubmission: (submissionId: string) => request("POST", `/quilts/submissions/${submissionId}/accept`, {  }),
     removeQuiltSubmission: (submissionId: string) => request("DELETE", `/quilts/submissions/${submissionId}`, {  }),
     getRadioState: (query: RequestOptions["query"] = undefined) => request("GET", "/radio", { query }),
     voteRadioTrack: (body: unknown) => request("POST", "/radio/vote", { body }),

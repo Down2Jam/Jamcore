@@ -9,6 +9,7 @@ import { asyncHandler } from "../../middleware/asyncHandler.js";
 import { requireRequestUser } from "../../lib/locals.js";
 import { parseBody, parseParams } from "../../lib/request.js";
 import {
+  acceptQuiltSubmission,
   createQuilt,
   getQuiltDetail,
   listQuilts,
@@ -78,6 +79,23 @@ export function createQuiltsRouter() {
         data: await submitQuiltPixels({
           slug: quiltSlug,
           input,
+          actor: requireRequestUser(res),
+          tenantId: res.locals.tenantId,
+        }),
+      });
+    }),
+  );
+
+  router.post(
+    "/submissions/:submissionId/accept",
+    rateLimit(),
+    authUser,
+    getUser,
+    asyncHandler(async (req, res) => {
+      const { submissionId } = parseParams(req, quiltSubmissionParamsSchema);
+      res.json({
+        data: await acceptQuiltSubmission({
+          submissionId,
           actor: requireRequestUser(res),
           tenantId: res.locals.tenantId,
         }),

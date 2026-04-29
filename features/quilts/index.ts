@@ -1,4 +1,5 @@
 export {
+  acceptQuiltSubmission,
   createQuilt,
   getQuiltDetail,
   listQuilts,

@@ -1,0 +1,1 @@
+ALTER TYPE "QuiltSubmissionStatus" ADD VALUE 'USER_DELETED';

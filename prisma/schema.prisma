@@ -104,6 +104,7 @@ enum QuiltSubmissionStatus {
   ACCEPTED
   REJECTED
   REMOVED
+  USER_DELETED
 }
 
 model TagCategory {

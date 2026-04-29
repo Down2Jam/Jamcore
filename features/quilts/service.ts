@@ -297,6 +297,15 @@ export async function getQuiltDetail({
     removed: submissions
       .filter((submission) => submission.status === QuiltSubmissionStatus.REMOVED)
       .map((submission) => serializeSubmission(submission, actor?.id)),
+    deleted: actor
+      ? submissions
+          .filter(
+            (submission) =>
+              submission.status === QuiltSubmissionStatus.USER_DELETED &&
+              submission.author.id === actor.id,
+          )
+          .map((submission) => serializeSubmission(submission, actor.id))
+      : [],
   };
 }
 
@@ -369,7 +378,12 @@ export async function updateQuiltSubmission({
   const submission = await db.quiltSubmission.findFirst({
     where: {
       id: submissionId,
-      status: QuiltSubmissionStatus.PENDING,
+      status: {
+        in: [
+          QuiltSubmissionStatus.PENDING,
+          QuiltSubmissionStatus.USER_DELETED,
+        ],
+      },
       quilt: quiltTenantWhere(tenantId),
     },
     select: {
@@ -411,8 +425,11 @@ export async function updateQuiltSubmission({
       where: { id: submissionId },
       data: {
         pixels: Array.from(unique.values()),
+        status: QuiltSubmissionStatus.PENDING,
         resolvesAt: new Date(now.getTime() + REVIEW_WINDOW_MS),
         resolvedAt: null,
+        removedAt: null,
+        removedById: null,
         updatedAt: now,
       },
     }),
@@ -471,7 +488,7 @@ export async function voteQuiltSubmission({
   return getQuiltDetail({ slug: submission.quilt.slug, actor, tenantId });
 }
 
-export async function removeQuiltSubmission({
+export async function acceptQuiltSubmission({
   submissionId,
   actor,
   tenantId,
@@ -484,18 +501,64 @@ export async function removeQuiltSubmission({
   const submission = await db.quiltSubmission.findFirst({
     where: {
       id: submissionId,
+      status: QuiltSubmissionStatus.PENDING,
       quilt: quiltTenantWhere(tenantId),
     },
     select: { id: true, quilt: { select: { slug: true } } },
   });
   if (!submission) {
-    throw new NotFoundError("Quilt submission not found.");
+    throw new NotFoundError("Pending quilt submission not found.");
   }
 
   await db.quiltSubmission.update({
     where: { id: submissionId },
     data: {
-      status: QuiltSubmissionStatus.REMOVED,
+      status: QuiltSubmissionStatus.ACCEPTED,
+      resolvedAt: new Date(),
+    },
+  });
+
+  return getQuiltDetail({ slug: submission.quilt.slug, actor, tenantId });
+}
+
+export async function removeQuiltSubmission({
+  submissionId,
+  actor,
+  tenantId,
+}: {
+  submissionId: number;
+  actor: QuiltActor;
+  tenantId?: string | null;
+}) {
+  const submission = await db.quiltSubmission.findFirst({
+    where: {
+      id: submissionId,
+      quilt: quiltTenantWhere(tenantId),
+    },
+    select: {
+      id: true,
+      authorId: true,
+      status: true,
+      quilt: { select: { slug: true } },
+    },
+  });
+  if (!submission) {
+    throw new NotFoundError("Quilt submission not found.");
+  }
+  const isOwnPending =
+    submission.authorId === actor.id &&
+    submission.status === QuiltSubmissionStatus.PENDING;
+  const isModerator = Boolean(actor.admin || actor.mod);
+  if (!isOwnPending && !isModerator) {
+    throw new ForbiddenError("Only moderators can remove quilt submissions.");
+  }
+
+  await db.quiltSubmission.update({
+    where: { id: submissionId },
+    data: {
+      status: isOwnPending
+        ? QuiltSubmissionStatus.USER_DELETED
+        : QuiltSubmissionStatus.REMOVED,
       removedAt: new Date(),
       removedById: actor.id,
     },

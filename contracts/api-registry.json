@@ -2248,7 +2248,7 @@
       "method": "GET",
       "path": "/quilts/{quiltSlug}",
       "tag": "Quilts",
-      "summary": "Return a quilt canvas, history, pending changes, and rejected changes",
+      "summary": "Return a quilt canvas, history, pending changes, rejected changes, and your deleted drafts",
       "parameters": [
         {
           "name": "quiltSlug",
@@ -2359,7 +2359,7 @@
       "method": "PUT",
       "path": "/quilts/submissions/{submissionId}",
       "tag": "Quilts",
-      "summary": "Replace the pixels for your own pending quilt submission",
+      "summary": "Replace the pixels for your own pending or deleted quilt submission",
       "requestBody": true,
       "parameters": [
         {
@@ -2397,11 +2397,11 @@
       }
     },
     {
-      "sdkName": "removeQuiltSubmission",
-      "method": "DELETE",
-      "path": "/quilts/submissions/{submissionId}",
+      "sdkName": "acceptQuiltSubmission",
+      "method": "POST",
+      "path": "/quilts/submissions/{submissionId}/accept",
       "tag": "Quilts",
-      "summary": "Remove an accepted quilt history entry",
+      "summary": "Accept a pending quilt submission immediately",
       "parameters": [
         {
           "name": "submissionId",
@@ -2417,6 +2417,38 @@
         "optional": false,
         "kind": "user",
         "label": "Requires moderator login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "recommended": true
+      }
+    },
+    {
+      "sdkName": "removeQuiltSubmission",
+      "method": "DELETE",
+      "path": "/quilts/submissions/{submissionId}",
+      "tag": "Quilts",
+      "summary": "Remove a pending or accepted quilt submission",
+      "parameters": [
+        {
+          "name": "submissionId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer"
+          }
+        }
+      ],
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires owner login for pending submissions or moderator login"
       },
       "visibility": "public",
       "rateLimit": {
