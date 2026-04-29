@@ -303,6 +303,19 @@ export async function submitQuiltPixels({
   if (quilt.endsAt.getTime() <= Date.now()) {
     throw new BadRequestError("This quilt has ended.");
   }
+  const existingPending = await db.quiltSubmission.findFirst({
+    where: {
+      quiltId: quilt.id,
+      authorId: actor.id,
+      status: QuiltSubmissionStatus.PENDING,
+    },
+    select: { id: true },
+  });
+  if (existingPending) {
+    throw new BadRequestError(
+      "You already have a pending quilt change. Edit it instead of submitting another one.",
+    );
+  }
   const unique = new Map<string, QuiltPixel>();
   for (const pixel of input.pixels) {
     if (pixel.x >= quilt.width || pixel.y >= quilt.height) {
