@@ -14,11 +14,13 @@ import {
   getQuiltDetail,
   listQuilts,
   quiltCreateSchema,
+  quiltResizeSchema,
   quiltSlugParamsSchema,
   quiltSubmissionParamsSchema,
   quiltSubmissionSchema,
   quiltVoteSchema,
   removeQuiltSubmission,
+  resizeQuilt,
   submitQuiltPixels,
   updateQuiltSubmission,
   voteQuiltSubmission,
@@ -77,6 +79,25 @@ export function createQuiltsRouter() {
       const input = parseBody(req, quiltSubmissionSchema);
       res.status(201).json({
         data: await submitQuiltPixels({
+          slug: quiltSlug,
+          input,
+          actor: requireRequestUser(res),
+          tenantId: res.locals.tenantId,
+        }),
+      });
+    }),
+  );
+
+  router.post(
+    "/:quiltSlug/resize",
+    rateLimit(),
+    authUser,
+    getUser,
+    asyncHandler(async (req, res) => {
+      const { quiltSlug } = parseParams(req, quiltSlugParamsSchema);
+      const input = parseBody(req, quiltResizeSchema);
+      res.json({
+        data: await resizeQuilt({
           slug: quiltSlug,
           input,
           actor: requireRequestUser(res),

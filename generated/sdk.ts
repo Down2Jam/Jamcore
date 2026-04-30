@@ -111,6 +111,7 @@ export function createJamcoreClient(config: JamcoreClientConfig = {}) {
     createQuilt: (body: unknown) => request("POST", "/quilts", { body }),
     getQuilt: (quiltSlug: string) => request("GET", `/quilts/${quiltSlug}`, {  }),
     submitQuiltPixels: (quiltSlug: string, body: unknown) => request("POST", `/quilts/${quiltSlug}/submissions`, { body }),
+    resizeQuiltCanvas: (quiltSlug: string, body: unknown) => request("POST", `/quilts/${quiltSlug}/resize`, { body }),
     voteQuiltSubmission: (submissionId: string, body: unknown) => request("POST", `/quilts/submissions/${submissionId}/vote`, { body }),
     updateQuiltSubmission: (submissionId: string, body: unknown) => request("PUT", `/quilts/submissions/${submissionId}`, { body }),
     acceptQuiltSubmission: (submissionId: string) => request("POST", `/quilts/submissions/${submissionId}/accept`, {  }),

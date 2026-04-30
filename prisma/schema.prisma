@@ -107,6 +107,11 @@ enum QuiltSubmissionStatus {
   USER_DELETED
 }
 
+enum QuiltSubmissionKind {
+  PIXELS
+  RESIZE
+}
+
 model TagCategory {
   id        Int      @id @default(autoincrement())
   name      String   @unique
@@ -1308,7 +1313,14 @@ model QuiltSubmission {
   id          Int                    @id @default(autoincrement())
   quiltId     Int                    @map("quilt_id")
   authorId    Int                    @map("author_id")
+  kind        QuiltSubmissionKind    @default(PIXELS)
   pixels      Json
+  canvasWidth Int?                   @map("canvas_width")
+  canvasHeight Int?                  @map("canvas_height")
+  resizeFromWidth Int?               @map("resize_from_width")
+  resizeFromHeight Int?              @map("resize_from_height")
+  resizeOffsetX Int?                 @map("resize_offset_x")
+  resizeOffsetY Int?                 @map("resize_offset_y")
   status      QuiltSubmissionStatus  @default(PENDING)
   resolvesAt  DateTime               @map("resolves_at")
   resolvedAt  DateTime?              @map("resolved_at")

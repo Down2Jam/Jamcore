@@ -1,4 +1,4 @@
-import { QuiltSubmissionStatus } from "@prisma/client";
+import { QuiltSubmissionKind, QuiltSubmissionStatus } from "@prisma/client";
 import { z } from "zod";
 
 import { appConfig } from "../../config/app.js";
@@ -41,6 +41,13 @@ export const quiltVoteSchema = z.object({
   value: z.coerce.number().int().refine((value) => value === 1 || value === -1),
 });
 
+export const quiltResizeSchema = z.object({
+  width: z.coerce.number().int().min(8).max(512),
+  height: z.coerce.number().int().min(8).max(512),
+  offsetX: z.coerce.number().int().min(-512).max(512),
+  offsetY: z.coerce.number().int().min(-512).max(512),
+});
+
 export const quiltSlugParamsSchema = z.object({
   quiltSlug: z.string().trim().min(1),
 });
@@ -61,7 +68,14 @@ type QuiltPixel = z.infer<typeof quiltPixelSchema>;
 
 type QuiltSubmissionWithRelations = {
   id: number;
+  kind: QuiltSubmissionKind;
   pixels: unknown;
+  canvasWidth: number | null;
+  canvasHeight: number | null;
+  resizeFromWidth: number | null;
+  resizeFromHeight: number | null;
+  resizeOffsetX: number | null;
+  resizeOffsetY: number | null;
   status: QuiltSubmissionStatus;
   resolvesAt: Date;
   resolvedAt: Date | null;
@@ -118,7 +132,14 @@ function serializeSubmission(
 ) {
   return {
     id: submission.id,
+    kind: submission.kind,
     pixels: parsePixels(submission.pixels),
+    canvasWidth: submission.canvasWidth,
+    canvasHeight: submission.canvasHeight,
+    resizeFromWidth: submission.resizeFromWidth,
+    resizeFromHeight: submission.resizeFromHeight,
+    resizeOffsetX: submission.resizeOffsetX,
+    resizeOffsetY: submission.resizeOffsetY,
     status: submission.status,
     score: scoreSubmission(submission),
     viewerVote:
@@ -134,16 +155,58 @@ function serializeSubmission(
 function composeCanvas(
   width: number,
   height: number,
-  submissions: Array<{ id: number; pixels: unknown }>,
+  submissions: Array<{
+    id: number;
+    kind?: QuiltSubmissionKind;
+    pixels: unknown;
+    canvasWidth?: number | null;
+    canvasHeight?: number | null;
+    resizeFromWidth?: number | null;
+    resizeFromHeight?: number | null;
+    resizeOffsetX?: number | null;
+    resizeOffsetY?: number | null;
+  }>,
 ) {
-  const stacks = Array.from({ length: width * height }, () => [] as string[]);
+  let activeWidth = width;
+  let activeHeight = height;
+  let stacks = Array.from({ length: activeWidth * activeHeight }, () => [] as string[]);
 
   for (const submission of submissions) {
+    if (submission.kind === QuiltSubmissionKind.RESIZE) {
+      const nextWidth = submission.canvasWidth ?? activeWidth;
+      const nextHeight = submission.canvasHeight ?? activeHeight;
+      const offsetX = submission.resizeOffsetX ?? 0;
+      const offsetY = submission.resizeOffsetY ?? 0;
+      const nextStacks = Array.from(
+        { length: nextWidth * nextHeight },
+        () => [] as string[],
+      );
+      for (let y = 0; y < activeHeight; y++) {
+        for (let x = 0; x < activeWidth; x++) {
+          const nx = x + offsetX;
+          const ny = y + offsetY;
+          if (nx < 0 || ny < 0 || nx >= nextWidth || ny >= nextHeight) {
+            continue;
+          }
+          nextStacks[ny * nextWidth + nx] = [...stacks[y * activeWidth + x]];
+        }
+      }
+      activeWidth = nextWidth;
+      activeHeight = nextHeight;
+      stacks = nextStacks;
+      continue;
+    }
+
     for (const pixel of parsePixels(submission.pixels)) {
-      if (pixel.x < 0 || pixel.x >= width || pixel.y < 0 || pixel.y >= height) {
+      if (
+        pixel.x < 0 ||
+        pixel.x >= activeWidth ||
+        pixel.y < 0 ||
+        pixel.y >= activeHeight
+      ) {
         continue;
       }
-      const index = pixel.y * width + pixel.x;
+      const index = pixel.y * activeWidth + pixel.x;
       if (pixel.color === null) {
         stacks[index].pop();
       } else {
@@ -152,7 +215,39 @@ function composeCanvas(
     }
   }
 
-  return stacks.map((stack) => stack.at(-1) ?? null);
+  const canvas = stacks.map((stack) => stack.at(-1) ?? null);
+  if (activeWidth === width && activeHeight === height) {
+    return canvas;
+  }
+  const normalized = Array.from({ length: width * height }, () => null as string | null);
+  for (let y = 0; y < Math.min(activeHeight, height); y++) {
+    for (let x = 0; x < Math.min(activeWidth, width); x++) {
+      normalized[y * width + x] = canvas[y * activeWidth + x];
+    }
+  }
+  return normalized;
+}
+
+function transformPixelsForResize(
+  pixels: QuiltPixel[],
+  width: number,
+  height: number,
+  offsetX: number,
+  offsetY: number,
+) {
+  return pixels
+    .map((pixel) => ({
+      x: pixel.x + offsetX,
+      y: pixel.y + offsetY,
+      color: pixel.color,
+    }))
+    .filter(
+      (pixel) =>
+        pixel.x >= 0 &&
+        pixel.y >= 0 &&
+        pixel.x < width &&
+        pixel.y < height,
+    );
 }
 
 async function resolveDueSubmissions(quiltId: number) {
@@ -357,6 +452,8 @@ export async function submitQuiltPixels({
       quiltId: quilt.id,
       authorId: actor.id,
       pixels: normalizedPixels,
+      canvasWidth: quilt.width,
+      canvasHeight: quilt.height,
       resolvesAt: new Date(now.getTime() + REVIEW_WINDOW_MS),
     },
   });
@@ -425,6 +522,8 @@ export async function updateQuiltSubmission({
       where: { id: submissionId },
       data: {
         pixels: Array.from(unique.values()),
+        canvasWidth: submission.quilt.width,
+        canvasHeight: submission.quilt.height,
         status: QuiltSubmissionStatus.PENDING,
         resolvesAt: new Date(now.getTime() + REVIEW_WINDOW_MS),
         resolvedAt: null,
@@ -436,6 +535,87 @@ export async function updateQuiltSubmission({
   ]);
 
   return getQuiltDetail({ slug: submission.quilt.slug, actor, tenantId });
+}
+
+export async function resizeQuilt({
+  slug,
+  input,
+  actor,
+  tenantId,
+}: {
+  slug: string;
+  input: z.infer<typeof quiltResizeSchema>;
+  actor: QuiltActor;
+  tenantId?: string | null;
+}) {
+  assertAdmin(actor);
+  const quilt = await getQuiltOrThrow(slug, tenantId);
+  if (
+    input.width === quilt.width &&
+    input.height === quilt.height &&
+    input.offsetX === 0 &&
+    input.offsetY === 0
+  ) {
+    throw new BadRequestError("Canvas size did not change.");
+  }
+
+  const submissions = await db.quiltSubmission.findMany({
+    where: {
+      quiltId: quilt.id,
+      status: {
+        in: [
+          QuiltSubmissionStatus.PENDING,
+          QuiltSubmissionStatus.USER_DELETED,
+        ],
+      },
+    },
+    select: { id: true, pixels: true },
+  });
+
+  await db.$transaction([
+    db.quilt.update({
+      where: { id: quilt.id },
+      data: {
+        width: input.width,
+        height: input.height,
+      },
+    }),
+    db.quiltSubmission.create({
+      data: {
+        quiltId: quilt.id,
+        authorId: actor.id,
+        kind: QuiltSubmissionKind.RESIZE,
+        pixels: [],
+        canvasWidth: input.width,
+        canvasHeight: input.height,
+        resizeFromWidth: quilt.width,
+        resizeFromHeight: quilt.height,
+        resizeOffsetX: input.offsetX,
+        resizeOffsetY: input.offsetY,
+        status: QuiltSubmissionStatus.ACCEPTED,
+        resolvesAt: new Date(),
+        resolvedAt: new Date(),
+      },
+    }),
+    ...submissions.map((submission) =>
+      db.quiltSubmission.update({
+        where: { id: submission.id },
+        data: {
+          pixels: transformPixelsForResize(
+            parsePixels(submission.pixels),
+            input.width,
+            input.height,
+            input.offsetX,
+            input.offsetY,
+          ),
+          canvasWidth: input.width,
+          canvasHeight: input.height,
+        },
+      }),
+    ),
+  ]);
+
+  return getQuiltDetail({ slug, actor, tenantId });
 }
 
 export async function voteQuiltSubmission({
@@ -538,12 +718,16 @@ export async function removeQuiltSubmission({
     select: {
       id: true,
       authorId: true,
+      kind: true,
       status: true,
       quilt: { select: { slug: true } },
     },
   });
   if (!submission) {
     throw new NotFoundError("Quilt submission not found.");
+  }
+  if (submission.kind === QuiltSubmissionKind.RESIZE) {
+    throw new BadRequestError("Canvas resize history cannot be removed.");
   }
   const isOwnPending =
     submission.authorId === actor.id &&

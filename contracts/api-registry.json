@@ -2319,6 +2319,41 @@
       }
     },
     {
+      "sdkName": "resizeQuiltCanvas",
+      "method": "POST",
+      "path": "/quilts/{quiltSlug}/resize",
+      "tag": "Quilts",
+      "summary": "Resize a quilt canvas and record the resize in history",
+      "requestBody": true,
+      "parameters": [
+        {
+          "name": "quiltSlug",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "requestExample": {
+        "width": 128,
+        "height": 128,
+        "offsetX": 8,
+        "offsetY": 4
+      },
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires moderator login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
       "sdkName": "voteQuiltSubmission",
       "method": "POST",
       "path": "/quilts/submissions/{submissionId}/vote",
