@@ -62,8 +62,12 @@ export async function followUserBySlug({
           type: "FOLLOW",
           title: `${actor.name ?? actor.slug} followed you`,
           body: "You have a new follower.",
-          link: `/users/${actor.slug}`,
-          data: { kind: "user_follow", followerId: actor.id },
+          link: `/u/${actor.slug}`,
+          data: {
+            kind: "user_follow",
+            followerId: actor.id,
+            userSlug: actor.slug,
+          },
         },
       });
     }

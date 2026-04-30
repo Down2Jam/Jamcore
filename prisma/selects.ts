@@ -130,7 +130,14 @@ export const requestUserDetailSelect = {
   hideRatings: true,
   autoHideRatingsWhileStreaming: true,
   receivedNotifications: {
-    include: {
+      where: {
+        readAt: null,
+        archivedAt: null,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+      include: {
       teamApplication: {
         include: {
           user: true,

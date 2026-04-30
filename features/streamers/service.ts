@@ -64,6 +64,13 @@ export async function updateFeaturedStreamers() {
   const clientSecret = process.env.TWITCH_CLIENT_SECRET;
 
   try {
+    if (!clientId || !clientSecret) {
+      logger.warn(
+        "Skipping featured streamers update because Twitch credentials are missing.",
+      );
+      return;
+    }
+
     const tokenResponse = await axios.post<TwitchTokenResponse>(
       "https://id.twitch.tv/oauth2/token",
       null,
