@@ -52,6 +52,7 @@ const envSchema = z.object({
   RUNTIME_ROLE: z.enum(["api", "worker", "all"]).default("all"),
   SERVICE_API_KEYS: optionalString(z.string()),
   TOKEN_SECRET: optionalString(z.string().min(1)),
+  DISCORD_QUILT_WEBHOOK_URL: optionalString(z.string().url()),
 });
 
 const parsed = envSchema.parse(process.env);
@@ -92,4 +93,5 @@ export const env = {
   runtimeRole: parsed.RUNTIME_ROLE,
   serviceApiKeys: parsed.SERVICE_API_KEYS,
   tokenSecret: parsed.TOKEN_SECRET,
+  discordQuiltWebhookUrl: parsed.DISCORD_QUILT_WEBHOOK_URL,
 } as const;

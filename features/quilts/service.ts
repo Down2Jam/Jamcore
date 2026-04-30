@@ -4,6 +4,7 @@ import { z } from "zod";
 import { appConfig } from "../../config/app.js";
 import db from "../../infra/db.js";
 import { BadRequestError, ForbiddenError, NotFoundError } from "../../lib/errors.js";
+import { notifyDiscordQuiltProposal } from "./discord.js";
 
 const REVIEW_WINDOW_MS = 60 * 60 * 1000;
 const MAX_PIXELS_PER_SUBMISSION = 4096;
@@ -456,6 +457,40 @@ export async function submitQuiltPixels({
       canvasHeight: quilt.height,
       resolvesAt: new Date(now.getTime() + REVIEW_WINDOW_MS),
     },
+  });
+
+  await resolveDueSubmissions(quilt.id);
+  const acceptedSubmissions = await db.quiltSubmission.findMany({
+    where: {
+      quiltId: quilt.id,
+      status: QuiltSubmissionStatus.ACCEPTED,
+    },
+    orderBy: { createdAt: "asc" },
+    select: {
+      id: true,
+      kind: true,
+      pixels: true,
+      canvasWidth: true,
+      canvasHeight: true,
+      resizeFromWidth: true,
+      resizeFromHeight: true,
+      resizeOffsetX: true,
+      resizeOffsetY: true,
+    },
+  });
+  notifyDiscordQuiltProposal({
+    authorName: actor.name,
+    canvas: composeCanvas(quilt.width, quilt.height, [
+      ...acceptedSubmissions,
+      {
+        id: submission.id,
+        pixels: normalizedPixels,
+      },
+    ]),
+    height: quilt.height,
+    quiltName: quilt.name,
+    quiltSlug: quilt.slug,
+    width: quilt.width,
   });
 
   return getQuiltDetail({ slug, actor, tenantId });
