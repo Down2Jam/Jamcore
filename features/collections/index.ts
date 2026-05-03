@@ -21,8 +21,11 @@ export {
   listCollections,
   listCollectionsQuerySchema,
   removeCollectionItem,
+  resolveCollectionMusicMetadata,
   respondCollectionCollaboratorInvite,
   respondCollectionCollaboratorSchema,
   updateCollection,
+  updateCollectionItem,
+  updateCollectionItemSchema,
   updateCollectionSchema,
 } from "./service.js";

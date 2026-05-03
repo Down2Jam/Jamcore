@@ -31,9 +31,12 @@ import {
   listCollections,
   listCollectionsQuerySchema,
   removeCollectionItem,
+  resolveCollectionMusicMetadata,
   respondCollectionCollaboratorInvite,
   respondCollectionCollaboratorSchema,
   updateCollection,
+  updateCollectionItem,
+  updateCollectionItemSchema,
   updateCollectionSchema,
 } from "./index.js";
 
@@ -41,12 +44,16 @@ const collectionParamsSchema = z.object({
   collectionId: z.string().trim().min(1),
 });
 
-  const collectionItemParamsSchema = collectionParamsSchema.extend({
-  itemId: z.string().trim().min(1),
+const collectionItemParamsSchema = collectionParamsSchema.extend({
+  itemId: z.coerce.number().int().positive(),
 });
 
 const collectionCommentParamsSchema = collectionParamsSchema.extend({
-  commentId: z.string().trim().min(1),
+  commentId: z.coerce.number().int().positive(),
+});
+
+const metadataQuerySchema = z.object({
+  url: z.string().trim().url(),
 });
 
 export function createCollectionsRouter() {
@@ -94,6 +101,16 @@ export function createCollectionsRouter() {
         tenantId: res.locals.tenantId,
       });
       res.status(201).json(result);
+    }),
+  );
+
+  router.get(
+    "/metadata",
+    authUserOptional,
+    getUserOptional,
+    asyncHandler(async (req, res) => {
+      const { url } = parseQuery(req, metadataQuerySchema);
+      res.json(await resolveCollectionMusicMetadata({ url }));
     }),
   );
 
@@ -308,6 +325,23 @@ export function createCollectionsRouter() {
         collectionId,
         itemId,
         actor: requireRequestUser(res),
+      });
+      res.json(result);
+    }),
+  );
+
+  router.put(
+    "/:collectionId/items/:itemId",
+    authUser,
+    getUser,
+    asyncHandler(async (req, res) => {
+      const { collectionId, itemId } = parseParams(req, collectionItemParamsSchema);
+      const input = parseBody(req, updateCollectionItemSchema);
+      const result = await updateCollectionItem({
+        collectionId,
+        itemId,
+        actor: requireRequestUser(res),
+        input,
       });
       res.json(result);
     }),

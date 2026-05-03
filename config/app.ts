@@ -150,7 +150,7 @@ export type AppConfig = z.infer<typeof appConfigSchema>;
 const resolvedPublicOrigin =
   typeof env.clientOrigin === "string" && env.clientOrigin.length > 0
     ? env.clientOrigin
-    : "http://localhost:3000";
+    : "https://d2jam.com";
 
 const defaultConfig: AppConfig = {
   appName: "Jamcore",
@@ -300,7 +300,7 @@ function getHostname(origin: string) {
   try {
     return new URL(origin).hostname;
   } catch {
-    return "localhost";
+    return "d2jam.com";
   }
 }
 

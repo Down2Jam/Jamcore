@@ -1107,30 +1107,35 @@ model PostRevision {
 }
 
 model Collection {
-  id           String   @id
+  id           Int      @id @default(autoincrement())
   tenantId     String?  @map("tenant_id")
   ownerId      Int      @map("owner_id")
   slug         String
   title        String
   description  String?
+  collectionType String @default("music") @map("collection_type")
   visibility   String   @default("private")
-  forkedFromId String?  @map("forked_from_id")
+  forkedFromId Int?     @map("forked_from_id")
   playbackMode String   @default("manual") @map("playback_mode")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @default(now()) @map("updated_at")
 
-  @@unique([tenantId, ownerId, slug])
+  @@unique([tenantId, slug])
   @@index([tenantId, visibility, updatedAt])
 }
 
 model CollectionItem {
-  id           String   @id
-  collectionId String   @map("collection_id")
-  itemType     String   @map("item_type")
-  itemId       Int      @map("item_id")
-  note         String?
-  position     Int      @default(0)
-  addedAt      DateTime @default(now()) @map("added_at")
+  id            Int      @id @default(autoincrement())
+  collectionId  Int      @map("collection_id")
+  itemType      String   @map("item_type")
+  itemId        Int      @map("item_id")
+  title         String?
+  url           String?
+  thumbnailUrl  String?  @map("thumbnail_url")
+  platformLinks Json?    @map("platform_links")
+  note          String?
+  position      Int      @default(0)
+  addedAt       DateTime @default(now()) @map("added_at")
 
   @@unique([collectionId, itemType, itemId])
   @@index([collectionId, position, addedAt])
@@ -1138,8 +1143,8 @@ model CollectionItem {
 }
 
 model CollectionCollaborator {
-  id           String   @id
-  collectionId String   @map("collection_id")
+  id           Int      @id @default(autoincrement())
+  collectionId Int      @map("collection_id")
   userId       Int      @map("user_id")
   role         String   @default("viewer")
   status       String   @default("pending")
@@ -1151,8 +1156,8 @@ model CollectionCollaborator {
 }
 
 model CollectionComment {
-  id           String    @id
-  collectionId String    @map("collection_id")
+  id           Int       @id @default(autoincrement())
+  collectionId Int       @map("collection_id")
   authorId     Int       @map("author_id")
   content      String
   deletedAt    DateTime? @map("deleted_at")
@@ -1163,7 +1168,7 @@ model CollectionComment {
 }
 
 model CollectionFollow {
-  collectionId String   @map("collection_id")
+  collectionId Int      @map("collection_id")
   userId       Int      @map("user_id")
   createdAt    DateTime @default(now()) @map("created_at")
 
@@ -1172,8 +1177,8 @@ model CollectionFollow {
 }
 
 model CollectionImport {
-  id           String   @id
-  collectionId String   @map("collection_id")
+  id           Int      @id @default(autoincrement())
+  collectionId Int      @map("collection_id")
   importedBy   Int      @map("imported_by")
   sourceName   String?  @map("source_name")
   sourceFormat String   @default("jamcore") @map("source_format")

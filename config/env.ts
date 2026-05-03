@@ -57,6 +57,20 @@ const envSchema = z.object({
 
 const parsed = envSchema.parse(process.env);
 
+function isLoopbackOrigin(value: string | undefined) {
+  if (!value) return false;
+  try {
+    const hostname = new URL(value).hostname.toLowerCase();
+    return (
+      hostname === "localhost" ||
+      hostname === "127.0.0.1" ||
+      hostname === "::1"
+    );
+  } catch {
+    return false;
+  }
+}
+
 if (parsed.NODE_ENV === "production") {
   const missing = [
     !parsed.CLIENT_ORIGIN ? "CLIENT_ORIGIN" : null,
@@ -66,6 +80,17 @@ if (parsed.NODE_ENV === "production") {
   if (missing.length > 0) {
     throw new Error(
       `Missing required production environment variables: ${missing.join(", ")}`,
+    );
+  }
+
+  const loopback = [
+    isLoopbackOrigin(parsed.CLIENT_ORIGIN) ? "CLIENT_ORIGIN" : null,
+    isLoopbackOrigin(parsed.FEDERATION_ORIGIN) ? "FEDERATION_ORIGIN" : null,
+  ].filter(Boolean);
+
+  if (loopback.length > 0) {
+    throw new Error(
+      `Production environment variables cannot use localhost or loopback origins: ${loopback.join(", ")}`,
     );
   }
 }

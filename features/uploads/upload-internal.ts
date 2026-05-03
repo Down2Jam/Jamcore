@@ -8,7 +8,6 @@ import process from "process";
 import sharp from "sharp";
 import { IsUsingS3, UploadS3File } from "../../infra/s3.js";
 import { appConfig } from "../../config/app.js";
-import { env } from "../../config/env.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -234,10 +233,6 @@ export async function UploadFile(req: any, res: any) {
   const fileName = `${uuidv4()}.${uploadTarget.extension}`;
   const folder = uploadTarget.folder;
   const localFolder = uploadTarget.localFolder;
-  const uploadBaseUrl =
-    env.nodeEnv === "production"
-      ? appConfig.publicOrigin
-      : `http://localhost:${env.port}`;
   const uploadPath = `${appConfig.uploads.apiBasePath}/${localFolder}/${fileName}`;
 
   if (await IsUsingS3()) {
@@ -251,7 +246,7 @@ export async function UploadFile(req: any, res: any) {
     if (success) {
       return res.json({
         message: "File uploaded",
-        data: `${uploadBaseUrl}${uploadPath}`,
+        data: uploadPath,
       });
     } else {
       return res.status(500).json({ message: "S3 upload failed" });
@@ -267,21 +262,10 @@ export async function UploadFile(req: any, res: any) {
 
     return res.json({
       message: "File uploaded",
-      data: `${uploadBaseUrl}${uploadPath}`,
+      data: uploadPath,
     });
   }
 }
-
-/*
-res.status(200).send({
-      message: "Image uploaded",
-      data: `${
-        process.env.NODE_ENV === "production"
-          ? "https://d2jam.com"
-          : `http://localhost:${process.env.PORT || 3005}`
-      }/api/v1/image/${req.file?.filename}`,
-    });
-*/
 
 /*
 const storage = multer.diskStorage({

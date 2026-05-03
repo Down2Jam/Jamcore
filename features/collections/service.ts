@@ -12,16 +12,26 @@ type CollectionActor = {
   admin?: boolean | null;
 };
 
+const collectionTypeSchema = z.enum(["game", "music", "post"]);
+const collectionSlugSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug must be lowercase kebab case.")
+  .max(80);
+type CollectionIdentifier = string | number;
+
 type CollectionRow = {
-  id: string;
+  id: number;
   tenantId: string | null;
-  forkedFromId?: string | null;
+  forkedFromId?: number | null;
   ownerId: number;
   ownerSlug: string;
   ownerName: string;
   slug: string;
   title: string;
   description: string | null;
+  collectionType: "game" | "music" | "post";
   visibility: "private" | "unlisted" | "public";
   playbackMode?: "manual" | "shuffle" | "repeat";
   createdAt: Date;
@@ -29,18 +39,25 @@ type CollectionRow = {
 };
 
 type CollectionItemRow = {
-  id: string;
-  collectionId: string;
-  itemType: "game" | "post" | "track";
+  id: number;
+  collectionId: number;
+  itemType: "game" | "post" | "track" | "youtube_track";
   itemId: number;
+  title: string | null;
+  url: string | null;
+  thumbnailUrl: string | null;
+  platformLinks: Array<{
+    platform: "youtube" | "youtubeMusic" | "d2jam";
+    url: string;
+  }> | null;
   note: string | null;
   position: number;
   addedAt: Date;
 };
 
 type CollectionCollaboratorRow = {
-  id: string;
-  collectionId: string;
+  id: number;
+  collectionId: number;
   userId: number;
   userSlug: string;
   userName: string;
@@ -55,7 +72,9 @@ export const collectionVisibilitySchema = z.enum(["private", "unlisted", "public
 
 export const createCollectionSchema = z.object({
   title: z.string().trim().min(1).max(120),
+  slug: collectionSlugSchema.optional(),
   description: z.string().trim().max(1000).optional().nullable(),
+  collectionType: collectionTypeSchema.optional().default("music"),
   visibility: collectionVisibilitySchema.optional().default("private"),
   playbackMode: z.enum(["manual", "shuffle", "repeat"]).optional().default("manual"),
 });
@@ -63,25 +82,69 @@ export const createCollectionSchema = z.object({
 export const updateCollectionSchema = z
   .object({
     title: z.string().trim().min(1).max(120).optional(),
+    slug: collectionSlugSchema.optional(),
     description: z.string().trim().max(1000).nullable().optional(),
+    collectionType: collectionTypeSchema.optional(),
     visibility: collectionVisibilitySchema.optional(),
     playbackMode: z.enum(["manual", "shuffle", "repeat"]).optional(),
   })
   .refine(
     (payload) =>
       payload.title !== undefined ||
+      payload.slug !== undefined ||
       payload.description !== undefined ||
+      payload.collectionType !== undefined ||
       payload.visibility !== undefined ||
       payload.playbackMode !== undefined,
     { message: "No update fields provided." },
   );
 
 export const collectionItemSchema = z.object({
-  itemType: z.enum(["game", "post", "track"]),
-  itemId: z.coerce.number().int().positive(),
+  itemType: z.enum(["game", "post", "track", "youtube_track"]),
+  itemId: z.coerce.number().int().positive().optional(),
+  title: z.string().trim().min(1).max(200).optional().nullable(),
+  url: z.string().trim().url().optional().nullable(),
+  thumbnailUrl: z.string().trim().url().optional().nullable(),
+  platformLinks: z
+    .array(
+      z.object({
+        platform: z.enum(["youtube", "youtubeMusic", "d2jam"]),
+        url: z.string().trim().url(),
+      }),
+    )
+    .max(6)
+    .optional()
+    .nullable(),
   note: z.string().trim().max(500).optional().nullable(),
   position: z.coerce.number().int().optional().default(0),
+}).superRefine((input, ctx) => {
+  if (input.itemType === "youtube_track") {
+    if (!input.url && !input.platformLinks?.length) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["url"],
+        message: "A YouTube collection item needs a URL.",
+      });
+    }
+    return;
+  }
+
+  if (!input.itemId) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["itemId"],
+      message: "A site collection item needs an itemId.",
+    });
+  }
 });
+
+export const updateCollectionItemSchema = z
+  .object({
+    note: z.string().trim().max(500).optional().nullable(),
+  })
+  .refine((payload) => payload.note !== undefined, {
+    message: "No update fields provided.",
+  });
 
 export const inviteCollectionCollaboratorSchema = z.object({
   userSlug: z.string().trim().min(1),
@@ -109,7 +172,8 @@ export const listCollectionsQuerySchema = z.object({
   userSlug: z.string().trim().min(1).optional(),
   mine: z.union([z.literal("true"), z.literal("false")]).optional(),
   q: z.string().trim().min(1).max(120).optional(),
-  itemType: z.enum(["game", "post", "track"]).optional(),
+  itemType: z.enum(["game", "post", "track", "youtube_track", "music"]).optional(),
+  collectionType: collectionTypeSchema.optional(),
   sort: z.enum(["updated", "popular", "largest"]).optional().default("updated"),
   limit: z.coerce.number().int().min(1).max(50).optional(),
   cursor: z.string().datetime().optional(),
@@ -128,7 +192,113 @@ function slugify(value: string) {
     .slice(0, 80);
 }
 
-async function buildUniqueCollectionSlug(ownerId: number, title: string, tenantId?: string | null) {
+function stablePositiveHash(value: string) {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < value.length; i += 1) {
+    hash ^= value.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return ((hash >>> 0) % 2147483647) + 1;
+}
+
+function summarizePostContent(content: string) {
+  return content
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 180);
+}
+
+function canonicalExternalKey(input: z.infer<typeof collectionItemSchema>) {
+  const primaryUrl =
+    input.url ??
+    input.platformLinks?.find((link) => link.platform === "youtube")?.url ??
+    input.platformLinks?.[0]?.url ??
+    input.title ??
+    "external";
+
+  try {
+    const parsed = new URL(primaryUrl);
+    const videoId = parsed.searchParams.get("v");
+    if (videoId) return `${parsed.hostname}:${videoId}`;
+    return `${parsed.hostname}${parsed.pathname}`.toLowerCase();
+  } catch {
+    return primaryUrl.toLowerCase();
+  }
+}
+
+function parseYouTubeVideoId(url: string) {
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.replace(/^www\./, "").toLowerCase();
+    if (host === "youtu.be") {
+      return parsed.pathname.split("/").filter(Boolean)[0] ?? null;
+    }
+    if (host === "youtube.com" || host === "music.youtube.com" || host.endsWith(".youtube.com")) {
+      return parsed.searchParams.get("v");
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+export async function resolveCollectionMusicMetadata(input: {
+  url: string;
+  title?: string | null;
+  thumbnailUrl?: string | null;
+}) {
+  const url = input.url.trim();
+  const videoId = parseYouTubeVideoId(url);
+  const fallbackTitle = input.title?.trim() || "YouTube music";
+  const fallbackThumbnail =
+    input.thumbnailUrl?.trim() ||
+    (videoId ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg` : null);
+
+  try {
+    const response = await fetch(
+      `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`,
+      {
+        headers: {
+          accept: "application/json",
+          "user-agent": "Jamcore/1.0",
+        },
+      },
+    );
+    if (response.ok) {
+      const data = (await response.json()) as {
+        title?: string;
+        thumbnail_url?: string;
+        author_name?: string;
+      };
+      return {
+        title: data.title?.trim() || fallbackTitle,
+        thumbnailUrl: data.thumbnail_url?.trim() || fallbackThumbnail,
+        authorName: data.author_name?.trim() || null,
+        url,
+        videoId,
+      };
+    }
+  } catch {
+    // Metadata lookup is best effort; the item can still be saved.
+  }
+
+  return {
+    title: fallbackTitle,
+    thumbnailUrl: fallbackThumbnail,
+    authorName: null,
+    url,
+    videoId,
+  };
+}
+
+async function buildUniqueCollectionSlug(_ownerId: number, title: string, tenantId?: string | null) {
   const base = slugify(title) || "collection";
   let slug = base;
   let suffix = 1;
@@ -138,21 +308,20 @@ async function buildUniqueCollectionSlug(ownerId: number, title: string, tenantI
       `
         SELECT id
         FROM "Collection"
-        WHERE owner_id = $1 AND slug = $2
-          AND tenant_id IS NOT DISTINCT FROM $3
+        WHERE slug = $1
+          AND tenant_id IS NOT DISTINCT FROM $2
         LIMIT 1
       `,
-      ownerId,
       slug,
       tenantId ?? null,
-    )) as Array<{ id: string }>;
+    )) as Array<{ id: number }>;
     if (rows.length === 0) return slug;
     suffix += 1;
     slug = `${base}-${suffix}`;
   }
 }
 
-async function getCollaborator(collectionId: string, userId?: number | null) {
+async function getCollaborator(collectionId: number, userId?: number | null) {
   if (!userId) return null;
   const rows = (await db.$queryRawUnsafe(
     `
@@ -196,7 +365,12 @@ async function canManageCollection(row: CollectionRow, actor?: CollectionActor |
   );
 }
 
-async function getCollectionRow(id: string) {
+async function getCollectionRow(identifier: CollectionIdentifier) {
+  const numericId =
+    typeof identifier === "number" || /^\d+$/.test(String(identifier))
+      ? Number(identifier)
+      : null;
+  const slug = String(identifier);
   const rows = (await db.$queryRawUnsafe(
     `
       SELECT
@@ -209,21 +383,23 @@ async function getCollectionRow(id: string) {
         c.slug,
         c.title,
         c.description,
+        c.collection_type AS "collectionType",
         c.visibility,
         c.playback_mode AS "playbackMode",
         c.created_at AS "createdAt",
         c.updated_at AS "updatedAt"
       FROM "Collection" c
       JOIN "User" u ON u.id = c.owner_id
-      WHERE c.id = $1
+      WHERE (($1::int IS NOT NULL AND c.id = $1::int) OR c.slug = $2)
       LIMIT 1
     `,
-    id,
+    numericId,
+    slug,
   )) as CollectionRow[];
   return rows[0] ?? null;
 }
 
-async function listCollectionItems(collectionId: string) {
+async function listCollectionItems(collectionId: number) {
   return (await db.$queryRawUnsafe(
     `
       SELECT
@@ -231,18 +407,22 @@ async function listCollectionItems(collectionId: string) {
         collection_id AS "collectionId",
         item_type AS "itemType",
         item_id AS "itemId",
+        title,
+        url,
+        thumbnail_url AS "thumbnailUrl",
+        platform_links AS "platformLinks",
         note,
         position,
         added_at AS "addedAt"
       FROM "CollectionItem"
       WHERE collection_id = $1
-      ORDER BY position ASC, added_at DESC
+      ORDER BY position ASC, added_at ASC
     `,
     collectionId,
   )) as CollectionItemRow[];
 }
 
-async function listCollectionCollaborators(collectionId: string) {
+async function listCollectionCollaborators(collectionId: number) {
   return (await db.$queryRawUnsafe(
     `
       SELECT
@@ -265,7 +445,7 @@ async function listCollectionCollaborators(collectionId: string) {
   )) as CollectionCollaboratorRow[];
 }
 
-async function listCollectionComments(collectionId: string, input?: z.infer<typeof collectionCommentsQuerySchema>) {
+async function listCollectionComments(collectionId: number, input?: z.infer<typeof collectionCommentsQuerySchema>) {
   return db.$queryRawUnsafe(
     `
       SELECT
@@ -274,6 +454,7 @@ async function listCollectionComments(collectionId: string, input?: z.infer<type
         c.author_id AS "authorId",
         u.slug AS "authorSlug",
         u.name AS "authorName",
+        u."profilePicture" AS "authorProfilePicture",
         c.content,
         c.created_at AS "createdAt",
         c.updated_at AS "updatedAt"
@@ -290,7 +471,7 @@ async function listCollectionComments(collectionId: string, input?: z.infer<type
   ).catch(() => []);
 }
 
-async function countCollectionFollowers(collectionId: string) {
+async function countCollectionFollowers(collectionId: number) {
   const rows = (await db.$queryRawUnsafe(
     `
       SELECT COUNT(*)::int AS count
@@ -302,7 +483,7 @@ async function countCollectionFollowers(collectionId: string) {
   return rows[0]?.count ?? 0;
 }
 
-async function listCollectionNotificationRecipientIds(collectionId: string, actorId: number) {
+async function listCollectionNotificationRecipientIds(collectionId: number, actorId: number) {
   const rows = (await db.$queryRawUnsafe(
     `
       SELECT owner_id AS "userId"
@@ -344,7 +525,7 @@ async function notifyCollectionRecipients({
       type: "GENERAL",
       title,
       body,
-      link: `/collections/${collection.id}`,
+      link: `/c/${collection.slug}`,
       data: {
         kind: "collection",
         collectionId: collection.id,
@@ -354,7 +535,216 @@ async function notifyCollectionRecipients({
   });
 }
 
-async function presentCollection(row: CollectionRow, includeItems = true) {
+async function enrichCollectionItems(items: CollectionItemRow[]) {
+  const gameIds = items
+    .filter((item) => item.itemType === "game")
+    .map((item) => item.itemId);
+  const trackIds = items
+    .filter((item) => item.itemType === "track")
+    .map((item) => item.itemId);
+  const postIds = items
+    .filter((item) => item.itemType === "post")
+    .map((item) => item.itemId);
+
+  const [games, tracks, posts] = await Promise.all([
+    gameIds.length
+      ? db.game.findMany({
+          where: { id: { in: gameIds } },
+          select: {
+            id: true,
+            slug: true,
+            pages: {
+              orderBy: { version: "desc" },
+              take: 1,
+              select: {
+                name: true,
+                thumbnail: true,
+                banner: true,
+                short: true,
+              },
+            },
+          },
+        })
+      : [],
+    trackIds.length
+      ? db.gamePageTrack.findMany({
+          where: { id: { in: trackIds } },
+          select: {
+            id: true,
+            slug: true,
+            name: true,
+            url: true,
+            gamePage: {
+              select: {
+                name: true,
+                thumbnail: true,
+                game: {
+                  select: {
+                    slug: true,
+                  },
+                },
+              },
+            },
+            composer: {
+              select: {
+                name: true,
+                slug: true,
+              },
+            },
+          },
+        })
+      : [],
+    postIds.length
+      ? db.post.findMany({
+          where: { id: { in: postIds }, deletedAt: null, removedAt: null },
+          select: {
+            id: true,
+            slug: true,
+            title: true,
+            content: true,
+            author: {
+              select: {
+                name: true,
+                slug: true,
+              },
+            },
+          },
+        })
+      : [],
+  ]);
+
+  const gamesById = new Map(games.map((game) => [game.id, game]));
+  const tracksById = new Map(tracks.map((track) => [track.id, track]));
+  const postsById = new Map(posts.map((post) => [post.id, post]));
+
+  return items.map((item) => {
+    if (item.itemType === "game") {
+      const game = gamesById.get(item.itemId);
+      const page = game?.pages[0];
+      return {
+        ...item,
+        game: game
+          ? {
+              id: game.id,
+              slug: game.slug,
+              name: page?.name ?? "Untitled game",
+              thumbnail: page?.thumbnail ?? page?.banner ?? null,
+              short: page?.short ?? null,
+            }
+          : null,
+      };
+    }
+
+    if (item.itemType === "track") {
+      const track = tracksById.get(item.itemId);
+      return {
+        ...item,
+        track: track
+          ? {
+              id: track.id,
+              slug: track.slug,
+              name: track.name,
+              url: track.url,
+              thumbnail: track.gamePage.thumbnail ?? null,
+              game: {
+                slug: track.gamePage.game.slug,
+                name: track.gamePage.name,
+              },
+              composer: track.composer,
+            }
+          : null,
+      };
+    }
+
+    if (item.itemType === "post") {
+      const post = postsById.get(item.itemId);
+      return {
+        ...item,
+        post: post
+          ? {
+              id: post.id,
+              slug: post.slug,
+              title: post.title,
+              contentExcerpt: summarizePostContent(post.content),
+              author: post.author,
+            }
+          : null,
+      };
+    }
+
+    return item;
+  });
+}
+
+async function getCollectionItemCounts(collectionIds: number[]) {
+  if (collectionIds.length === 0) return new Map<number, { total: number; types: Record<string, number> }>();
+  const rows = (await db.$queryRawUnsafe(
+    `
+      SELECT collection_id AS "collectionId", item_type AS "itemType", COUNT(*)::int AS count
+      FROM "CollectionItem"
+      WHERE collection_id = ANY($1::int[])
+      GROUP BY collection_id, item_type
+    `,
+    collectionIds,
+  )) as Array<{ collectionId: number; itemType: string; count: number }>;
+  const counts = new Map<number, { total: number; types: Record<string, number> }>();
+  for (const row of rows) {
+    const current = counts.get(row.collectionId) ?? { total: 0, types: {} };
+    current.total += row.count;
+    current.types[row.itemType] = row.count;
+    counts.set(row.collectionId, current);
+  }
+  return counts;
+}
+
+async function getCollectionPreviewItems(collectionIds: number[]) {
+  if (collectionIds.length === 0) return new Map<number, Awaited<ReturnType<typeof enrichCollectionItems>>>();
+  const rows = (await db.$queryRawUnsafe(
+    `
+      SELECT
+        id,
+        collection_id AS "collectionId",
+        item_type AS "itemType",
+        item_id AS "itemId",
+        title,
+        url,
+        thumbnail_url AS "thumbnailUrl",
+        platform_links AS "platformLinks",
+        note,
+        position,
+        added_at AS "addedAt"
+      FROM (
+        SELECT
+          ci.*,
+          ROW_NUMBER() OVER (
+            PARTITION BY ci.collection_id
+            ORDER BY ci.position ASC, ci.added_at ASC
+          ) AS preview_rank
+        FROM "CollectionItem" ci
+        WHERE ci.collection_id = ANY($1::int[])
+      ) ranked_items
+      WHERE preview_rank <= 2
+      ORDER BY collection_id ASC, position ASC, added_at ASC
+    `,
+    collectionIds,
+  )) as CollectionItemRow[];
+  const enriched = await enrichCollectionItems(rows);
+  const previews = new Map<number, typeof enriched>();
+  for (const item of enriched) {
+    const current = previews.get(item.collectionId) ?? [];
+    current.push(item);
+    previews.set(item.collectionId, current);
+  }
+  return previews;
+}
+
+async function presentCollection(
+  row: CollectionRow,
+  includeItems = true,
+  itemCounts?: { total: number; types: Record<string, number> },
+  previewItems?: Awaited<ReturnType<typeof enrichCollectionItems>>,
+) {
+  const items = includeItems ? await listCollectionItems(row.id) : undefined;
   return {
     id: row.id,
     tenantId: row.tenantId,
@@ -362,6 +752,7 @@ async function presentCollection(row: CollectionRow, includeItems = true) {
     title: row.title,
     description: row.description,
     visibility: row.visibility,
+    collectionType: row.collectionType,
     playbackMode: row.playbackMode ?? "manual",
     forkedFromId: row.forkedFromId ?? null,
     owner: {
@@ -371,14 +762,23 @@ async function presentCollection(row: CollectionRow, includeItems = true) {
     },
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
-    items: includeItems ? await listCollectionItems(row.id) : undefined,
+    itemCount: itemCounts?.total ?? items?.length ?? 0,
+    itemTypes: itemCounts?.types ?? undefined,
+    previewItems: includeItems ? undefined : previewItems,
+    items: items ? await enrichCollectionItems(items) : undefined,
     collaborators: includeItems ? await listCollectionCollaborators(row.id) : undefined,
     comments: includeItems ? await listCollectionComments(row.id) : undefined,
     followerCount: await countCollectionFollowers(row.id),
   };
 }
 
-async function assertItemVisible(itemType: "game" | "post" | "track", itemId: number, tenantId?: string | null) {
+async function assertItemVisible(
+  itemType: "game" | "post" | "track" | "youtube_track",
+  itemId: number,
+  tenantId?: string | null,
+) {
+  if (itemType === "youtube_track") return;
+
   if (itemType === "game") {
     const game = await db.game.findUnique({
       where: { id: itemId },
@@ -432,25 +832,25 @@ export async function createCollection({
   input: z.infer<typeof createCollectionSchema>;
   tenantId?: string | null;
 }) {
-  const id = randomUUID();
-  const slug = await buildUniqueCollectionSlug(actor.id, input.title, tenantId);
-  await db.$executeRawUnsafe(
+  const slug = await buildUniqueCollectionSlug(actor.id, input.slug ?? input.title, tenantId);
+  const created = (await db.$queryRawUnsafe(
     `
       INSERT INTO "Collection"
-      (id, tenant_id, owner_id, slug, title, description, visibility, playback_mode)
+      (tenant_id, owner_id, slug, title, description, collection_type, visibility, playback_mode)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      RETURNING id
     `,
-    id,
     tenantId ?? null,
     actor.id,
     slug,
     input.title,
     input.description ?? null,
+    input.collectionType,
     input.visibility,
     input.playbackMode,
-  );
+  )) as Array<{ id: number }>;
 
-  const row = await getCollectionRow(id);
+  const row = await getCollectionRow(created[0]?.id ?? slug);
   if (!row) throw new BadRequestError("Collection could not be created");
   return presentCollection(row);
 }
@@ -480,6 +880,7 @@ export async function listCollections({
         c.slug,
         c.title,
         c.description,
+        c.collection_type AS "collectionType",
         c.visibility,
         c.playback_mode AS "playbackMode",
         c.created_at AS "createdAt",
@@ -496,9 +897,14 @@ export async function listCollections({
         AND ($7::boolean = false OR c.owner_id = $4 OR cc.id IS NOT NULL)
         AND ($11::timestamptz IS NULL OR c.updated_at < $11::timestamptz)
         AND ($8::text IS NULL OR c.title ILIKE '%' || $8 || '%' OR c.description ILIKE '%' || $8 || '%')
+        AND ($12::text IS NULL OR c.collection_type = $12)
         AND ($9::text IS NULL OR EXISTS (
           SELECT 1 FROM "CollectionItem" typed_item
-          WHERE typed_item.collection_id = c.id AND typed_item.item_type = $9
+          WHERE typed_item.collection_id = c.id
+            AND (
+              ($9 = 'music' AND typed_item.item_type IN ('track', 'youtube_track'))
+              OR typed_item.item_type = $9
+            )
         ))
         AND (
           c.visibility = 'public'
@@ -528,16 +934,24 @@ export async function listCollections({
     input.itemType ?? null,
     input.sort ?? "updated",
     input.cursor ?? null,
+    input.collectionType ?? null,
   )) as CollectionRow[];
 
-  return Promise.all(rows.map((row) => presentCollection(row, false)));
+  const collectionIds = rows.map((row) => row.id);
+  const [counts, previewItems] = await Promise.all([
+    getCollectionItemCounts(collectionIds),
+    getCollectionPreviewItems(collectionIds),
+  ]);
+  return Promise.all(
+    rows.map((row) => presentCollection(row, false, counts.get(row.id), previewItems.get(row.id))),
+  );
 }
 
 export async function getCollection({
   collectionId,
   actor,
 }: {
-  collectionId: string;
+  collectionId: CollectionIdentifier;
   actor?: CollectionActor | null;
 }) {
   const row = await getCollectionRow(collectionId);
@@ -552,7 +966,7 @@ export async function updateCollection({
   actor,
   input,
 }: {
-  collectionId: string;
+  collectionId: CollectionIdentifier;
   actor: CollectionActor;
   input: z.infer<typeof updateCollectionSchema>;
 }) {
@@ -560,25 +974,32 @@ export async function updateCollection({
   if (!row) throw new NotFoundError("Collection not found");
   if (!(await canManageCollection(row, actor))) throw new ForbiddenError("Not allowed");
 
+  const slug = input.slug
+    ? await buildUniqueCollectionSlug(actor.id, input.slug, row.tenantId)
+    : null;
   await db.$executeRawUnsafe(
     `
       UPDATE "Collection"
       SET
         title = COALESCE($2, title),
-        description = COALESCE($3, description),
-        visibility = COALESCE($4, visibility),
-        playback_mode = COALESCE($5, playback_mode),
+        slug = COALESCE($3, slug),
+        description = COALESCE($4, description),
+        collection_type = COALESCE($5, collection_type),
+        visibility = COALESCE($6, visibility),
+        playback_mode = COALESCE($7, playback_mode),
         updated_at = NOW()
       WHERE id = $1
     `,
-    collectionId,
+    row.id,
     input.title ?? null,
+    slug,
     input.description ?? null,
+    input.collectionType ?? null,
     input.visibility ?? null,
     input.playbackMode ?? null,
   );
 
-  const updated = await getCollectionRow(collectionId);
+  const updated = await getCollectionRow(row.id);
   if (!updated) throw new NotFoundError("Collection not found");
   return presentCollection(updated);
 }
@@ -588,7 +1009,7 @@ export async function forkCollection({
   actor,
   tenantId,
 }: {
-  collectionId: string;
+  collectionId: CollectionIdentifier;
   actor: CollectionActor;
   tenantId?: string | null;
 }) {
@@ -597,43 +1018,48 @@ export async function forkCollection({
     throw new NotFoundError("Collection not found");
   }
 
-  const id = randomUUID();
   const title = `${source.title} fork`;
   const slug = await buildUniqueCollectionSlug(actor.id, title, tenantId);
-  await db.$executeRawUnsafe(
+  const created = (await db.$queryRawUnsafe(
     `
       INSERT INTO "Collection"
-      (id, tenant_id, owner_id, slug, title, description, visibility, playback_mode, forked_from_id)
+      (tenant_id, owner_id, slug, title, description, collection_type, visibility, playback_mode, forked_from_id)
       VALUES ($1, $2, $3, $4, $5, $6, 'private', $7, $8)
+      RETURNING id
     `,
-    id,
     tenantId ?? null,
     actor.id,
     slug,
     title,
     source.description,
+    source.collectionType,
     source.playbackMode ?? "manual",
     source.id,
-  );
+  )) as Array<{ id: number }>;
+  const newCollectionId = created[0]?.id;
+  if (!newCollectionId) throw new BadRequestError("Collection could not be created");
 
   const items = await listCollectionItems(source.id);
   for (const item of items) {
     await db.$executeRawUnsafe(
       `
         INSERT INTO "CollectionItem"
-        (id, collection_id, item_type, item_id, note, position)
-        VALUES ($1, $2, $3, $4, $5, $6)
+        (collection_id, item_type, item_id, title, url, thumbnail_url, platform_links, note, position)
+        VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9)
       `,
-      randomUUID(),
-      id,
+      newCollectionId,
       item.itemType,
       item.itemId,
+      item.title,
+      item.url,
+      item.thumbnailUrl,
+      item.platformLinks ? JSON.stringify(item.platformLinks) : null,
       item.note,
       item.position,
     );
   }
 
-  const row = await getCollectionRow(id);
+  const row = await getCollectionRow(newCollectionId ?? slug);
   if (!row) throw new NotFoundError("Collection not found");
   if (source.ownerId !== actor.id) {
     await db.notification.create({
@@ -643,7 +1069,7 @@ export async function forkCollection({
         type: "GENERAL",
         title: `${actor.slug} forked your collection`,
         body: source.title,
-        link: `/collections/${source.id}`,
+        link: `/c/${source.slug}`,
         data: { kind: "collection_fork", collectionId: source.id },
       },
     });
@@ -656,7 +1082,7 @@ export async function getCollectionPlayback({
   actor,
   shuffle,
 }: {
-  collectionId: string;
+  collectionId: CollectionIdentifier;
   actor?: CollectionActor | null;
   shuffle?: boolean;
 }) {
@@ -682,7 +1108,7 @@ export async function getCollectionPlayback({
       WHERE ci.collection_id = $1 AND ci.item_type = 'track' AND g.published = true
       ORDER BY ci.position ASC, ci.added_at ASC
     `,
-    collectionId,
+    row.id,
   )) as Array<Record<string, unknown>>;
   const queue =
     shuffle || row.playbackMode === "shuffle"
@@ -699,13 +1125,13 @@ export async function deleteCollection({
   collectionId,
   actor,
 }: {
-  collectionId: string;
+  collectionId: CollectionIdentifier;
   actor: CollectionActor;
 }) {
   const row = await getCollectionRow(collectionId);
   if (!row) throw new NotFoundError("Collection not found");
   if (!(await canManageCollection(row, actor))) throw new ForbiddenError("Not allowed");
-  await db.$executeRawUnsafe(`DELETE FROM "Collection" WHERE id = $1`, collectionId);
+  await db.$executeRawUnsafe(`DELETE FROM "Collection" WHERE id = $1`, row.id);
   return { ok: true };
 }
 
@@ -715,7 +1141,7 @@ export async function addCollectionItem({
   input,
   tenantId,
 }: {
-  collectionId: string;
+  collectionId: CollectionIdentifier;
   actor: CollectionActor;
   input: z.infer<typeof collectionItemSchema>;
   tenantId?: string | null;
@@ -723,28 +1149,90 @@ export async function addCollectionItem({
   const row = await getCollectionRow(collectionId);
   if (!row) throw new NotFoundError("Collection not found");
   if (!(await canManageCollection(row, actor))) throw new ForbiddenError("Not allowed");
-  await assertItemVisible(input.itemType, input.itemId, tenantId);
+  const normalizedItemId =
+    input.itemType === "youtube_track"
+      ? stablePositiveHash(canonicalExternalKey(input))
+      : input.itemId;
+  if (!normalizedItemId) {
+    throw new BadRequestError("Item ID is required");
+  }
+  await assertItemVisible(input.itemType, normalizedItemId, tenantId);
+  const externalMusicUrl =
+    input.itemType === "youtube_track"
+      ? input.url ??
+        input.platformLinks?.find((link) => link.platform === "youtube")?.url ??
+        input.platformLinks?.find((link) => link.platform === "youtubeMusic")?.url ??
+        input.platformLinks?.[0]?.url ??
+        null
+      : null;
+  const externalMetadata = externalMusicUrl
+    ? await resolveCollectionMusicMetadata({
+        url: externalMusicUrl,
+        title: input.title,
+        thumbnailUrl: input.thumbnailUrl,
+      })
+    : null;
 
   await db.$executeRawUnsafe(
     `
       INSERT INTO "CollectionItem"
-      (id, collection_id, item_type, item_id, note, position)
-      VALUES ($1, $2, $3, $4, $5, $6)
+      (collection_id, item_type, item_id, title, url, thumbnail_url, platform_links, note, position)
+      VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9)
       ON CONFLICT (collection_id, item_type, item_id)
-      DO UPDATE SET note = EXCLUDED.note, position = EXCLUDED.position
+      DO UPDATE SET
+        title = EXCLUDED.title,
+        url = EXCLUDED.url,
+        thumbnail_url = EXCLUDED.thumbnail_url,
+        platform_links = EXCLUDED.platform_links,
+        note = EXCLUDED.note,
+        position = EXCLUDED.position
     `,
-    randomUUID(),
-    collectionId,
+    row.id,
     input.itemType,
-    input.itemId,
+    normalizedItemId,
+    externalMetadata?.title ?? input.title ?? null,
+    externalMetadata?.url ?? input.url ?? null,
+    externalMetadata?.thumbnailUrl ?? input.thumbnailUrl ?? null,
+    input.platformLinks ? JSON.stringify(input.platformLinks) : null,
     input.note ?? null,
     input.position,
   );
   await db.$executeRawUnsafe(
     `UPDATE "Collection" SET updated_at = NOW() WHERE id = $1`,
-    collectionId,
+    row.id,
   );
-  return getCollection({ collectionId, actor });
+  return getCollection({ collectionId: row.id, actor });
+}
+
+export async function updateCollectionItem({
+  collectionId,
+  itemId,
+  actor,
+  input,
+}: {
+  collectionId: CollectionIdentifier;
+  itemId: number;
+  actor: CollectionActor;
+  input: z.infer<typeof updateCollectionItemSchema>;
+}) {
+  const row = await getCollectionRow(collectionId);
+  if (!row) throw new NotFoundError("Collection not found");
+  if (!(await canManageCollection(row, actor))) throw new ForbiddenError("Not allowed");
+  await db.$executeRawUnsafe(
+    `
+      UPDATE "CollectionItem"
+      SET note = $1
+      WHERE id = $2 AND collection_id = $3
+    `,
+    input.note?.trim() || null,
+    itemId,
+    row.id,
+  );
+  await db.$executeRawUnsafe(
+    `UPDATE "Collection" SET updated_at = NOW() WHERE id = $1`,
+    row.id,
+  );
+  return getCollection({ collectionId: row.id, actor });
 }
 
 export async function removeCollectionItem({
@@ -752,8 +1240,8 @@ export async function removeCollectionItem({
   itemId,
   actor,
 }: {
-  collectionId: string;
-  itemId: string;
+  collectionId: CollectionIdentifier;
+  itemId: number;
   actor: CollectionActor;
 }) {
   const row = await getCollectionRow(collectionId);
@@ -762,11 +1250,11 @@ export async function removeCollectionItem({
   await db.$executeRawUnsafe(
     `DELETE FROM "CollectionItem" WHERE id = $1 AND collection_id = $2`,
     itemId,
-    collectionId,
+    row.id,
   );
   await db.$executeRawUnsafe(
     `UPDATE "Collection" SET updated_at = NOW() WHERE id = $1`,
-    collectionId,
+    row.id,
   );
   return { ok: true };
 }
@@ -776,7 +1264,7 @@ export async function inviteCollectionCollaborator({
   actor,
   input,
 }: {
-  collectionId: string;
+  collectionId: CollectionIdentifier;
   actor: CollectionActor;
   input: z.infer<typeof inviteCollectionCollaboratorSchema>;
 }) {
@@ -793,13 +1281,12 @@ export async function inviteCollectionCollaborator({
   await db.$executeRawUnsafe(
     `
       INSERT INTO "CollectionCollaborator"
-      (id, collection_id, user_id, role, status, invited_by)
-      VALUES ($1, $2, $3, $4, 'pending', $5)
+      (collection_id, user_id, role, status, invited_by)
+      VALUES ($1, $2, $3, 'pending', $4)
       ON CONFLICT (collection_id, user_id)
       DO UPDATE SET role = EXCLUDED.role, status = 'pending', invited_by = EXCLUDED.invited_by, updated_at = NOW()
     `,
-    randomUUID(),
-    collectionId,
+    row.id,
     user.id,
     input.role,
     actor.id,
@@ -811,11 +1298,11 @@ export async function inviteCollectionCollaborator({
       type: "GENERAL",
       title: `${actor.slug} invited you to collaborate on a collection`,
       body: row.title,
-      link: `/collections/${collectionId}`,
-      data: { kind: "collection_collaborator_invite", collectionId, role: input.role },
+      link: `/c/${row.slug}`,
+      data: { kind: "collection_collaborator_invite", collectionId: row.id, role: input.role },
     },
   });
-  return getCollection({ collectionId, actor });
+  return getCollection({ collectionId: row.id, actor });
 }
 
 export async function respondCollectionCollaboratorInvite({
@@ -823,21 +1310,22 @@ export async function respondCollectionCollaboratorInvite({
   actor,
   input,
 }: {
-  collectionId: string;
+  collectionId: CollectionIdentifier;
   actor: CollectionActor;
   input: z.infer<typeof respondCollectionCollaboratorSchema>;
 }) {
+  const row = await getCollectionRow(collectionId);
+  if (!row) throw new NotFoundError("Collection not found");
   await db.$executeRawUnsafe(
     `
       UPDATE "CollectionCollaborator"
       SET status = $3, updated_at = NOW()
       WHERE collection_id = $1 AND user_id = $2
     `,
-    collectionId,
+    row.id,
     actor.id,
     input.status,
   );
-  const row = await getCollectionRow(collectionId);
   if (row && row.ownerId !== actor.id) {
     await db.notification.create({
       data: {
@@ -846,12 +1334,12 @@ export async function respondCollectionCollaboratorInvite({
         type: "GENERAL",
         title: `${actor.slug} ${input.status} your collection invite`,
         body: row.title,
-        link: `/collections/${collectionId}`,
-        data: { kind: "collection_collaborator_response", collectionId, status: input.status },
+        link: `/c/${row.slug}`,
+        data: { kind: "collection_collaborator_response", collectionId: row.id, status: input.status },
       },
     });
   }
-  return getCollection({ collectionId, actor });
+  return getCollection({ collectionId: row.id, actor });
 }
 
 export async function addCollectionComment({
@@ -859,7 +1347,7 @@ export async function addCollectionComment({
   actor,
   input,
 }: {
-  collectionId: string;
+  collectionId: CollectionIdentifier;
   actor: CollectionActor;
   input: z.infer<typeof collectionCommentSchema>;
 }) {
@@ -867,18 +1355,18 @@ export async function addCollectionComment({
   if (!row || !(await canViewCollection(row, actor))) {
     throw new NotFoundError("Collection not found");
   }
-  const commentId = randomUUID();
-  await db.$executeRawUnsafe(
+  const comments = (await db.$queryRawUnsafe(
     `
       INSERT INTO "CollectionComment"
-      (id, collection_id, author_id, content)
-      VALUES ($1, $2, $3, $4)
+      (collection_id, author_id, content)
+      VALUES ($1, $2, $3)
+      RETURNING id
     `,
-    commentId,
-    collectionId,
+    row.id,
     actor.id,
     input.content,
-  );
+  )) as Array<{ id: number }>;
+  const commentId = comments[0]?.id;
   await notifyCollectionRecipients({
     collection: row,
     actor,
@@ -886,7 +1374,7 @@ export async function addCollectionComment({
     body: row.title,
     data: { kind: "collection_comment", commentId },
   });
-  return getCollection({ collectionId, actor });
+  return getCollection({ collectionId: row.id, actor });
 }
 
 export async function getCollectionComments({
@@ -894,7 +1382,7 @@ export async function getCollectionComments({
   actor,
   input,
 }: {
-  collectionId: string;
+  collectionId: CollectionIdentifier;
   actor?: CollectionActor | null;
   input: z.infer<typeof collectionCommentsQuerySchema>;
 }) {
@@ -902,7 +1390,7 @@ export async function getCollectionComments({
   if (!row || !(await canViewCollection(row, actor))) {
     throw new NotFoundError("Collection not found");
   }
-  const items = await listCollectionComments(collectionId, input);
+  const items = await listCollectionComments(row.id, input);
   return { items };
 }
 
@@ -911,8 +1399,8 @@ export async function deleteCollectionComment({
   commentId,
   actor,
 }: {
-  collectionId: string;
-  commentId: string;
+  collectionId: CollectionIdentifier;
+  commentId: number;
   actor: CollectionActor;
 }) {
   const row = await getCollectionRow(collectionId);
@@ -925,7 +1413,7 @@ export async function deleteCollectionComment({
       LIMIT 1
     `,
     commentId,
-    collectionId,
+    row.id,
   )) as Array<{ authorId: number }>;
   const comment = comments[0];
   if (!comment) throw new NotFoundError("Comment not found");
@@ -944,7 +1432,7 @@ export async function followCollection({
   actor,
   follow,
 }: {
-  collectionId: string;
+  collectionId: CollectionIdentifier;
   actor: CollectionActor;
   follow: boolean;
 }) {
@@ -960,7 +1448,7 @@ export async function followCollection({
         WHERE collection_id = $1 AND user_id = $2
         LIMIT 1
       `,
-      collectionId,
+      row.id,
       actor.id,
     ).catch(() => [])) as Array<Record<string, unknown>>;
     await db.$executeRawUnsafe(
@@ -969,7 +1457,7 @@ export async function followCollection({
         VALUES ($1, $2)
         ON CONFLICT (collection_id, user_id) DO NOTHING
       `,
-      collectionId,
+      row.id,
       actor.id,
     );
     if (row.ownerId !== actor.id && existing.length === 0) {
@@ -980,15 +1468,15 @@ export async function followCollection({
           type: "GENERAL",
           title: `${actor.slug} followed your collection`,
           body: row.title,
-          link: `/collections/${collectionId}`,
-          data: { kind: "collection_follow", collectionId },
+          link: `/c/${row.slug}`,
+          data: { kind: "collection_follow", collectionId: row.id },
         },
       });
     }
   } else {
     await db.$executeRawUnsafe(
       `DELETE FROM "CollectionFollow" WHERE collection_id = $1 AND user_id = $2`,
-      collectionId,
+      row.id,
       actor.id,
     );
   }
@@ -999,7 +1487,7 @@ export async function exportCollection({
   collectionId,
   actor,
 }: {
-  collectionId: string;
+  collectionId: CollectionIdentifier;
   actor?: CollectionActor | null;
 }) {
   const row = await getCollectionRow(collectionId);
@@ -1024,13 +1512,18 @@ export async function importCollection({
 }) {
   const errors: Array<{ index: number; itemType: string; itemId: number; message: string }> = [];
   for (const [index, item] of input.items.entries()) {
+    const normalizedItemId =
+      item.itemType === "youtube_track"
+        ? stablePositiveHash(canonicalExternalKey(item))
+        : item.itemId;
     try {
-      await assertItemVisible(item.itemType, item.itemId, tenantId);
+      if (!normalizedItemId) throw new BadRequestError("Item ID is required");
+      await assertItemVisible(item.itemType, normalizedItemId, tenantId);
     } catch (error) {
       errors.push({
         index,
         itemType: item.itemType,
-        itemId: item.itemId,
+        itemId: normalizedItemId ?? 0,
         message: error instanceof Error ? error.message : "Invalid item",
       });
     }
@@ -1045,6 +1538,7 @@ export async function importCollection({
     input: {
       title: input.title ?? input.sourceName ?? "Imported collection",
       description: input.description ?? null,
+      collectionType: "music",
       visibility: input.visibility,
       playbackMode: input.playbackMode,
     },
@@ -1060,10 +1554,9 @@ export async function importCollection({
   await db.$executeRawUnsafe(
     `
       INSERT INTO "CollectionImport"
-      (id, collection_id, imported_by, source_name)
-      VALUES ($1, $2, $3, $4)
+      (collection_id, imported_by, source_name)
+      VALUES ($1, $2, $3)
     `,
-    randomUUID(),
     collection.id,
     actor.id,
     input.sourceName ?? null,

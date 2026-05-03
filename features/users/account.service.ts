@@ -41,7 +41,7 @@ function getRandomProfilePictureUrl(): string | null {
   }
 
   const randomIndex = Math.floor(Math.random() * files.length);
-  return `${env.clientOrigin}/api/v1/pfp/${files[randomIndex]}`;
+  return `/api/v1/pfp/${files[randomIndex]}`;
 }
 
 export async function createUserAccount({

@@ -2,6 +2,7 @@ import { Router } from "express";
 import rateLimit from "@middleware/rateLimit";
 import path from "path";
 import process from "process";
+import { appConfig } from "../../../config/app.js";
 
 const router = Router();
 import { readdir } from "fs";
@@ -42,14 +43,7 @@ router.get(
 
       const imageUrls = sortProfilePictures(files)
         .filter((f) => /\.(png|jpe?g|gif|webp)$/i.test(f))
-        .map(
-          (file) =>
-            `${
-              process.env.NODE_ENV === "production"
-                ? "https://d2jam.com"
-                : `http://localhost:${process.env.PORT || 3005}`
-            }/api/v1/pfp/${file}`
-        );
+        .map((file) => `${appConfig.uploads.apiBasePath}/pfp/${file}`);
 
       res.json({ message: "fetched pfps", data: imageUrls });
     });

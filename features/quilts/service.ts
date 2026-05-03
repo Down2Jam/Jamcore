@@ -301,7 +301,18 @@ export async function listQuilts(tenantId?: string | null) {
       _count: { select: { submissions: true } },
       submissions: {
         where: { status: QuiltSubmissionStatus.ACCEPTED },
-        select: { id: true },
+        orderBy: { resolvedAt: "asc" },
+        select: {
+          id: true,
+          kind: true,
+          pixels: true,
+          canvasWidth: true,
+          canvasHeight: true,
+          resizeFromWidth: true,
+          resizeFromHeight: true,
+          resizeOffsetX: true,
+          resizeOffsetY: true,
+        },
       },
     },
   });
@@ -317,6 +328,7 @@ export async function listQuilts(tenantId?: string | null) {
     createdAt: quilt.createdAt.toISOString(),
     submissionCount: quilt._count.submissions,
     acceptedCount: quilt.submissions.length,
+    canvas: composeCanvas(quilt.width, quilt.height, quilt.submissions),
   }));
 }
 
@@ -456,6 +468,12 @@ export async function submitQuiltPixels({
       canvasWidth: quilt.width,
       canvasHeight: quilt.height,
       resolvesAt: new Date(now.getTime() + REVIEW_WINDOW_MS),
+      votes: {
+        create: {
+          userId: actor.id,
+          value: 1,
+        },
+      },
     },
   });
 
@@ -565,6 +583,13 @@ export async function updateQuiltSubmission({
         removedAt: null,
         removedById: null,
         updatedAt: now,
+      },
+    }),
+    db.quiltVote.create({
+      data: {
+        submissionId,
+        userId: actor.id,
+        value: 1,
       },
     }),
   ]);
