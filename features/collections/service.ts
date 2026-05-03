@@ -140,9 +140,14 @@ export const collectionItemSchema = z.object({
 
 export const updateCollectionItemSchema = z
   .object({
+    title: z.string().trim().min(1).max(200).optional().nullable(),
     note: z.string().trim().max(500).optional().nullable(),
+    position: z.coerce.number().int().optional(),
   })
-  .refine((payload) => payload.note !== undefined, {
+  .refine((payload) =>
+    payload.title !== undefined ||
+    payload.note !== undefined ||
+    payload.position !== undefined, {
     message: "No update fields provided.",
   });
 
@@ -1221,10 +1226,17 @@ export async function updateCollectionItem({
   await db.$executeRawUnsafe(
     `
       UPDATE "CollectionItem"
-      SET note = $1
-      WHERE id = $2 AND collection_id = $3
+      SET
+        title = CASE WHEN $1::boolean THEN $2 ELSE title END,
+        note = CASE WHEN $3::boolean THEN $4 ELSE note END,
+        position = COALESCE($5, position)
+      WHERE id = $6 AND collection_id = $7
     `,
+    input.title !== undefined,
+    input.title?.trim() || null,
+    input.note !== undefined,
     input.note?.trim() || null,
+    input.position ?? null,
     itemId,
     row.id,
   );
