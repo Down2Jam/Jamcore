@@ -6,8 +6,9 @@ import db from "../../infra/db.js";
 import { BadRequestError, ForbiddenError, NotFoundError } from "../../lib/errors.js";
 import { notifyDiscordQuiltProposal } from "./discord.js";
 
-const REVIEW_WINDOW_MS = 60 * 60 * 1000;
+const MS_PER_MINUTE = 60 * 1000;
 const MAX_PIXELS_PER_SUBMISSION = 4096;
+const MAX_REVIEW_WINDOW_MINUTES = 60 * 24 * 30;
 
 export const quiltCreateSchema = z.object({
   name: z.string().trim().min(1).max(120),
@@ -20,6 +21,12 @@ export const quiltCreateSchema = z.object({
   description: z.string().trim().max(1000).optional().nullable(),
   width: z.coerce.number().int().min(8).max(512),
   height: z.coerce.number().int().min(8).max(512),
+  reviewWindowMinutes: z.coerce
+    .number()
+    .int()
+    .min(0)
+    .max(MAX_REVIEW_WINDOW_MINUTES)
+    .optional(),
   endsAt: z.coerce.date(),
 });
 
@@ -125,6 +132,10 @@ function canonicalPixels(pixels: QuiltPixel[]) {
       }))
       .sort((a, b) => a.y - b.y || a.x - b.x),
   );
+}
+
+function submissionResolvesAt(now: Date, reviewWindowMinutes: number) {
+  return new Date(now.getTime() + reviewWindowMinutes * MS_PER_MINUTE);
 }
 
 function serializeSubmission(
@@ -324,6 +335,7 @@ export async function listQuilts(tenantId?: string | null) {
     description: quilt.description,
     width: quilt.width,
     height: quilt.height,
+    reviewWindowMinutes: quilt.reviewWindowMinutes,
     endsAt: quilt.endsAt.toISOString(),
     createdAt: quilt.createdAt.toISOString(),
     submissionCount: quilt._count.submissions,
@@ -349,6 +361,7 @@ export async function createQuilt({
       description: input.description?.trim() || null,
       width: input.width,
       height: input.height,
+      reviewWindowMinutes: input.reviewWindowMinutes,
       endsAt: input.endsAt,
       tenantId: resolvedTenantId(tenantId),
     },
@@ -389,6 +402,7 @@ export async function getQuiltDetail({
     description: quilt.description,
     width: quilt.width,
     height: quilt.height,
+    reviewWindowMinutes: quilt.reviewWindowMinutes,
     endsAt: quilt.endsAt.toISOString(),
     createdAt: quilt.createdAt.toISOString(),
     isEnded: quilt.endsAt.getTime() <= Date.now(),
@@ -467,7 +481,7 @@ export async function submitQuiltPixels({
       pixels: normalizedPixels,
       canvasWidth: quilt.width,
       canvasHeight: quilt.height,
-      resolvesAt: new Date(now.getTime() + REVIEW_WINDOW_MS),
+      resolvesAt: submissionResolvesAt(now, quilt.reviewWindowMinutes),
       votes: {
         create: {
           userId: actor.id,
@@ -545,6 +559,7 @@ export async function updateQuiltSubmission({
           slug: true,
           width: true,
           height: true,
+          reviewWindowMinutes: true,
           endsAt: true,
         },
       },
@@ -578,7 +593,10 @@ export async function updateQuiltSubmission({
         canvasWidth: submission.quilt.width,
         canvasHeight: submission.quilt.height,
         status: QuiltSubmissionStatus.PENDING,
-        resolvesAt: new Date(now.getTime() + REVIEW_WINDOW_MS),
+        resolvesAt: submissionResolvesAt(
+          now,
+          submission.quilt.reviewWindowMinutes,
+        ),
         resolvedAt: null,
         removedAt: null,
         removedById: null,

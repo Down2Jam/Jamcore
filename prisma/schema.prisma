@@ -1304,6 +1304,7 @@ model Quilt {
   description String?
   width       Int
   height      Int
+  reviewWindowMinutes Int      @default(60) @map("review_window_minutes")
   endsAt      DateTime @map("ends_at")
   tenantId    String?  @map("tenant_id")
   createdAt   DateTime @default(now()) @map("created_at")
