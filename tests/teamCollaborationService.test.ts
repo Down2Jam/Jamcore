@@ -1,4 +1,4 @@
-﻿import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const txMock = {
   notification: { deleteMany: vi.fn(async () => ({ count: 0 })) },
@@ -41,11 +41,11 @@ const { dbMock } = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("../infra/db.js", () => ({
+vi.mock("../src/infra/db.js", () => ({
   default: dbMock,
 }));
 
-import { ForbiddenError } from "../lib/errors.js";
+import { ForbiddenError } from "../src/lib/errors.js";
 import {
   assertTargetTeamApplicationsOpen,
   assertTargetTeamHasNotInvitedUser,
@@ -53,7 +53,7 @@ import {
   createTeamApplication,
   createTeamInvite,
   deleteTeamById,
-} from "../features/teams/index.js";
+} from "../src/features/teams/index.js";
 
 describe("team collaboration service", () => {
   beforeEach(() => {

@@ -480,6 +480,9 @@ export const targetUserDetailSelect = {
   posts: {
     include: {
       author: true,
+      comments: true,
+      likes: true,
+      tags: true,
     },
   },
   comments: {

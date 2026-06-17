@@ -1,4 +1,4 @@
-﻿import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PageVersion } from "@prisma/client";
 
 const { dbMock, audioMock } = vi.hoisted(() => ({
@@ -20,15 +20,15 @@ const { dbMock, audioMock } = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("../infra/db.js", () => ({
+vi.mock("../src/infra/db.js", () => ({
   default: dbMock,
 }));
 
-vi.mock("../infra/coreTenantStore.js", () => ({
+vi.mock("../src/infra/coreTenantStore.js", () => ({
   doesCoreEntityBelongToTenant: vi.fn(async () => true),
 }));
 
-vi.mock("../features/tracks/audio-download.js", () => ({
+vi.mock("../src/features/tracks/audio-download.js", () => ({
   buildTrackDownloadFilename: audioMock.buildTrackDownloadFilename,
   createContentDisposition: audioMock.createContentDisposition,
   detectAudioFormat: audioMock.detectAudioFormat,
@@ -40,17 +40,17 @@ vi.mock("../features/tracks/audio-download.js", () => ({
   getMusicFileBuffer: audioMock.getMusicFileBuffer,
 }));
 
-vi.mock("../features/tracks/page.js", () => ({
+vi.mock("../src/features/tracks/page.js", () => ({
   parseTrackPageVersion: vi.fn((value) =>
     value === "POST_JAM" ? PageVersion.POST_JAM : PageVersion.JAM,
   ),
 }));
 
-import { BadRequestError, NotFoundError } from "../lib/errors.js";
+import { BadRequestError, NotFoundError } from "../src/lib/errors.js";
 import {
   buildTrackDownloadBySlug,
   getMusicFileByName,
-} from "../features/tracks/media.service.js";
+} from "../src/features/tracks/media.service.js";
 
 describe("track media service", () => {
   beforeEach(() => {

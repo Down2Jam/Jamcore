@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { buildFollowersCollection } from "../features/federation/state/followers.service.js";
-import { clearFederationState } from "../features/federation/state/state.service.js";
+import { buildFollowersCollection } from "../src/features/federation/state/followers.service.js";
+import { clearFederationState } from "../src/features/federation/state/state.service.js";
 
 const mocks = vi.hoisted(() => ({
   createMany: vi.fn(),
@@ -10,7 +10,7 @@ const mocks = vi.hoisted(() => ({
   queryRawUnsafe: vi.fn(),
 }));
 
-vi.mock("../infra/db.js", () => ({
+vi.mock("../src/infra/db.js", () => ({
   default: {
     notification: {
       createMany: mocks.createMany,
@@ -35,7 +35,7 @@ vi.mock("../infra/db.js", () => ({
   },
 }));
 
-vi.mock("../features/federation/models/remote-actor.service.js", () => ({
+vi.mock("../src/features/federation/models/remote-actor.service.js", () => ({
   resolveRemoteActorProfile: vi.fn(async (actorId: string) => ({
     id: actorId,
     preferredUsername: "alice",
@@ -48,7 +48,7 @@ vi.mock("../features/federation/models/remote-actor.service.js", () => ({
   })),
 }));
 
-vi.mock("../features/federation/transport/delivery.service.js", () => ({
+vi.mock("../src/features/federation/transport/delivery.service.js", () => ({
   enqueueFederationDelivery: vi.fn(async () => "delivery-1"),
 }));
 
@@ -56,8 +56,8 @@ import {
   getInboxTargetForJam,
   getInboxTargetForUser,
   handleInboxActivity,
-} from "../features/federation/inbox/service.js";
-import { getJamActorId, getPostObjectId, getUserActorId } from "../features/federation/protocol/urls.js";
+} from "../src/features/federation/inbox/service.js";
+import { getJamActorId, getPostObjectId, getUserActorId } from "../src/features/federation/protocol/urls.js";
 
 describe("federation inbox service", () => {
   beforeEach(async () => {

@@ -1,4 +1,4 @@
-﻿import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   dbMock,
@@ -34,40 +34,40 @@ vi.mock("fs", () => ({
   },
 }));
 
-vi.mock("../infra/db.js", () => ({
+vi.mock("../src/infra/db.js", () => ({
   default: dbMock,
 }));
 
-vi.mock("../infra/password.js", () => ({
+vi.mock("../src/infra/password.js", () => ({
   hashPassword: hashPasswordMock,
 }));
 
-vi.mock("../auth/session.js", () => ({
+vi.mock("../src/auth/session.js", () => ({
   signAccessToken: signAccessTokenMock,
   signRefreshToken: signRefreshTokenMock,
   writeSession: writeSessionMock,
 }));
 
-vi.mock("../infra/logger.js", () => ({
+vi.mock("../src/infra/logger.js", () => ({
   default: {
     info: loggerInfoMock,
   },
 }));
 
-vi.mock("../config/env.js", () => ({
+vi.mock("../src/config/env.js", () => ({
   env: envMock,
 }));
 
 import {
   ConfigurationError,
   ConflictError,
-} from "../lib/errors.js";
+} from "../src/lib/errors.js";
 import {
   buildUserSlug,
   createUserAccount,
   createUserAccountSchema,
   deleteUserAccount,
-} from "../features/users/account.service.js";
+} from "../src/features/users/account.service.js";
 
 describe("user account service", () => {
   beforeEach(() => {

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("../config/env.js", () => ({
+vi.mock("../src/config/env.js", () => ({
   env: {
     serviceApiKeys: JSON.stringify([
       {
@@ -15,8 +15,8 @@ vi.mock("../config/env.js", () => ({
 import {
   assertServiceScope,
   authenticateServiceRequest,
-} from "../auth/service.js";
-import { UnauthorizedError } from "../lib/errors.js";
+} from "../src/auth/service.js";
+import { UnauthorizedError } from "../src/lib/errors.js";
 
 describe("service auth", () => {
   it("authenticates configured service keys", async () => {

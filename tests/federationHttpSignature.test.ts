@@ -1,8 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
-vi.mock("../config/app.js", async () => {
-  const actual = await vi.importActual<typeof import("../config/app.js")>(
-    "../config/app.js",
+vi.mock("../src/config/app.js", async () => {
+  const actual = await vi.importActual<typeof import("../src/config/app.js")>(
+    "../src/config/app.js",
   );
 
   return {
@@ -25,20 +25,20 @@ const mocks = vi.hoisted(() => ({
   fetchRemoteActor: vi.fn(),
 }));
 
-vi.mock("../features/federation/models/remote-actor.service.js", () => ({
+vi.mock("../src/features/federation/models/remote-actor.service.js", () => ({
   fetchRemoteActor: mocks.fetchRemoteActor,
 }));
 
-import { buildActorPublicKey } from "../features/federation/protocol/keys.js";
+import { buildActorPublicKey } from "../src/features/federation/protocol/keys.js";
 import {
   createSignedRequestHeaders,
   verifyIncomingSignature,
-} from "../features/federation/transport/http-signature.service.js";
+} from "../src/features/federation/transport/http-signature.service.js";
 import {
   getLocalPublicKeyPem,
   initializeFederationKeys,
-} from "../features/federation/transport/key.service.js";
-import { getJamActorId } from "../features/federation/protocol/urls.js";
+} from "../src/features/federation/transport/key.service.js";
+import { getJamActorId } from "../src/features/federation/protocol/urls.js";
 
 describe("federation http signatures", () => {
   beforeAll(async () => {

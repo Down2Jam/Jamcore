@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { hasPermission } from "../lib/permissions.js";
+import { hasPermission } from "../src/lib/permissions.js";
 
 describe("secret export permissions", () => {
   it("does not let moderators or platform readers export secrets", () => {

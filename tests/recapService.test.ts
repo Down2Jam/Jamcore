@@ -1,4 +1,4 @@
-﻿import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { dbMock } = vi.hoisted(() => ({
   dbMock: {
@@ -23,12 +23,12 @@ const { dbMock } = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("../infra/db.js", () => ({
+vi.mock("../src/infra/db.js", () => ({
   default: dbMock,
 }));
 
-import { ForbiddenError, NotFoundError, UnauthorizedError } from "../lib/errors.js";
-import { getRecapVisibility, updateRecapVisibility } from "../features/recap";
+import { ForbiddenError, NotFoundError, UnauthorizedError } from "../src/lib/errors.js";
+import { getRecapVisibility, updateRecapVisibility } from "../src/features/recap";
 
 describe("recap service", () => {
   beforeEach(() => {

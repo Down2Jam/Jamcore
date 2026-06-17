@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 
-const registryPath = path.resolve(process.cwd(), "contracts", "api-registry.json");
+const registryPath = path.resolve(process.cwd(), "src", "contracts", "api-registry.json");
 const outputPath = path.resolve(process.cwd(), "generated", "sdk.ts");
 
 const registry = JSON.parse(await fs.readFile(registryPath, "utf8"));

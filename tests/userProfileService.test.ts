@@ -1,31 +1,31 @@
-﻿import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-vi.mock("../config/env.js", () => ({
+vi.mock("../src/config/env.js", () => ({
   env: {
     nodeEnv: "development",
   },
 }));
 
-vi.mock("../infra/db.js", () => ({
+vi.mock("../src/infra/db.js", () => ({
   default: {},
 }));
 
-vi.mock("../features/games/page.helpers.js", () => ({
+vi.mock("../src/features/games/page.helpers.js", () => ({
   materializeGamePage: (value: unknown) => value,
 }));
 
-vi.mock("../features/tracks/page.js", () => ({
+vi.mock("../src/features/tracks/page.js", () => ({
   materializeTrackPage: (value: unknown) => value,
 }));
 
-vi.mock("../features/mentions/notifications.service.js", () => ({
+vi.mock("../src/features/mentions/notifications.service.js", () => ({
   notifyNewMentions: vi.fn(),
 }));
 
 import {
   isAllowedAssetUrl,
   updateUserProfileSchema,
-} from "../features/users/index.js";
+} from "../src/features/users/index.js";
 
 describe("user profile service", () => {
   it("accepts local asset urls in development", () => {

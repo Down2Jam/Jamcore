@@ -1,4 +1,4 @@
-﻿import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { dbMock } = vi.hoisted(() => ({
   dbMock: {
@@ -20,16 +20,16 @@ const { dbMock } = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("../infra/db.js", () => ({
+vi.mock("../src/infra/db.js", () => ({
   default: dbMock,
 }));
 
-import { ConflictError, NotFoundError } from "../lib/errors.js";
+import { ConflictError, NotFoundError } from "../src/lib/errors.js";
 import {
   toggleLike,
   toggleCommentReaction,
   togglePostReaction,
-} from "../features/reactions/index.js";
+} from "../src/features/reactions/index.js";
 
 describe("reaction service", () => {
   beforeEach(() => {

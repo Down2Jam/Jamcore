@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { PageVersion } from "@prisma/client";
 
-import { sortTracksByScore } from "../features/tracks/ranking.js";
+import { sortTracksByScore } from "../src/features/tracks/ranking.js";
 
 const eligibleRater = {
   user: {

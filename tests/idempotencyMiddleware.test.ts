@@ -22,7 +22,7 @@ const state = {
   deleted: [] as string[],
 };
 
-vi.mock("../infra/idempotencyStore.js", () => ({
+vi.mock("../src/infra/idempotencyStore.js", () => ({
   claimIdempotencyRecord: vi.fn(async () => state.claimResult),
   completeIdempotencyRecord: vi.fn(async (input) => {
     state.completed.push(input as Record<string, unknown>);
@@ -55,7 +55,7 @@ describe("idempotency middleware", () => {
       },
     };
 
-    const { idempotencyMiddleware } = await import("../middleware/idempotency.js");
+    const { idempotencyMiddleware } = await import("../src/middleware/idempotency.js");
     const app = express();
     app.use(express.json());
     app.post("/test", idempotencyMiddleware, (_req, res) => {
@@ -91,7 +91,7 @@ describe("idempotency middleware", () => {
   });
 
   it("stores a successful first response on completion", async () => {
-    const { idempotencyMiddleware } = await import("../middleware/idempotency.js");
+    const { idempotencyMiddleware } = await import("../src/middleware/idempotency.js");
     const app = express();
     app.use(express.json());
     app.post("/test", idempotencyMiddleware, (_req, res) => {

@@ -1,4 +1,4 @@
-﻿import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { dbMock } = vi.hoisted(() => ({
   dbMock: {
@@ -9,17 +9,17 @@ const { dbMock } = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("../infra/db.js", () => ({
+vi.mock("../src/infra/db.js", () => ({
   default: dbMock,
 }));
 
-vi.mock("../features/comments/thread.service.js", () => ({
+vi.mock("../src/features/comments/thread.service.js", () => ({
   cleanupNotificationsForComment: vi.fn(async () => undefined),
 }));
 
-import { cleanupNotificationsForComment } from "../features/comments/thread.service.js";
-import { ForbiddenError, NotFoundError } from "../lib/errors.js";
-import { deleteCommentById } from "../features/comments/moderation.service.js";
+import { cleanupNotificationsForComment } from "../src/features/comments/thread.service.js";
+import { ForbiddenError, NotFoundError } from "../src/lib/errors.js";
+import { deleteCommentById } from "../src/features/comments/moderation.service.js";
 
 describe("comment moderation service", () => {
   beforeEach(() => {

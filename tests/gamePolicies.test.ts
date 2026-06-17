@@ -7,8 +7,8 @@ import {
   canChangeGameCategory,
   canViewGameScores,
   isAllowedJamRater,
-} from "../domain/gamePolicies.js";
-import { JAM_PHASES } from "../domain/jamTimeline.js";
+} from "../src/domain/gamePolicies.js";
+import { JAM_PHASES } from "../src/domain/jamTimeline.js";
 
 describe("gamePolicies", () => {
   it("blocks jam-category changes during rating unless moving to EXTRA", () => {

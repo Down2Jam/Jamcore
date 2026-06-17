@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { JAM_PHASES, buildJamTimeline, getJamPhase } from "../domain/jamTimeline.js";
+import { JAM_PHASES, buildJamTimeline, getJamPhase } from "../src/domain/jamTimeline.js";
 
 const jam = {
   startTime: "2026-05-10T12:00:00.000Z",

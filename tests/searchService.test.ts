@@ -55,33 +55,33 @@ const {
   },
 }));
 
-vi.mock("../infra/db.js", () => ({
+vi.mock("../src/infra/db.js", () => ({
   default: dbMock,
 }));
 
-vi.mock("../infra/searchStore.js", () => ({
+vi.mock("../src/infra/searchStore.js", () => ({
   querySearchDocuments: searchStoreMock.querySearchDocuments,
   getSearchIndexStats: searchStoreMock.getSearchIndexStats,
 }));
 
-vi.mock("../features/search/admin.service.js", () => ({
+vi.mock("../src/features/search/admin.service.js", () => ({
   expandSearchTerms: adminServiceMock.expandSearchTerms,
   getSearchTuning: adminServiceMock.getSearchTuning,
 }));
 
-vi.mock("../features/search/readiness.js", () => ({
+vi.mock("../src/features/search/readiness.js", () => ({
   ensureSearchBootstrap: searchReadinessMock.ensureSearchBootstrap,
 }));
 
-vi.mock("../features/games/page.helpers.js", () => ({
+vi.mock("../src/features/games/page.helpers.js", () => ({
   materializeGamePage: gamePageMock.materializeGamePage,
 }));
 
-vi.mock("../features/tracks/page.js", () => ({
+vi.mock("../src/features/tracks/page.js", () => ({
   materializeTrackPage: trackPageMock.materializeTrackPage,
 }));
 
-import { searchContent } from "../features/search";
+import { searchContent } from "../src/features/search";
 
 describe("search service", () => {
   beforeEach(() => {

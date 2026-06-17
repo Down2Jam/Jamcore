@@ -1,17 +1,17 @@
-﻿import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import { vi } from "vitest";
 
-vi.mock("../infra/db.js", () => ({
+vi.mock("../src/infra/db.js", () => ({
   default: {},
 }));
 
-vi.mock("../features/mentions/notifications.service.js", () => ({
+vi.mock("../src/features/mentions/notifications.service.js", () => ({
   notifyNewMentions: vi.fn(),
 }));
 
-import { REGULAR_GAME_CATEGORY } from "../domain/gamePolicies.js";
-import { createGameSchema } from "../features/games/creation.service.js";
+import { REGULAR_GAME_CATEGORY } from "../src/domain/gamePolicies.js";
+import { createGameSchema } from "../src/features/games/creation.service.js";
 
 describe("game creation schema", () => {
   it("accepts a minimal valid payload", () => {

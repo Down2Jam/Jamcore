@@ -1,4 +1,4 @@
-﻿import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { dbMock } = vi.hoisted(() => ({
   dbMock: {
@@ -9,11 +9,11 @@ const { dbMock } = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("../infra/db.js", () => ({
+vi.mock("../src/infra/db.js", () => ({
   default: dbMock,
 }));
 
-import { createScore, deleteScore } from "../features/scores";
+import { createScore, deleteScore } from "../src/features/scores";
 
 describe("scores service", () => {
   beforeEach(() => {

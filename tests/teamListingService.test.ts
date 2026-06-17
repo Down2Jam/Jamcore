@@ -1,4 +1,4 @@
-﻿import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { dbMock, gamePagesMock } = vi.hoisted(() => ({
   dbMock: {
@@ -12,16 +12,16 @@ const { dbMock, gamePagesMock } = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("../infra/db.js", () => ({
+vi.mock("../src/infra/db.js", () => ({
   default: dbMock,
 }));
 
-vi.mock("../features/games/page.helpers.js", () => ({
+vi.mock("../src/features/games/page.helpers.js", () => ({
   materializeGamePage: gamePagesMock.materializeGamePage,
   gamePageInclude: gamePagesMock.gamePageInclude,
 }));
 
-import { listTeams } from "../features/teams/listing.service.js";
+import { listTeams } from "../src/features/teams/listing.service.js";
 
 describe("team listing service", () => {
   beforeEach(() => {

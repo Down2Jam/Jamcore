@@ -31,16 +31,16 @@ const { dbMock } = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("../infra/db.js", () => ({
+vi.mock("../src/infra/db.js", () => ({
   default: dbMock,
 }));
 
-vi.mock("../features/mentions/notifications.service.js", () => ({
+vi.mock("../src/features/mentions/notifications.service.js", () => ({
   notifyNewMentions: vi.fn(async () => undefined),
   resolveCommentMentionContext: vi.fn(async () => ({})),
 }));
 
-vi.mock("../features/federation/outbox/mutation-publication.service.js", () => ({
+vi.mock("../src/features/federation/outbox/mutation-publication.service.js", () => ({
   publishCommentCreated: vi.fn(async () => ["delivery-1"]),
   publishCommentUpdated: vi.fn(async () => ["delivery-1"]),
 }));
@@ -48,9 +48,9 @@ vi.mock("../features/federation/outbox/mutation-publication.service.js", () => (
 import {
   createComment,
   createCommentSchema,
-} from "../features/comments/mutation.service.js";
-import { notifyNewMentions } from "../features/mentions/notifications.service.js";
-import { publishCommentCreated } from "../features/federation/outbox/mutation-publication.service.js";
+} from "../src/features/comments/mutation.service.js";
+import { notifyNewMentions } from "../src/features/mentions/notifications.service.js";
+import { publishCommentCreated } from "../src/features/federation/outbox/mutation-publication.service.js";
 
 describe("comment mutation service", () => {
   beforeEach(() => {

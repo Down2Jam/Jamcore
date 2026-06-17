@@ -1,15 +1,15 @@
-﻿import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   loadOptionalRequestUserBySlug,
   loadRequestUserBySlug,
-} from "../features/users/request.service.js";
+} from "../src/features/users/request.service.js";
 
 const { findUnique } = vi.hoisted(() => ({
   findUnique: vi.fn(),
 }));
 
-vi.mock("../infra/db.js", () => ({
+vi.mock("../src/infra/db.js", () => ({
   default: {
     user: {
       findUnique,
@@ -17,11 +17,11 @@ vi.mock("../infra/db.js", () => ({
   },
 }));
 
-vi.mock("../features/games/page.helpers.js", () => ({
+vi.mock("../src/features/games/page.helpers.js", () => ({
   materializeGamePage: (value: unknown) => value,
 }));
 
-vi.mock("../features/tracks/page.js", () => ({
+vi.mock("../src/features/tracks/page.js", () => ({
   materializeTrackPage: (value: unknown) => value,
 }));
 

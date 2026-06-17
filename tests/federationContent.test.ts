@@ -4,7 +4,7 @@ import {
   buildFederatedContent,
   extractCustomEmojiShortcodes,
   extractHashtags,
-} from "../features/federation/protocol/content.js";
+} from "../src/features/federation/protocol/content.js";
 
 describe("federation content", () => {
   it("extracts hashtags and custom emoji shortcodes", () => {

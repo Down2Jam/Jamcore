@@ -1,4 +1,4 @@
-﻿import { vi } from "vitest";
+import { vi } from "vitest";
 import { describe, expect, it } from "vitest";
 import { PageVersion } from "@prisma/client";
 
@@ -17,9 +17,9 @@ import {
   buildGamePagePayload,
   getGamePage,
   materializeGamePage,
-} from "../features/games/page.helpers.js";
-import { REGULAR_GAME_CATEGORY } from "../domain/gamePolicies.js";
-import { mapCommentsForViewer } from "../features/comments/thread.service.js";
+} from "../src/features/games/page.helpers.js";
+import { REGULAR_GAME_CATEGORY } from "../src/domain/gamePolicies.js";
+import { mapCommentsForViewer } from "../src/features/comments/thread.service.js";
 
 describe("typed helpers", () => {
   it("materializes a page-backed game view", () => {

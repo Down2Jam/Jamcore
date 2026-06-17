@@ -5,7 +5,7 @@ const mocks = vi.hoisted(() => ({
   getUserOutboxItems: vi.fn(),
 }));
 
-vi.mock("../features/federation/models/service.js", () => ({
+vi.mock("../src/features/federation/models/service.js", () => ({
   getJamOutboxItems: mocks.getJamOutboxItems,
   getUserOutboxItems: mocks.getUserOutboxItems,
 }));
@@ -13,8 +13,8 @@ vi.mock("../features/federation/models/service.js", () => ({
 import {
   buildJamOutboxCollection,
   buildUserOutboxCollection,
-} from "../features/federation/outbox/service.js";
-import { getJamOutboxId, getUserOutboxId } from "../features/federation/protocol/urls.js";
+} from "../src/features/federation/outbox/service.js";
+import { getJamOutboxId, getUserOutboxId } from "../src/features/federation/protocol/urls.js";
 
 describe("federation outbox service", () => {
   beforeEach(() => {

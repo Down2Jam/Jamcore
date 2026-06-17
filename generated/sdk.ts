@@ -48,7 +48,7 @@ export function createJamcoreClient(config: JamcoreClientConfig = {}) {
 
   return {
     getOpenApi: () => request("GET", "/openapi", {  }),
-    undefined: () => request("GET", "/capabilities", {  }),
+    getCapabilities: () => request("GET", "/capabilities", {  }),
     listGames: (query: RequestOptions["query"] = undefined) => request("GET", "/games", { query }),
     getRandomGame: () => request("GET", "/games/random", {  }),
     createGame: (body: unknown) => request("POST", "/games", { body }),

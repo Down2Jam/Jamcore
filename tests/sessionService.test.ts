@@ -1,4 +1,4 @@
-﻿import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { dbMock, passwordMock, sessionMock } = vi.hoisted(() => ({
   dbMock: {
@@ -16,22 +16,22 @@ const { dbMock, passwordMock, sessionMock } = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("../infra/db.js", () => ({
+vi.mock("../src/infra/db.js", () => ({
   default: dbMock,
 }));
 
-vi.mock("../infra/password.js", () => ({
+vi.mock("../src/infra/password.js", () => ({
   checkPasswordHash: passwordMock.checkPasswordHash,
 }));
 
-vi.mock("../auth/session.js", () => ({
+vi.mock("../src/auth/session.js", () => ({
   signAccessToken: sessionMock.signAccessToken,
   signRefreshToken: sessionMock.signRefreshToken,
   writeSession: sessionMock.writeSession,
 }));
 
-import { UnauthorizedError } from "../lib/errors.js";
-import { createSession } from "../features/session";
+import { UnauthorizedError } from "../src/lib/errors.js";
+import { createSession } from "../src/features/session";
 
 describe("session service", () => {
   beforeEach(() => {

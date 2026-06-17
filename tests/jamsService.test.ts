@@ -1,4 +1,4 @@
-﻿import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { dbMock } = vi.hoisted(() => ({
   dbMock: {
@@ -11,7 +11,7 @@ const { dbMock } = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("../infra/db.js", () => ({
+vi.mock("../src/infra/db.js", () => ({
   default: dbMock,
 }));
 
@@ -22,8 +22,8 @@ import {
   hasUserJoinedJam,
   joinJam,
   listJams,
-} from "../features/jams";
-import { JAM_PHASES } from "../domain/jamTimeline.js";
+} from "../src/features/jams";
+import { JAM_PHASES } from "../src/domain/jamTimeline.js";
 
 describe("jams service", () => {
   beforeEach(() => {

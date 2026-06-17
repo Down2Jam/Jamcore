@@ -1,8 +1,8 @@
 import type { NextFunction, Request, Response } from "express";
 import { describe, expect, it, vi } from "vitest";
 
-import { appConfig } from "../config/app.js";
-import { verifyFederationSignature } from "../features/federation/transport/middleware.js";
+import { appConfig } from "../src/config/app.js";
+import { verifyFederationSignature } from "../src/features/federation/transport/middleware.js";
 
 describe("federation signature middleware", () => {
   it("skips signature checks when federation security is disabled", async () => {

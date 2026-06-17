@@ -1,4 +1,4 @@
-﻿import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { dbMock } = vi.hoisted(() => ({
   dbMock: {
@@ -24,17 +24,17 @@ const { dbMock } = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("../infra/db.js", () => ({
+vi.mock("../src/infra/db.js", () => ({
   default: dbMock,
 }));
 
-vi.mock("../features/jams/index.js", () => ({
+vi.mock("../src/features/jams/index.js", () => ({
   getCurrentActiveJam: vi.fn(),
 }));
 
-import { ForbiddenError } from "../lib/errors.js";
-import { JAM_PHASES } from "../domain/jamTimeline.js";
-import { getCurrentActiveJam } from "../features/jams/index.js";
+import { ForbiddenError } from "../src/lib/errors.js";
+import { JAM_PHASES } from "../src/domain/jamTimeline.js";
+import { getCurrentActiveJam } from "../src/features/jams/index.js";
 import {
   assertSuggestionPhase,
   assertVotingStillOpen,
@@ -47,7 +47,7 @@ import {
   listUserThemeSuggestions,
   saveSlaughterVote,
   saveVotingRoundVote,
-} from "../features/themes";
+} from "../src/features/themes";
 
 describe("themes service", () => {
   beforeEach(() => {

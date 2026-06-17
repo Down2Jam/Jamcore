@@ -7,9 +7,9 @@ import {
   recordFollowing,
   undoFollower,
   undoFollowing,
-} from "../features/federation/state/followers.service.js";
-import { getJamActorId } from "../features/federation/protocol/urls.js";
-import { clearFederationState } from "../features/federation/state/state.service.js";
+} from "../src/features/federation/state/followers.service.js";
+import { getJamActorId } from "../src/features/federation/protocol/urls.js";
+import { clearFederationState } from "../src/features/federation/state/state.service.js";
 
 describe("federation followers service", () => {
   beforeEach(async () => {

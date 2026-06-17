@@ -1,4 +1,4 @@
-﻿import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PageVersion } from "@prisma/client";
 
 const { dbMock, moderationMock, recommendationMock } = vi.hoisted(() => ({
@@ -26,21 +26,21 @@ const { dbMock, moderationMock, recommendationMock } = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("../infra/db.js", () => ({
+vi.mock("../src/infra/db.js", () => ({
   default: dbMock,
 }));
 
-vi.mock("../features/comments/thread.service.js", () => ({
+vi.mock("../src/features/comments/thread.service.js", () => ({
   isPrivilegedViewer: moderationMock.isPrivilegedViewer,
   mapCommentsForViewer: moderationMock.mapCommentsForViewer,
 }));
 
-vi.mock("../features/users/recommendations.core.js", () => ({
+vi.mock("../src/features/users/recommendations.core.js", () => ({
   applyRecommendationOverrides: recommendationMock.applyRecommendationOverrides,
   rankRecommendationCandidates: recommendationMock.rankRecommendationCandidates,
 }));
 
-vi.mock("../features/tracks/page.js", () => ({
+vi.mock("../src/features/tracks/page.js", () => ({
   materializeTrackPage: vi.fn((track) => ({
     ...track,
     pageVersion: track.gamePage?.version ?? PageVersion.JAM,
@@ -52,11 +52,11 @@ vi.mock("../features/tracks/page.js", () => ({
   ),
 }));
 
-import { NotFoundError } from "../lib/errors.js";
+import { NotFoundError } from "../src/lib/errors.js";
 import {
   getTrackBySlug,
   listTracks,
-} from "../features/tracks/index.js";
+} from "../src/features/tracks/index.js";
 
 describe("tracks read service", () => {
   beforeEach(() => {

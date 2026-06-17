@@ -13,7 +13,7 @@ import {
   buildUserActor,
   buildWebFingerForJam,
   buildWebFingerForUser,
-} from "../features/federation/protocol/serializers.js";
+} from "../src/features/federation/protocol/serializers.js";
 import {
   getCommentObjectId,
   getJamActorHandle,
@@ -21,7 +21,7 @@ import {
   getPostObjectId,
   getTrackObjectId,
   getUserActorId,
-} from "../features/federation/protocol/urls.js";
+} from "../src/features/federation/protocol/urls.js";
 
 describe("federation serializers", () => {
   it("builds the jam group actor", () => {

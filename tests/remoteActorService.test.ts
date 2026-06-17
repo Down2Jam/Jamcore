@@ -17,7 +17,7 @@ vi.mock("node:dns/promises", () => ({
   lookup: mocks.lookup,
 }));
 
-vi.mock("../features/federation/state/state.service.js", () => ({
+vi.mock("../src/features/federation/state/state.service.js", () => ({
   getPersistedRemoteActor: mocks.getPersistedRemoteActor,
   upsertPersistedRemoteActor: mocks.upsertPersistedRemoteActor,
 }));
@@ -25,7 +25,7 @@ vi.mock("../features/federation/state/state.service.js", () => ({
 import {
   clearRemoteActorCache,
   fetchRemoteActor,
-} from "../features/federation/models/remote-actor.service.js";
+} from "../src/features/federation/models/remote-actor.service.js";
 
 describe("remote actor fetching", () => {
   beforeEach(() => {

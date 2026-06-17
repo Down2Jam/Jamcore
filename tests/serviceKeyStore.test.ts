@@ -14,7 +14,7 @@ const {
   rotatePersistentServiceKeyInDbMock: vi.fn(),
 }));
 
-vi.mock("../infra/platformStore.js", () => ({
+vi.mock("../src/infra/platformStore.js", () => ({
   createPersistentServiceKeyInDb: createPersistentServiceKeyInDbMock,
   listPersistentServiceKeysFromDb: listPersistentServiceKeysFromDbMock,
   listPersistentServiceKeysFromDbForTenant: listPersistentServiceKeysFromDbForTenantMock,
@@ -28,7 +28,7 @@ import {
   listPersistentServiceKeys,
   revokePersistentServiceKey,
   rotatePersistentServiceKey,
-} from "../auth/serviceStore.js";
+} from "../src/auth/serviceStore.js";
 
 describe("service key store", () => {
   beforeEach(() => {

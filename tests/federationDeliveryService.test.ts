@@ -16,9 +16,9 @@ import {
   listFederationDeliveryRecords,
   resetFederationDeliveryState,
   resumePendingFederationDeliveries,
-} from "../features/federation/transport/delivery.service.js";
-import { upsertPersistedDelivery } from "../features/federation/state/state.service.js";
-import { appConfig } from "../config/app.js";
+} from "../src/features/federation/transport/delivery.service.js";
+import { upsertPersistedDelivery } from "../src/features/federation/state/state.service.js";
+import { appConfig } from "../src/config/app.js";
 
 describe("federation delivery service", () => {
   afterEach(async () => {

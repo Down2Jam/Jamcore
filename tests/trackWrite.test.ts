@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   backgroundUsageAllowedByDefault,
   buildTrackWriteData,
-} from "../features/tracks/write.js";
+} from "../src/features/tracks/write.js";
 
 describe("track write helpers", () => {
   it("normalizes track payloads", () => {

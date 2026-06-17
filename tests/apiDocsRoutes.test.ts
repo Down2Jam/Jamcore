@@ -3,15 +3,15 @@ import type { AddressInfo } from "node:net";
 import { Router } from "express";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
-import { appConfig } from "../config/app.js";
+import { appConfig } from "../src/config/app.js";
 
-vi.mock("../routes/v1/loadRoutes.js", () => ({
+vi.mock("../src/routes/v1/loadRoutes.js", () => ({
   loadRoutes: async () => {},
 }));
 
-vi.mock("../routes/v1/registry.js", async () => {
-  const openApiRouter = await import("../routes/v1/openapi/get.js");
-  const capabilitiesRouter = await import("../routes/v1/capabilities/get.js");
+vi.mock("../src/routes/v1/registry.js", async () => {
+  const openApiRouter = await import("../src/routes/v1/openapi/get.js");
+  const capabilitiesRouter = await import("../src/routes/v1/capabilities/get.js");
 
   return {
     getStaticV1Routes: () => [
@@ -45,7 +45,7 @@ describe("API docs routes", () => {
       configureHttpMiddleware,
       createHttpApp,
       mountHttpRoutes,
-    } = await import("../runtime/http.js");
+    } = await import("../src/runtime/http.js");
     const app = createHttpApp();
     configureHttpMiddleware(app);
     await mountHttpRoutes(app);

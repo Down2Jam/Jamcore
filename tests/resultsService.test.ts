@@ -1,4 +1,4 @@
-﻿import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PageVersion } from "@prisma/client";
 
 const { dbMock, trackPageMock, gamePageMock } = vi.hoisted(() => ({
@@ -33,19 +33,19 @@ const { dbMock, trackPageMock, gamePageMock } = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("../infra/db.js", () => ({
+vi.mock("../src/infra/db.js", () => ({
   default: dbMock,
 }));
 
-vi.mock("../features/tracks/page.js", () => ({
+vi.mock("../src/features/tracks/page.js", () => ({
   materializeTrackPage: trackPageMock.materializeTrackPage,
 }));
 
-vi.mock("../features/games/page.helpers.js", () => ({
+vi.mock("../src/features/games/page.helpers.js", () => ({
   materializeGamePage: gamePageMock.materializeGamePage,
 }));
 
-import { getResults } from "../features/results";
+import { getResults } from "../src/features/results";
 
 describe("results service", () => {
   beforeEach(() => {

@@ -8,11 +8,11 @@ const { dbMock } = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("../infra/db.js", () => ({
+vi.mock("../src/infra/db.js", () => ({
   default: dbMock,
 }));
 
-import { listUsers } from "../features/users/discovery.service.js";
+import { listUsers } from "../src/features/users/discovery.service.js";
 
 describe("user listing service", () => {
   beforeEach(() => {

@@ -1,4 +1,4 @@
-﻿import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { dbMock, s3Mock, fsMock } = vi.hoisted(() => ({
   dbMock: {
@@ -23,11 +23,11 @@ const { dbMock, s3Mock, fsMock } = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("../infra/db.js", () => ({
+vi.mock("../src/infra/db.js", () => ({
   default: dbMock,
 }));
 
-vi.mock("../infra/s3.js", () => ({
+vi.mock("../src/infra/s3.js", () => ({
   IsUsingS3: s3Mock.IsUsingS3,
 }));
 
@@ -39,7 +39,7 @@ vi.mock("fs", async () => {
   };
 });
 
-import { listAdminImages } from "../features/admin-images";
+import { listAdminImages } from "../src/features/admin-images";
 
 describe("admin images service", () => {
   beforeEach(() => {

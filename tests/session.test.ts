@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("../config/env.js", () => ({
+vi.mock("../src/config/env.js", () => ({
   env: {
     nodeEnv: "production",
     tokenSecret: "test-secret",
@@ -12,7 +12,7 @@ import {
   signRefreshToken,
   verifySessionToken,
   writeSession,
-} from "../auth/session.js";
+} from "../src/auth/session.js";
 
 describe("session tokens", () => {
   it("signs and verifies access tokens", () => {

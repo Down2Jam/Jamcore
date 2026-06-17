@@ -7,11 +7,11 @@ const { platformStoreMock } = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("../infra/platformStore.js", () => platformStoreMock);
+vi.mock("../src/infra/platformStore.js", () => platformStoreMock);
 
-import { authorizationContext } from "../middleware/authorizationContext.js";
-import { requirePermission } from "../middleware/requirePermission.js";
-import { requirePolicy } from "../middleware/requirePolicy.js";
+import { authorizationContext } from "../src/middleware/authorizationContext.js";
+import { requirePermission } from "../src/middleware/requirePermission.js";
+import { requirePolicy } from "../src/middleware/requirePolicy.js";
 
 function createResponseLocals(locals: Response["locals"] = {}) {
   return { locals } as Response;

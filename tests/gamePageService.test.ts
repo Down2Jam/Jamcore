@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildPostJamBodyFromGame,
   buildPrefix,
-} from "../features/games/page.service.js";
+} from "../src/features/games/page.service.js";
 
 describe("gamePageService", () => {
   it("builds a normalized emote prefix from a slug seed", () => {

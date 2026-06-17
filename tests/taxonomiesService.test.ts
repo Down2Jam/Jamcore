@@ -1,4 +1,4 @@
-﻿import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { dbMock } = vi.hoisted(() => ({
   dbMock: {
@@ -26,7 +26,7 @@ const { dbMock } = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("../infra/db.js", () => ({
+vi.mock("../src/infra/db.js", () => ({
   default: dbMock,
 }));
 
@@ -39,7 +39,7 @@ import {
   listTrackFlags,
   listTrackRatingCategories,
   listTrackTags,
-} from "../features/taxonomies";
+} from "../src/features/taxonomies";
 
 describe("taxonomies service", () => {
   beforeEach(() => {

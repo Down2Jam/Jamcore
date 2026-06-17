@@ -33,7 +33,7 @@ vi.mock("chroma-js", () => ({
   ),
 }));
 
-import { listSiteThemes } from "../features/site-themes";
+import { listSiteThemes } from "../src/features/site-themes";
 
 describe("site themes service", () => {
   beforeEach(() => {

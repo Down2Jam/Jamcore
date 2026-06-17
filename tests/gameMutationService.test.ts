@@ -18,15 +18,15 @@ const { dbMock } = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("../infra/db.js", () => ({
+vi.mock("../src/infra/db.js", () => ({
   default: dbMock,
 }));
 
-vi.mock("../features/mentions/notifications.service.js", () => ({
+vi.mock("../src/features/mentions/notifications.service.js", () => ({
   notifyNewMentions: vi.fn(async () => undefined),
 }));
 
-vi.mock("../features/games/page.service.js", () => ({
+vi.mock("../src/features/games/page.service.js", () => ({
   buildPostJamBodyFromGame: vi.fn((game: unknown) => game),
   buildPrefix: vi.fn(() => "prefix"),
   getJamPage: vi.fn(() => ({ description: "before" })),
@@ -35,17 +35,17 @@ vi.mock("../features/games/page.service.js", () => ({
   upsertGamePage: vi.fn(async () => undefined),
 }));
 
-vi.mock("../features/federation/outbox/mutation-publication.service.js", () => ({
+vi.mock("../src/features/federation/outbox/mutation-publication.service.js", () => ({
   publishGameCreated: vi.fn(async () => ["delivery-1"]),
   publishGameUpdated: vi.fn(async () => ["delivery-2"]),
 }));
 
-import { ForbiddenError } from "../lib/errors.js";
-import { updateGameBySlug } from "../features/games/mutation.service.js";
+import { ForbiddenError } from "../src/lib/errors.js";
+import { updateGameBySlug } from "../src/features/games/mutation.service.js";
 import {
   publishGameCreated,
   publishGameUpdated,
-} from "../features/federation/outbox/mutation-publication.service.js";
+} from "../src/features/federation/outbox/mutation-publication.service.js";
 
 const baseExistingGame = {
   id: 1,

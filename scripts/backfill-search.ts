@@ -1,11 +1,11 @@
-import { ensureCoreTenantColumns } from "../infra/coreTenantStore.js";
-import { ensurePlatformTables } from "../infra/platformStore.js";
-import { ensureSearchTables } from "../infra/searchStore.js";
+import { ensureCoreTenantColumns } from "../src/infra/coreTenantStore.js";
+import { ensurePlatformTables } from "../src/infra/platformStore.js";
+import { ensureSearchTables } from "../src/infra/searchStore.js";
 import {
   processSearchReindexRun,
   startSearchReindexRun,
-} from "../features/search/indexing.service.js";
-import { getSearchReindexRunById } from "../infra/searchStore.js";
+} from "../src/features/search/indexing.service.js";
+import { getSearchReindexRunById } from "../src/infra/searchStore.js";
 
 function readArg(name: string) {
   const prefix = `--${name}=`;

@@ -1,17 +1,17 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("../features/federation/transport/delivery.service.js", () => ({
+vi.mock("../src/features/federation/transport/delivery.service.js", () => ({
   enqueueFederationDelivery: vi.fn(async (_input: unknown) => "delivery-1"),
 }));
 
-import { recordFollower } from "../features/federation/state/followers.service.js";
+import { recordFollower } from "../src/features/federation/state/followers.service.js";
 import {
   publishActivityToAudience,
   publishActivityToFollowers,
-} from "../features/federation/outbox/publication.service.js";
-import { getJamActorId, getUserActorId } from "../features/federation/protocol/urls.js";
-import { clearFederationState } from "../features/federation/state/state.service.js";
-import { enqueueFederationDelivery } from "../features/federation/transport/delivery.service.js";
+} from "../src/features/federation/outbox/publication.service.js";
+import { getJamActorId, getUserActorId } from "../src/features/federation/protocol/urls.js";
+import { clearFederationState } from "../src/features/federation/state/state.service.js";
+import { enqueueFederationDelivery } from "../src/features/federation/transport/delivery.service.js";
 
 describe("federation publication service", () => {
   afterEach(async () => {

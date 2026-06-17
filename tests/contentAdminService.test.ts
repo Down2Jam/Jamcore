@@ -1,4 +1,4 @@
-﻿import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { dbMock } = vi.hoisted(() => ({
   dbMock: {
@@ -19,11 +19,11 @@ const { dbMock } = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("../infra/db.js", () => ({
+vi.mock("../src/infra/db.js", () => ({
   default: dbMock,
 }));
 
-import { NotFoundError } from "../lib/errors.js";
+import { NotFoundError } from "../src/lib/errors.js";
 import {
   createDocumentationDocument,
   createPressKitMedia,
@@ -33,7 +33,7 @@ import {
   listDocumentationDocuments,
   listPressKitMedia,
   updateDocumentationDocument,
-} from "../features/content-admin";
+} from "../src/features/content-admin";
 
 describe("content admin service", () => {
   beforeEach(() => {

@@ -14,21 +14,21 @@ const mocks = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("../infra/coreTenantStore.js", () => ({
+vi.mock("../src/infra/coreTenantStore.js", () => ({
   assignCoreEntityTenant: mocks.assignCoreEntityTenant,
   doesCoreEntityBelongToTenant: mocks.doesCoreEntityBelongToTenant,
   filterCoreEntityIdsByTenant: mocks.filterCoreEntityIdsByTenant,
   listCoreEntitiesByTenant: mocks.listCoreEntitiesByTenant,
 }));
 
-vi.mock("../infra/db.js", () => ({
+vi.mock("../src/infra/db.js", () => ({
   default: mocks.db,
 }));
 
 import {
   importTenantSnapshot,
   importTenantSnapshotSchema,
-} from "../features/platform/tenant-admin.service.js";
+} from "../src/features/platform/tenant-admin.service.js";
 
 describe("tenant admin imports", () => {
   beforeEach(() => {

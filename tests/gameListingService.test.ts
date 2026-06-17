@@ -30,15 +30,15 @@ const { dbMock, presentersMock } = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("../infra/db.js", () => ({
+vi.mock("../src/infra/db.js", () => ({
   default: dbMock,
 }));
 
-vi.mock("../features/games/presenters.js", () => ({
+vi.mock("../src/features/games/presenters.js", () => ({
   materializeGameListingEntries: presentersMock.materializeGameListingEntries,
 }));
 
-import { listGames } from "../features/games/listing.service.js";
+import { listGames } from "../src/features/games/listing.service.js";
 
 describe("game listing service", () => {
   beforeEach(() => {

@@ -99,9 +99,14 @@
       "rateLimit": {
         "documented": true,
         "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "recommended": true
       }
     },
     {
+      "sdkName": "getCapabilities",
       "method": "GET",
       "path": "/capabilities",
       "tag": "Operational",
@@ -116,6 +121,10 @@
       "rateLimit": {
         "documented": true,
         "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "recommended": true
       }
     },
     {
@@ -202,6 +211,10 @@
       "rateLimit": {
         "documented": true,
         "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
       }
     },
     {
@@ -274,6 +287,10 @@
       "rateLimit": {
         "documented": true,
         "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "recommended": true
       }
     },
     {
@@ -391,6 +408,10 @@
       "rateLimit": {
         "documented": true,
         "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "recommended": true
       }
     },
     {
@@ -431,6 +452,10 @@
       "rateLimit": {
         "documented": true,
         "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
       }
     },
     {
@@ -2351,6 +2376,10 @@
       "rateLimit": {
         "documented": true,
         "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "recommended": true
       }
     },
     {
@@ -2489,6 +2518,10 @@
       "rateLimit": {
         "documented": true,
         "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "recommended": true
       }
     },
     {
@@ -2572,6 +2605,10 @@
       "rateLimit": {
         "documented": true,
         "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
       }
     },
     {

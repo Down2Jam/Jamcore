@@ -4,11 +4,11 @@ const fetchMock = vi.fn();
 
 vi.stubGlobal("fetch", fetchMock);
 
-import { ApiError, ConfigurationError } from "../lib/errors.js";
+import { ApiError, ConfigurationError } from "../src/lib/errors.js";
 import {
   resolveMention,
   resolveMentionQuerySchema,
-} from "../features/mentions";
+} from "../src/features/mentions";
 
 describe("mentions service", () => {
   beforeEach(() => {

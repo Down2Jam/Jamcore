@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { evaluatePolicy } from "../lib/policyEngine.js";
+import { evaluatePolicy } from "../src/lib/policyEngine.js";
 
 describe("policy engine", () => {
   it("allows admins to manage platform writes", () => {

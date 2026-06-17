@@ -6,8 +6,8 @@ import {
   hasJoinedJam,
   shouldTreatJamAsUpcoming,
   sortJamsByStartTime,
-} from "../domain/jamPolicies.js";
-import { JAM_PHASES } from "../domain/jamTimeline.js";
+} from "../src/domain/jamPolicies.js";
+import { JAM_PHASES } from "../src/domain/jamTimeline.js";
 
 describe("jamPolicies", () => {
   it("sorts jams by start time", () => {

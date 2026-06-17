@@ -1,4 +1,4 @@
-﻿import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { dbMock } = vi.hoisted(() => ({
   dbMock: {
@@ -9,19 +9,19 @@ const { dbMock } = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("../infra/db.js", () => ({
+vi.mock("../src/infra/db.js", () => ({
   default: dbMock,
 }));
 
-vi.mock("../lib/contentTenant.js", () => ({
+vi.mock("../src/lib/contentTenant.js", () => ({
   assertGameBelongsToTenant: vi.fn(async () => undefined),
 }));
 
-import { NotFoundError } from "../lib/errors.js";
+import { NotFoundError } from "../src/lib/errors.js";
 import {
   connectAchievementToUser,
   disconnectAchievementFromUser,
-} from "../features/achievements/index.js";
+} from "../src/features/achievements/index.js";
 
 describe("achievement service", () => {
   beforeEach(() => {

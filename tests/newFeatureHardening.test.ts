@@ -8,18 +8,18 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 describe("new feature hardening", () => {
   it("keeps special post and collection routes before slug/id catch-alls", () => {
-    const postsRouter = fs.readFileSync(path.join(root, "features/posts/router.ts"), "utf8");
+    const postsRouter = fs.readFileSync(path.join(root, "src/features/posts/router.ts"), "utf8");
     expect(postsRouter.indexOf('"/series"')).toBeGreaterThan(-1);
     expect(postsRouter.indexOf('"/series"')).toBeLessThan(postsRouter.indexOf('"/:postSlug"'));
 
-    const collectionsRouter = fs.readFileSync(path.join(root, "features/collections/router.ts"), "utf8");
+    const collectionsRouter = fs.readFileSync(path.join(root, "src/features/collections/router.ts"), "utf8");
     expect(collectionsRouter.indexOf('"/import"')).toBeGreaterThan(-1);
     expect(collectionsRouter.indexOf('"/import"')).toBeLessThan(collectionsRouter.indexOf('"/:collectionId"'));
   });
 
   it("documents request examples for the newly added write endpoints", () => {
     const registry = JSON.parse(
-      fs.readFileSync(path.join(root, "contracts/api-registry.json"), "utf8"),
+      fs.readFileSync(path.join(root, "src/contracts/api-registry.json"), "utf8"),
     ) as { routes: Array<{ sdkName: string; requestBody?: boolean; requestExample?: unknown }> };
     const routes = new Map(registry.routes.map((route) => [route.sdkName, route]));
     for (const sdkName of [
@@ -37,6 +37,8 @@ describe("new feature hardening", () => {
 
   it("generates SDK methods that accept path params instead of literal placeholders", () => {
     const sdk = fs.readFileSync(path.join(root, "generated/sdk.ts"), "utf8");
+    expect(sdk).not.toContain("    undefined:");
+    expect(sdk).toContain("getCapabilities: () => request(\"GET\", \"/capabilities\"");
     expect(sdk).toContain("forkCollection: (collectionId: string)");
     expect(sdk).toContain("`/collections/${collectionId}/fork`");
     expect(sdk).toContain("followUser: (userSlug: string, body: unknown)");

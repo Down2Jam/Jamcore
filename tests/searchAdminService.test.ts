@@ -28,16 +28,16 @@ const {
   },
 }));
 
-vi.mock("../infra/platformStore.js", () => platformStoreMock);
-vi.mock("../infra/searchStore.js", () => searchStoreMock);
-vi.mock("../features/search/indexing.service.js", () => indexingServiceMock);
-vi.mock("../infra/jobQueue.js", () => jobQueueMock);
+vi.mock("../src/infra/platformStore.js", () => platformStoreMock);
+vi.mock("../src/infra/searchStore.js", () => searchStoreMock);
+vi.mock("../src/features/search/indexing.service.js", () => indexingServiceMock);
+vi.mock("../src/infra/jobQueue.js", () => jobQueueMock);
 
 import {
   expandSearchTerms,
   enqueueSearchReindex,
   listSearchAdminState,
-} from "../features/search/admin.service.js";
+} from "../src/features/search/admin.service.js";
 
 describe("search admin service", () => {
   beforeEach(() => {

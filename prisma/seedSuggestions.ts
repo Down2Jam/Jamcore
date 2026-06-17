@@ -1,5 +1,5 @@
 import { PrismaClient } from "@prisma/client";
-import { getCurrentActiveJam } from "../features/jams";
+import { getCurrentActiveJam } from "../src/features/jams";
 import { faker } from "@faker-js/faker";
 
 const prisma = new PrismaClient();

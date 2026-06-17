@@ -2,11 +2,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const incrementRateLimit = vi.fn(async () => ({ count: 1, resetMs: 60_000 }));
 
-vi.mock("../infra/rateLimitStore.js", () => ({
+vi.mock("../src/infra/rateLimitStore.js", () => ({
   incrementRateLimit,
 }));
 
-const { default: rateLimit } = await import("../middleware/rateLimit.js");
+const { default: rateLimit } = await import("../src/middleware/rateLimit.js");
 
 function createRequest(method: string, baseUrl: string, routePath: string) {
   return {

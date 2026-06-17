@@ -1,4 +1,4 @@
-﻿import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { existsSyncMock, getS3FileMock } = vi.hoisted(() => ({
   existsSyncMock: vi.fn(),
@@ -13,12 +13,12 @@ vi.mock("fs", async () => {
   };
 });
 
-vi.mock("../infra/s3.js", () => ({
+vi.mock("../src/infra/s3.js", () => ({
   GetS3File: getS3FileMock,
 }));
 
-import { NotFoundError } from "../lib/errors.js";
-import { getStoredAssetByFilename } from "../features/uploads";
+import { NotFoundError } from "../src/lib/errors.js";
+import { getStoredAssetByFilename } from "../src/features/uploads";
 
 describe("uploads service", () => {
   beforeEach(() => {

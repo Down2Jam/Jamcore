@@ -3,8 +3,8 @@ import type { AddressInfo } from "node:net";
 import express from "express";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { appConfig } from "../config/app.js";
-import { createFederationRouter } from "../features/federation/router.js";
+import { appConfig } from "../src/config/app.js";
+import { createFederationRouter } from "../src/features/federation/router.js";
 
 describe("federation router", () => {
   const originalEnabled = appConfig.federation.enabled;

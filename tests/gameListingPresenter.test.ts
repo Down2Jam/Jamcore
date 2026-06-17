@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   getListingVersions,
   parseListingPageVersion,
-} from "../features/games/presenters.js";
+} from "../src/features/games/presenters.js";
 
 describe("gameListingPresenter", () => {
   it("defaults unknown page versions to JAM", () => {

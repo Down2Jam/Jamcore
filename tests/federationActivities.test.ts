@@ -3,8 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   buildAcceptActivity,
   getActorIdForInboxTarget,
-} from "../features/federation/protocol/activities.js";
-import { getJamActorId, getUserActorId } from "../features/federation/protocol/urls.js";
+} from "../src/features/federation/protocol/activities.js";
+import { getJamActorId, getUserActorId } from "../src/features/federation/protocol/urls.js";
 
 describe("federation activities", () => {
   it("builds accept activities for follows", () => {

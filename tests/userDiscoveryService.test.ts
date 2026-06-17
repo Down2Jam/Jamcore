@@ -1,4 +1,4 @@
-﻿import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { dbMock } = vi.hoisted(() => ({
   dbMock: {
@@ -8,14 +8,14 @@ const { dbMock } = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("../infra/db.js", () => ({
+vi.mock("../src/infra/db.js", () => ({
   default: dbMock,
 }));
 
 import {
   listUsers,
   searchUsers,
-} from "../features/users/discovery.service.js";
+} from "../src/features/users/discovery.service.js";
 
 describe("user discovery service", () => {
   beforeEach(() => {

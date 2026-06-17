@@ -6,7 +6,7 @@ import {
   canModerateUserTarget,
   canUseStreamerTools,
   ownsTeam,
-} from "../domain/userPolicies.js";
+} from "../src/domain/userPolicies.js";
 
 describe("userPolicies", () => {
   it("allows moderators or self for user-target actions", () => {

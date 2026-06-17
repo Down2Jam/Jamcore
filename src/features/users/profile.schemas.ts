@@ -5,10 +5,11 @@ import { isAllowedAssetUrl } from "./profile.assets.js";
 const recommendationIdsSchema = z.array(z.coerce.number().int().positive());
 
 const assetUrlSchema = z
-  .union([z.string(), z.null(), z.undefined()])
+  .union([z.string(), z.null()])
   .refine((value) => isAllowedAssetUrl(value), {
     message: "Invalid asset URL.",
-  });
+  })
+  .optional();
 
 export const updateUserProfileSchema = z
   .object({

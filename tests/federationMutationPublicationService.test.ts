@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("../features/federation/models/service.js", () => ({
+vi.mock("../src/features/federation/models/service.js", () => ({
   getFederatedPostById: vi.fn(async (id: number) => ({
     id,
     title: "Post title",
@@ -60,11 +60,11 @@ vi.mock("../features/federation/models/service.js", () => ({
   })),
 }));
 
-vi.mock("../features/federation/outbox/publication.service.js", () => ({
+vi.mock("../src/features/federation/outbox/publication.service.js", () => ({
   publishActivityToAudience: vi.fn(async () => ["delivery-1"]),
 }));
 
-import { getJamActorId, getUserActorId } from "../features/federation/protocol/urls.js";
+import { getJamActorId, getUserActorId } from "../src/features/federation/protocol/urls.js";
 import {
   publishCommentCreated,
   publishCommentUpdated,
@@ -73,8 +73,8 @@ import {
   publishPostCreated,
   publishPostUpdated,
   publishTrackUpdated,
-} from "../features/federation/outbox/mutation-publication.service.js";
-import { publishActivityToAudience } from "../features/federation/outbox/publication.service.js";
+} from "../src/features/federation/outbox/mutation-publication.service.js";
+import { publishActivityToAudience } from "../src/features/federation/outbox/publication.service.js";
 
 describe("federation mutation publication service", () => {
   beforeEach(() => {

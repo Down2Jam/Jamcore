@@ -8,13 +8,13 @@
     "noEmit": true,
     "baseUrl": ".",
     "paths": {
-      "@features/*": ["features/*"],
-      "@infra/*": ["infra/*"],
-      "@loaders/*": ["loaders/*"],
-      "@lib/*": ["lib/*"],
-      "@middleware/*": ["middleware/*"],
-      "@guards/*": ["guards/*"],
-      "@types/*": ["types/*"]
+      "@features/*": ["src/features/*"],
+      "@infra/*": ["src/infra/*"],
+      "@loaders/*": ["src/loaders/*"],
+      "@lib/*": ["src/lib/*"],
+      "@middleware/*": ["src/middleware/*"],
+      "@guards/*": ["src/guards/*"],
+      "@types/*": ["src/types/*"]
     },
     "resolveJsonModule": true,
     "esModuleInterop": true,
@@ -23,6 +23,6 @@
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true
   },
-  "include": ["**/*.ts", "**/*.d.ts"],
+  "include": ["src/**/*.ts", "tests/**/*.ts", "scripts/**/*.ts", "prisma/**/*.ts", "vitest.config.ts"],
   "exclude": ["dist", "node_modules"]
 }

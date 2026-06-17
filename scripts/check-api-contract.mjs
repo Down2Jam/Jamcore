@@ -3,7 +3,7 @@ import path from "node:path";
 
 const registry = JSON.parse(
   await fs.promises.readFile(
-    path.resolve(process.cwd(), "contracts", "api-registry.json"),
+    path.resolve(process.cwd(), "src", "contracts", "api-registry.json"),
     "utf8",
   ),
 );

@@ -1,4 +1,4 @@
-﻿import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { dbMock } = vi.hoisted(() => ({
   dbMock: {
@@ -19,15 +19,15 @@ const { dbMock } = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("../infra/db.js", () => ({
+vi.mock("../src/infra/db.js", () => ({
   default: dbMock,
 }));
 
-import { ForbiddenError, NotFoundError } from "../lib/errors.js";
+import { ForbiddenError, NotFoundError } from "../src/lib/errors.js";
 import {
   resolveTeamApplication,
   resolveTeamInvite,
-} from "../features/teams/index.js";
+} from "../src/features/teams/index.js";
 
 describe("team decision service", () => {
   beforeEach(() => {
