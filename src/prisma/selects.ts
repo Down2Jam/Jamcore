@@ -221,6 +221,24 @@ export const gameListingSummaryInclude = {
   downloadLinks: true,
   tags: true,
   flags: true,
+  team: {
+    select: {
+      id: true,
+      name: true,
+      ownerId: true,
+      owner: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+      users: {
+        select: {
+          id: true,
+        },
+      },
+    },
+  },
   pages: {
     where: {
       version: {
@@ -287,6 +305,15 @@ export const gameListingInclude = {
   },
   team: {
     select: {
+      id: true,
+      name: true,
+      ownerId: true,
+      owner: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
       users: {
         select: {
           id: true,

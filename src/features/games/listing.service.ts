@@ -741,7 +741,10 @@ export async function listGames({
       const tenantGames = await filterGameRecordsByTenant(games, tenantId);
 
       listedGames = tenantGames.flatMap((game) =>
-        materializeGameListingEntries(game as GameListingRecord, pageVersion),
+        materializeGameListingEntries(
+          game as unknown as GameListingRecord,
+          pageVersion,
+        ),
       );
     }
 
