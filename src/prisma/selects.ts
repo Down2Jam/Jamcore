@@ -9,6 +9,24 @@ export const gameSummarySelect = {
   id: true,
   slug: true,
   category: true,
+  team: {
+    select: {
+      id: true,
+      name: true,
+      ownerId: true,
+      owner: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+      users: {
+        select: {
+          id: true,
+        },
+      },
+    },
+  },
   pages: {
     where: { version: "JAM" },
     include: {
@@ -479,7 +497,21 @@ export const targetUserBaseSelect = {
   secondaryRoles: true,
   teams: {
     select: {
+      id: true,
+      name: true,
+      ownerId: true,
       jamId: true,
+      owner: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+      users: {
+        select: {
+          id: true,
+        },
+      },
       game: {
         include: teamGameInclude,
       },
