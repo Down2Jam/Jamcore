@@ -70,7 +70,11 @@ export const trackSummarySelect = {
           jamId: true,
           pages: {
             where: { version: "JAM" },
-            select: { name: true, thumbnail: true },
+            select: {
+              name: true,
+              thumbnail: true,
+              soundtrackThumbnail: true,
+            },
             take: 1,
           },
         },
@@ -147,6 +151,7 @@ export const requestUserDetailSelect = {
   emotePrefix: true,
   hideRatings: true,
   autoHideRatingsWhileStreaming: true,
+  messageRequestPolicy: true,
   receivedNotifications: {
       where: {
         readAt: null,
@@ -427,6 +432,7 @@ export const targetUserBaseSelect = {
   emotePrefix: true,
   hideRatings: true,
   autoHideRatingsWhileStreaming: true,
+  messageRequestPolicy: true,
   jams: true,
   bannerPicture: true,
   pronouns: true,

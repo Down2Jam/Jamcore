@@ -41,6 +41,7 @@ export type GamePageWriteBody = {
   description?: string;
   short?: string;
   thumbnail?: string | null;
+  soundtrackThumbnail?: string | null;
   banner?: string | null;
   screenshots?: string[];
   trailerUrl?: string | null;

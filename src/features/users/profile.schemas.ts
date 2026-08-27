@@ -37,6 +37,7 @@ export const updateUserProfileSchema = z
     linkLabels: z.array(z.string().trim().max(40)).max(8).optional(),
     hideRatings: z.boolean().optional(),
     autoHideRatingsWhileStreaming: z.boolean().optional(),
+    messageRequestPolicy: z.enum(["EVERYONE", "FOLLOWING", "NOBODY"]).optional(),
     recommendedGameIds: recommendationIdsSchema.max(3).optional(),
     recommendedPostIds: recommendationIdsSchema.max(5).optional(),
     recommendedTrackIds: recommendationIdsSchema.max(3).optional(),

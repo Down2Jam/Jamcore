@@ -194,6 +194,7 @@ async function getEligibleTracks(
           gameId: true,
           name: true,
           thumbnail: true,
+          soundtrackThumbnail: true,
           banner: true,
           screenshots: true,
           game: {
@@ -283,6 +284,7 @@ async function getTrackSummaries(trackIds: number[]) {
           gameId: true,
           name: true,
           thumbnail: true,
+          soundtrackThumbnail: true,
           banner: true,
           screenshots: true,
           game: {

@@ -583,6 +583,7 @@ async function enrichCollectionItems(items: CollectionItemRow[]) {
               select: {
                 name: true,
                 thumbnail: true,
+                soundtrackThumbnail: true,
                 game: {
                   select: {
                     slug: true,
@@ -650,7 +651,10 @@ async function enrichCollectionItems(items: CollectionItemRow[]) {
               slug: track.slug,
               name: track.name,
               url: track.url,
-              thumbnail: track.gamePage.thumbnail ?? null,
+              thumbnail:
+                track.gamePage.soundtrackThumbnail ??
+                track.gamePage.thumbnail ??
+                null,
               game: {
                 slug: track.gamePage.game.slug,
                 name: track.gamePage.name,

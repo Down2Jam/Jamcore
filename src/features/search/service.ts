@@ -317,6 +317,7 @@ async function hydrateTrackResults(
           name: true,
           short: true,
           thumbnail: true,
+          soundtrackThumbnail: true,
           game: {
             select: {
               id: true,
@@ -332,6 +333,7 @@ async function hydrateTrackResults(
                   name: true,
                   short: true,
                   thumbnail: true,
+                  soundtrackThumbnail: true,
                 },
               },
             },

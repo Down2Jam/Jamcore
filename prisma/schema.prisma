@@ -81,9 +81,16 @@ model User {
   recommendedTrackHiddenIds     Int[]                   @default([])
   hideRatings                   Boolean                 @default(false)
   autoHideRatingsWhileStreaming Boolean                 @default(false)
+  messageRequestPolicy           MessageRequestPolicy   @default(EVERYONE)
   quiltSubmissions              QuiltSubmission[]       @relation(name: "QuiltSubmissionToAuthor")
   quiltRemovals                 QuiltSubmission[]       @relation(name: "QuiltSubmissionToRemover")
   quiltVotes                    QuiltVote[]             @relation(name: "QuiltVoteToUser")
+  conversationsCreated          Conversation[]          @relation(name: "ConversationCreator")
+  conversationMemberships       ConversationMember[]    @relation(name: "ConversationMemberUser")
+  conversationInvitesSent       ConversationMember[]    @relation(name: "ConversationMemberInviter")
+  conversationMessages          ConversationMessage[]   @relation(name: "ConversationMessageSender")
+  usersBlocked                  UserBlock[]              @relation(name: "UserBlockBlocker")
+  blockedByUsers                UserBlock[]              @relation(name: "UserBlockBlocked")
 
   @@index([tenantId])
 }
@@ -384,6 +391,7 @@ model Game {
   ratingCategories    RatingCategory[]
   majRatingCategories RatingCategory[] @relation(name: "GameToMajorityContentRating")
   published           Boolean          @default(false)
+  publishedAt         DateTime?        @map("published_at")
   tenantId            String?          @map("tenant_id")
 
   // Relations
@@ -403,6 +411,7 @@ model Game {
   pages              GamePage[]         @relation(name: "GameToPages")
 
   @@index([tenantId, jamId])
+  @@index([published, publishedAt])
 }
 
 model GamePage {
@@ -412,6 +421,7 @@ model GamePage {
   description          String?
   short                String?
   thumbnail            String?
+  soundtrackThumbnail  String?
   banner               String?
   screenshots          String[]    @default([])
   trailerUrl           String?
@@ -770,6 +780,100 @@ model Report {
   assignedTo          User?    @relation(fields: [assignedToId], references: [id], name: "ReportToAssignee")
   assignedToId        Int?     @map("assigned_to_id")
   collectionCommentId String?  @map("collection_comment_id")
+  directMessage        ConversationMessage? @relation(fields: [directMessageId], references: [id], name: "ReportToDirectMessage")
+  directMessageId      Int?     @map("direct_message_id")
+
+  @@index([directMessageId])
+}
+
+enum ConversationType {
+  DIRECT
+  GROUP
+}
+
+enum ConversationMemberStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+enum ConversationMemberRole {
+  OWNER
+  MEMBER
+}
+
+enum MessageRequestPolicy {
+  EVERYONE
+  FOLLOWING
+  NOBODY
+}
+
+model Conversation {
+  id            Int              @id @default(autoincrement())
+  type          ConversationType @default(DIRECT)
+  name          String?
+  createdBy     User             @relation(fields: [createdById], references: [id], name: "ConversationCreator")
+  createdById   Int
+  tenantId      String?          @map("tenant_id")
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  lastMessageAt DateTime         @default(now()) @map("last_message_at")
+  members       ConversationMember[]
+  messages      ConversationMessage[]
+
+  @@index([tenantId, lastMessageAt])
+  @@index([createdById, lastMessageAt])
+}
+
+model ConversationMember {
+  conversation    Conversation             @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversationId  Int
+  user            User                     @relation(fields: [userId], references: [id], name: "ConversationMemberUser", onDelete: Cascade)
+  userId          Int
+  invitedBy       User?                    @relation(fields: [invitedById], references: [id], name: "ConversationMemberInviter", onDelete: SetNull)
+  invitedById     Int?                     @map("invited_by_id")
+  status          ConversationMemberStatus @default(PENDING)
+  role            ConversationMemberRole   @default(MEMBER)
+  requestMessage  ConversationMessage?     @relation(fields: [requestMessageId], references: [id], name: "ConversationRequestMessage", onDelete: SetNull)
+  requestMessageId Int?                    @map("request_message_id")
+  lastReadMessage ConversationMessage?     @relation(fields: [lastReadMessageId], references: [id], name: "ConversationLastReadMessage", onDelete: SetNull)
+  lastReadMessageId Int?                   @map("last_read_message_id")
+  mutedAt         DateTime?                @map("muted_at")
+  archivedAt      DateTime?                @map("archived_at")
+  joinedAt        DateTime?                @map("joined_at")
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
+
+  @@id([conversationId, userId])
+  @@index([userId, status, archivedAt])
+}
+
+model ConversationMessage {
+  id             Int                  @id @default(autoincrement())
+  conversation   Conversation         @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversationId Int                  @map("conversation_id")
+  sender         User                 @relation(fields: [senderId], references: [id], name: "ConversationMessageSender")
+  senderId       Int                  @map("sender_id")
+  body           String               @db.VarChar(4000)
+  createdAt      DateTime             @default(now())
+  deletedAt      DateTime?            @map("deleted_at")
+  requestFor     ConversationMember[] @relation(name: "ConversationRequestMessage")
+  readBy         ConversationMember[] @relation(name: "ConversationLastReadMessage")
+  reports        Report[]             @relation(name: "ReportToDirectMessage")
+
+  @@index([conversationId, createdAt])
+  @@index([senderId, createdAt])
+}
+
+model UserBlock {
+  blocker   User     @relation(fields: [blockerId], references: [id], name: "UserBlockBlocker", onDelete: Cascade)
+  blockerId Int      @map("blocker_id")
+  blocked   User     @relation(fields: [blockedId], references: [id], name: "UserBlockBlocked", onDelete: Cascade)
+  blockedId Int      @map("blocked_id")
+  createdAt DateTime @default(now())
+
+  @@id([blockerId, blockedId])
+  @@index([blockedId, blockerId])
 }
 
 enum NotificationType {

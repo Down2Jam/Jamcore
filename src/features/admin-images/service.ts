@@ -52,6 +52,7 @@ export async function listAdminImages() {
     db.gamePage.findMany({
       select: {
         thumbnail: true,
+        soundtrackThumbnail: true,
         banner: true,
         screenshots: true,
       },
@@ -70,7 +71,7 @@ export async function listAdminImages() {
     trackAll([user.profilePicture, user.bannerPicture, user.profileBackground]),
   );
   gamePages.forEach((page) => {
-    trackAll([page.thumbnail, page.banner]);
+    trackAll([page.thumbnail, page.soundtrackThumbnail, page.banner]);
     if (Array.isArray(page.screenshots)) {
       trackAll(page.screenshots);
     }

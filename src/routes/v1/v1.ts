@@ -7,7 +7,7 @@ import { authorizationContext } from "../../middleware/authorizationContext.js";
 import { idempotencyMiddleware } from "../../middleware/idempotency.js";
 import { mutationBodyGuard } from "../../middleware/mutationBodyGuard.js";
 import { mutationCacheInvalidation } from "../../middleware/mutationCacheInvalidation.js";
-import { renderVersionDocsPage } from "../docs.js";
+import { hasBrowsableDocsRoute, renderVersionDocsPage } from "../docs.js";
 import { loadRoutes } from "./loadRoutes.js";
 import { getStaticV1Routes } from "./registry.js";
 
@@ -26,7 +26,7 @@ export async function createV1Router() {
     next();
   });
   router.get("/", (req, res) => {
-    res.setHeader("Cache-Control", "public, max-age=300");
+    res.setHeader("Cache-Control", "no-cache");
     res.type("html");
     const requestOrigin = `${req.protocol}://${req.get("host")}`;
     res.send(
@@ -35,6 +35,27 @@ export async function createV1Router() {
         version: "v1",
         tenant: res.locals.tenant,
         publicOrigin: requestOrigin,
+        scriptNonce: res.locals.cspNonce,
+      }),
+    );
+  });
+  router.get("/docs/:routeId", (req, res) => {
+    const routeId = String(req.params.routeId ?? "");
+    if (!hasBrowsableDocsRoute(routeId)) {
+      res.status(404).type("text").send("API documentation page not found.");
+      return;
+    }
+
+    res.setHeader("Cache-Control", "no-cache");
+    res.type("html");
+    const requestOrigin = `${req.protocol}://${req.get("host")}`;
+    res.send(
+      renderVersionDocsPage({
+        appName: res.locals.tenant?.appName ?? appConfig.appName,
+        version: "v1",
+        tenant: res.locals.tenant,
+        publicOrigin: requestOrigin,
+        routeId,
         scriptNonce: res.locals.cspNonce,
       }),
     );

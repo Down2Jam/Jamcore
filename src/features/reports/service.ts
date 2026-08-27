@@ -14,7 +14,7 @@ type ReportActor = {
 
 export const createReportSchema = z
   .object({
-    targetType: z.enum(["user", "post", "comment", "game", "collection_comment"]),
+    targetType: z.enum(["user", "post", "comment", "game", "collection_comment", "direct_message"]),
     targetId: z.union([z.coerce.number().int().positive(), z.string().trim().min(1)]),
     reason: z.string().trim().min(1).max(200).optional(),
     details: z.string().trim().max(2000).optional(),
@@ -49,6 +49,17 @@ function numericTargetId(targetId: number | string) {
 }
 
 async function assertTargetBelongsToTenant(targetType: string, targetId: number | string, tenantId?: string | null) {
+  if (targetType === "direct_message") {
+    const messageId = numericTargetId(targetId);
+    const message = await db.conversationMessage.findUnique({
+      where: { id: messageId },
+      select: { id: true, conversation: { select: { tenantId: true } } },
+    });
+    if (!message || message.conversation.tenantId !== (tenantId ?? null)) {
+      throw new NotFoundError("Report target not found");
+    }
+    return;
+  }
   if (targetType === "comment") return;
   if (targetType === "collection_comment") {
     const rows = (await db.$queryRawUnsafe(
@@ -88,6 +99,7 @@ function reportTargetData(targetType: string, targetId: number | string) {
     commentId: targetType === "comment" ? numericId : null,
     gameId: targetType === "game" ? numericId : null,
     collectionCommentId: targetType === "collection_comment" ? String(targetId) : null,
+    directMessageId: targetType === "direct_message" ? numericId : null,
   };
 }
 
@@ -101,12 +113,22 @@ export async function createReport({
   tenantId?: string | null;
 }) {
   await assertTargetBelongsToTenant(input.targetType, input.targetId, tenantId);
+  if (input.targetType === "direct_message") {
+    const membership = await db.conversationMember.findFirst({
+      where: {
+        userId: actor.id,
+        conversation: { messages: { some: { id: numericTargetId(input.targetId) } } },
+      },
+      select: { userId: true },
+    });
+    if (!membership) throw new NotFoundError("Report target not found");
+  }
   const target = reportTargetData(input.targetType, input.targetId);
   const rows = (await db.$queryRawUnsafe(
     `
       INSERT INTO "Report"
-        ("reporterId", "userId", "postId", "commentId", "gameId", collection_comment_id, reason, details, priority)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        ("reporterId", "userId", "postId", "commentId", "gameId", collection_comment_id, direct_message_id, reason, details, priority)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
       RETURNING id
     `,
     actor.id,
@@ -115,6 +137,7 @@ export async function createReport({
     target.commentId,
     target.gameId,
     target.collectionCommentId,
+    target.directMessageId,
     input.reason ?? null,
     input.details ?? null,
     input.priority,

@@ -25,6 +25,7 @@ import {
 } from "../federation/index.js";
 import {
   decodeFeedCursor,
+  decodeGameReleaseCursor,
   getRemoteFeedCursorFromItem,
   listRemoteCommentsForTarget,
   listRemoteFeedPosts,
@@ -1656,6 +1657,11 @@ export async function listPosts(
   const viewer = await resolveViewerContext(input.user);
   const limit = Math.min(Math.max(input.limit ?? 20, 1), 50);
   const feedCursor = decodeFeedCursor(input.cursor);
+  const gameReleaseCursorId = decodeGameReleaseCursor(input.cursor);
+  const followingUserIds =
+    viewer.userId == null
+      ? []
+      : await getFollowingUserIds(viewer.userId, tenantId);
   const orderBy =
     input.sort === "oldest"
       ? { id: "asc" as const }
@@ -1678,7 +1684,7 @@ export async function listPosts(
     ...(input.following === "true" && viewer.userId
       ? {
           authorId: {
-            in: await getFollowingUserIds(viewer.userId, tenantId),
+            in: followingUserIds,
           },
         }
       : {}),
@@ -1723,8 +1729,125 @@ export async function listPosts(
         sort: input.sort === "oldest" ? "oldest" : "newest",
       })
     : [];
-  const hasMore = boostedPosts.length > limit || remoteItems.length > limit;
-  const items = [...localItems, ...remoteItems]
+  const shouldIncludeGameReleases =
+    followingUserIds.length > 0 &&
+    input.sort !== "top" &&
+    input.sticky !== "true" &&
+    !input.tags;
+  const releaseGames = shouldIncludeGameReleases
+    ? await db.game.findMany({
+        take: limit + 1,
+        where: {
+          published: true,
+          AND: [
+            {
+              publishedAt: {
+                not: null,
+                lte: new Date(),
+                ...(buildTimeWhere(input.time).createdAt ?? {}),
+              },
+            },
+            ...(feedCursor
+              ? gameReleaseCursorId == null
+                ? [
+                    {
+                      publishedAt:
+                        input.sort === "oldest"
+                          ? { gte: feedCursor }
+                          : { lte: feedCursor },
+                    },
+                  ]
+                : [
+                    {
+                      OR: [
+                        {
+                          publishedAt:
+                            input.sort === "oldest"
+                              ? { gt: feedCursor }
+                              : { lt: feedCursor },
+                        },
+                        {
+                          publishedAt: { equals: feedCursor },
+                          id:
+                            input.sort === "oldest"
+                              ? { gt: gameReleaseCursorId }
+                              : { lt: gameReleaseCursorId },
+                        },
+                      ],
+                    },
+                  ]
+              : []),
+          ],
+          team: {
+            OR: [
+              { ownerId: { in: followingUserIds } },
+              { users: { some: { id: { in: followingUserIds } } } },
+            ],
+          },
+        },
+        select: {
+          id: true,
+          slug: true,
+          publishedAt: true,
+          pages: {
+            where: { version: "JAM" },
+            take: 1,
+            select: { name: true, short: true, thumbnail: true },
+          },
+          team: {
+            select: {
+              owner: {
+                select: { id: true, slug: true, name: true, profilePicture: true },
+              },
+              users: {
+                where: { id: { in: followingUserIds } },
+                select: { id: true, slug: true, name: true, profilePicture: true },
+              },
+            },
+          },
+        },
+        orderBy: [
+          { publishedAt: input.sort === "oldest" ? "asc" : "desc" },
+          { id: input.sort === "oldest" ? "asc" : "desc" },
+        ],
+      })
+    : [];
+  const allowedGameIds = new Set(
+    await filterCoreEntityIdsByTenant({
+      entityType: "Game",
+      ids: releaseGames.map((game) => game.id),
+      tenantId,
+    }),
+  );
+  const releaseItems = releaseGames
+    .filter((game) => allowedGameIds.has(game.id))
+    .map((game) => {
+      const page = game.pages[0];
+      const creators = [game.team.owner, ...game.team.users].filter(
+        (creator, index, all) =>
+          followingUserIds.includes(creator.id) &&
+          all.findIndex((candidate) => candidate.id === creator.id) === index,
+      );
+      return {
+        kind: "game_release" as const,
+        id: `game-release-${game.id}`,
+        createdAt: game.publishedAt,
+        creators,
+        game: {
+          id: game.id,
+          slug: game.slug,
+          name: page?.name ?? game.slug,
+          short: page?.short ?? null,
+          thumbnail: page?.thumbnail ?? null,
+        },
+      };
+    });
+  const hasMore =
+    boostedPosts.length > limit ||
+    remoteItems.length > limit ||
+    releaseGames.length > limit ||
+    localItems.length + remoteItems.length + releaseItems.length > limit;
+  const items = [...localItems, ...remoteItems, ...releaseItems]
     .sort((a: any, b: any) => {
       if (input.sort === "top") {
         const aLikes = a.likes?.length ?? 0;

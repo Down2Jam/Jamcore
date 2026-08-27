@@ -42,6 +42,8 @@ const optionalUserGetPrefixes = [
   "/tracks",
 ];
 
+const requiredUserGetPrefixes = ["/messages"];
+
 function routeKey(route: RouteLike) {
   return `${route.method.toUpperCase()} ${route.path}`;
 }
@@ -77,6 +79,18 @@ export function getRouteAuthMetadata(route: RouteLike): RouteAuthMetadata {
   }
 
   if (requiredUserGetRoutes.has(key)) {
+    return {
+      required: true,
+      optional: false,
+      kind: "user",
+      label: "Requires user login",
+    };
+  }
+
+  if (
+    method === "GET" &&
+    requiredUserGetPrefixes.some((prefix) => route.path.startsWith(prefix))
+  ) {
     return {
       required: true,
       optional: false,

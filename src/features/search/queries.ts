@@ -327,6 +327,7 @@ export async function searchTracks(input: SearchInput) {
           name: true,
           short: true,
           thumbnail: true,
+          soundtrackThumbnail: true,
           game: {
             select: {
               id: true,
@@ -342,6 +343,7 @@ export async function searchTracks(input: SearchInput) {
                   name: true,
                   short: true,
                   thumbnail: true,
+                  soundtrackThumbnail: true,
                 },
               },
             },

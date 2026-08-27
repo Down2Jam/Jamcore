@@ -118,16 +118,40 @@ describe("API docs routes", () => {
     expect(html).toContain("Return detailed data for an event");
     expect(html).toContain("/api/v1/tags");
     expect(html).toContain("List available post tags");
+    expect(html).toContain("/api/v1/docs/get-tags");
+    expect(html).not.toContain('class="builder-shell"');
     expect(html).toContain("/api/v1/games");
     expect(html).toContain("/api/v1/search");
     expect(html).toContain("List published games");
     expect(html).toContain("Search");
+    expect(html).toContain("const origin = window.location.origin;");
+    expect(html).not.toContain(
+      'const origin = builder.getAttribute("data-route-origin")',
+    );
     expect(html).not.toContain("/api/v1/platform/");
     expect(html).not.toContain("/api/v1/admin/images");
     expect(html).not.toContain("/api/v1/mod");
     expect(html).not.toContain("Create a documentation document");
     expect(html).not.toContain("Create a press kit media entry");
     expect(html).not.toContain("Create a custom emoji");
+  });
+
+  it("serves one endpoint per documentation page", async () => {
+    const response = await fetch(`${baseUrl}/api/v1/docs/get-tags`);
+    const html = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toContain("text/html");
+    expect(html).toContain("List available post tags");
+    expect(html).toContain('class="builder-shell"');
+    expect(html).toContain('href="/api/v1/docs/get-tags"');
+    expect(html).not.toContain("Return detailed data for a game");
+  });
+
+  it("returns 404 for an unknown endpoint documentation page", async () => {
+    const response = await fetch(`${baseUrl}/api/v1/docs/not-a-route`);
+
+    expect(response.status).toBe(404);
   });
 
   it("keeps the v1 OpenAPI route as JSON", async () => {

@@ -21,6 +21,7 @@ describe("gamePageService", () => {
           updatedAt: new Date(),
           version: "JAM",
           thumbnail: null,
+          soundtrackThumbnail: "album.png",
           banner: null,
           trailerUrl: null,
           itchEmbedUrl: null,
@@ -51,6 +52,7 @@ describe("gamePageService", () => {
     expect(payload).toEqual(
       expect.objectContaining({
         name: "Jam Name",
+        soundtrackThumbnail: "album.png",
         ratingCategories: [1],
         songs: [expect.objectContaining({ slug: "song" })],
       }),

@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import { filterCoreEntityIdsByTenant } from "../../infra/coreTenantStore.js";
 import db from "../../infra/db.js";
-import { BadRequestError, NotFoundError } from "../../lib/errors.js";
+import { BadRequestError, ForbiddenError, NotFoundError } from "../../lib/errors.js";
 
 type FollowActor = {
   id: number;
@@ -39,6 +39,16 @@ export async function followUserBySlug({
   if (!allowed.includes(target.id)) throw new NotFoundError("User not found");
 
   if (follow) {
+    const block = await db.userBlock.findFirst({
+      where: {
+        OR: [
+          { blockerId: actor.id, blockedId: target.id },
+          { blockerId: target.id, blockedId: actor.id },
+        ],
+      },
+      select: { blockerId: true },
+    });
+    if (block) throw new ForbiddenError("Blocked users cannot follow each other");
     const existing = await db.userFollow.findUnique({
       where: { followerId_followingId: { followerId: actor.id, followingId: target.id } },
       select: { followerId: true },

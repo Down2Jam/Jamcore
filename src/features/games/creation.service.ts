@@ -85,6 +85,7 @@ export async function createGame({
       teamId: targetTeam.id,
       category: input.category,
       published: input.published,
+      publishedAt: input.published ? new Date() : null,
       tags: {
         connect: input.tags.map((id) => ({ id })),
       },
@@ -111,6 +112,7 @@ export async function createGame({
       description: input.description,
       short: input.short,
       thumbnail: input.thumbnail,
+      soundtrackThumbnail: input.soundtrackThumbnail,
       banner: input.banner,
       screenshots: input.screenshots,
       trailerUrl: input.trailerUrl,

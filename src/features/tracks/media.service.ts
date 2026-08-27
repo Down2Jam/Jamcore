@@ -119,6 +119,7 @@ export async function buildTrackDownloadBySlug({
           version: true,
           name: true,
           thumbnail: true,
+          soundtrackThumbnail: true,
           banner: true,
           game: {
             select: {
@@ -199,7 +200,7 @@ export async function buildTrackDownloadBySlug({
   const metadataDateSource = track.gamePage.game.jam?.startTime ?? track.createdAt;
   const metadataDate = metadataDateSource.toISOString().slice(0, 10);
   const coverArt = await getEmbeddedCoverArt(
-    track.gamePage.thumbnail,
+    track.gamePage.soundtrackThumbnail ?? track.gamePage.thumbnail,
     track.gamePage.banner,
   );
   const albumName = track.gamePage.name ?? track.gamePage.game.slug ?? "Unknown game";

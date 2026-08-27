@@ -315,6 +315,8 @@ export async function updateGameBySlug({
       },
       category,
       published,
+      publishedAt:
+        published && !existingGame.published ? new Date() : existingGame.publishedAt,
     },
     include: {
       downloadLinks: true,

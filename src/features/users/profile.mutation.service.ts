@@ -33,6 +33,7 @@ const updatedUserSelect = {
   emotePrefix: true,
   hideRatings: true,
   autoHideRatingsWhileStreaming: true,
+  messageRequestPolicy: true,
   primaryRoles: { select: { slug: true } },
   secondaryRoles: { select: { slug: true } },
   recommendedGames: {
@@ -439,6 +440,9 @@ export async function updateUserProfile({
         : {}),
       ...(typeof input.autoHideRatingsWhileStreaming === "boolean"
         ? { autoHideRatingsWhileStreaming: input.autoHideRatingsWhileStreaming }
+        : {}),
+      ...(input.messageRequestPolicy
+        ? { messageRequestPolicy: input.messageRequestPolicy }
         : {}),
       ...(input.recommendedGameIds
         ? {

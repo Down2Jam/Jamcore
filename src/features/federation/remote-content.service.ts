@@ -89,8 +89,13 @@ function encodeFeedCursor(value: Date | string | null | undefined) {
 
 export function decodeFeedCursor(value: string | undefined | null) {
   if (!value?.startsWith("feed:")) return null;
-  const date = new Date(value.slice("feed:".length));
+  const date = new Date(value.slice("feed:".length).split("|")[0]);
   return Number.isNaN(date.getTime()) ? null : date;
+}
+
+export function decodeGameReleaseCursor(value: string | undefined | null) {
+  const match = value?.match(/\|game:(\d+)$/);
+  return match ? Number.parseInt(match[1], 10) : null;
 }
 
 function publicUrlFrom(value: CreateActivity["object"]["url"], fallback: string | undefined) {
@@ -412,7 +417,11 @@ export async function listRemoteFeedPosts({
 
 export function getRemoteFeedCursorFromItem(item: unknown) {
   const createdAt = (item as { createdAt?: Date | string | null })?.createdAt;
-  return encodeFeedCursor(createdAt);
+  const cursor = encodeFeedCursor(createdAt);
+  const release = item as { kind?: string; game?: { id?: number } };
+  return cursor && release.kind === "game_release" && release.game?.id
+    ? `${cursor}|game:${release.game.id}`
+    : cursor;
 }
 
 export async function listRemoteCommentsForTarget({

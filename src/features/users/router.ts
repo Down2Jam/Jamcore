@@ -25,6 +25,7 @@ import {
 } from "./index.js";
 import { requireRequestUser, requireTargetUser } from "../../lib/locals.js";
 import { parseBody, parseQuery } from "../../lib/request.js";
+import { blockUser, unblockUser } from "../messages/service.js";
 
 export function createUsersRouter() {
   const router = express.Router();
@@ -51,6 +52,32 @@ export function createUsersRouter() {
         targetSlug: String(req.params.userSlug),
         follow: input.follow,
         tenantId: res.locals.tenantId,
+      }));
+    }),
+  );
+
+  router.put(
+    "/:userSlug/block",
+    rateLimit(20),
+    authUser,
+    getUser,
+    asyncHandler(async (req, res) => {
+      res.json(await blockUser({
+        actor: requireRequestUser(res),
+        targetSlug: String(req.params.userSlug),
+      }));
+    }),
+  );
+
+  router.delete(
+    "/:userSlug/block",
+    rateLimit(20),
+    authUser,
+    getUser,
+    asyncHandler(async (req, res) => {
+      res.json(await unblockUser({
+        actor: requireRequestUser(res),
+        targetSlug: String(req.params.userSlug),
       }));
     }),
   );

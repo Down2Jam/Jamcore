@@ -13,6 +13,7 @@ type MaterializableTrack = {
     description?: string | null;
     short?: string | null;
     thumbnail?: string | null;
+    soundtrackThumbnail?: string | null;
     banner?: string | null;
     screenshots?: string[];
     trailerUrl?: string | null;
@@ -36,6 +37,10 @@ export function materializeTrackPage<TTrack extends MaterializableTrack>(track: 
             pageBackedGame.description ?? track.gamePage.description ?? null,
           short: pageBackedGame.short ?? track.gamePage.short ?? null,
           thumbnail: pageBackedGame.thumbnail ?? track.gamePage.thumbnail ?? null,
+          soundtrackThumbnail:
+            pageBackedGame.soundtrackThumbnail ??
+            track.gamePage.soundtrackThumbnail ??
+            null,
           banner: pageBackedGame.banner ?? track.gamePage.banner ?? null,
           screenshots:
             pageBackedGame.screenshots ?? track.gamePage.screenshots ?? [],
