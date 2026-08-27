@@ -1,3 +1,15 @@
+SELECT setval(
+  pg_get_serial_sequence('"TagCategory"', 'id'),
+  COALESCE((SELECT MAX("id") FROM "TagCategory"), 1),
+  EXISTS (SELECT 1 FROM "TagCategory")
+);
+
+SELECT setval(
+  pg_get_serial_sequence('"Tag"', 'id'),
+  COALESCE((SELECT MAX("id") FROM "Tag"), 1),
+  EXISTS (SELECT 1 FROM "Tag")
+);
+
 INSERT INTO "TagCategory" ("name", "priority", "createdAt", "updatedAt")
 VALUES
   ('General', 9999, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
@@ -178,4 +190,3 @@ SELECT setval(
   COALESCE((SELECT MAX("id") FROM "Tag"), 1),
   TRUE
 );
-
