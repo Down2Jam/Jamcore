@@ -19,7 +19,10 @@ RUN --mount=type=cache,target=/root/.npm \
 # --- Builder Stage ---
 FROM deps AS builder
 COPY . .
-RUN npx prisma generate
+# Prisma only needs a syntactically valid URL while generating the client; it
+# does not connect to the database during this build step. Runtime commands use
+# DATABASE_URL supplied by the container environment.
+RUN DATABASE_URL=postgresql://prisma:prisma@localhost:5432/prisma npx prisma generate
 RUN npm run build
 
 # --- Development Final Stage ---
