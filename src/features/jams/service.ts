@@ -348,9 +348,20 @@ export async function getCurrentActiveJam(
     return { phase: getFallbackJamPhase(false) };
   };
 
-  return refresh
+  const activeJam = await (refresh
     ? activeJamCache.refresh(cacheKey, loadActiveJam)
-    : activeJamCache.getOrSet(cacheKey, loadActiveJam);
+    : activeJamCache.getOrSet(cacheKey, loadActiveJam));
+
+  // Cache the expensive jam summary, but always derive its phase from the
+  // current time so phase boundaries take effect immediately.
+  if (activeJam.jam) {
+    const phase = getJamPhase(activeJam.jam);
+    if (phase && phase !== activeJam.phase) {
+      return { ...activeJam, phase };
+    }
+  }
+
+  return activeJam;
 }
 
 export async function checkJamParticipation(

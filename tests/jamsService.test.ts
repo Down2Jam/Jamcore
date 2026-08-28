@@ -155,6 +155,40 @@ describe("jams service", () => {
     expect(dbMock.jam.findMany).toHaveBeenCalledTimes(1);
   });
 
+  it("recomputes the phase when a cached jam crosses a phase boundary", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-28T16:59:00Z"));
+
+    dbMock.jam.findMany.mockResolvedValueOnce([
+      {
+        id: 7,
+        slug: "down2jam-4",
+        isActive: true,
+        startTime: new Date("2026-09-11T17:00:00Z"),
+        suggestionHours: 168,
+        slaughterHours: 168,
+        votingHours: 168,
+        jammingHours: 72,
+        submissionHours: 2,
+        ratingHours: 310,
+        postJamRefinementHours: 336,
+        postJamRatingHours: 336,
+        users: [],
+        games: [],
+      },
+    ]);
+
+    const beforeBoundary = await getCurrentActiveJam();
+    vi.setSystemTime(new Date("2026-08-28T17:01:00Z"));
+    const afterBoundary = await getCurrentActiveJam();
+
+    expect(beforeBoundary.phase).toBe(JAM_PHASES.suggestion);
+    expect(afterBoundary.phase).toBe(JAM_PHASES.elimination);
+    expect(dbMock.jam.findMany).toHaveBeenCalledTimes(1);
+
+    vi.useRealTimers();
+  });
+
   it("blocks participation when the user has not joined the active jam", async () => {
     const activeStartTime = new Date(Date.now() - 30 * 60 * 1000);
 
