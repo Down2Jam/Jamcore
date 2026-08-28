@@ -3,6 +3,7 @@
 import db from "../../infra/db.js";
 import { appConfig } from "../../config/app.js";
 import logger from "../../infra/logger.js";
+import { TTLCache } from "../../lib/cache.js";
 
 type TwitchStream = {
   user_name: string;
@@ -28,9 +29,26 @@ type TwitchStreamsResponse = {
 
 const MIN_FEATURED_STREAMERS = 3;
 const blockedStreamerNames = new Set(["morninchai", "lana_lux"]);
+const FEATURED_STREAMERS_CACHE_KEY = "featured-streamers";
 
-export async function listFeaturedStreamers() {
+function loadFeaturedStreamers() {
   return db.featuredStreamer.findMany();
+}
+
+const featuredStreamersCache = new TTLCache<
+  Awaited<ReturnType<typeof loadFeaturedStreamers>>
+>(10 * 60_000, "featured-streamers");
+
+export async function listFeaturedStreamers(refresh = false) {
+  return refresh
+    ? featuredStreamersCache.refresh(
+        FEATURED_STREAMERS_CACHE_KEY,
+        loadFeaturedStreamers,
+      )
+    : featuredStreamersCache.getOrSet(
+        FEATURED_STREAMERS_CACHE_KEY,
+        loadFeaturedStreamers,
+      );
 }
 
 function isMatureStream(stream: Pick<TwitchStream, "title" | "tags" | "is_mature">) {
@@ -229,6 +247,10 @@ export async function updateFeaturedStreamers() {
         },
       });
     }
+
+    // Keep serving the previous snapshot during the Twitch/database update,
+    // then replace it for every application instance at once.
+    await listFeaturedStreamers(true);
   } catch (error) {
     logger.error(
       "Error updating featured streamers: %s",

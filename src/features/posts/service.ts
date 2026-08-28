@@ -231,7 +231,7 @@ export const getPostQuerySchema = z
   });
 
 export const listPostsQuerySchema = z.object({
-  sort: z.enum(["oldest", "newest", "top"]).optional().default("newest"),
+  sort: z.enum(["oldest", "newest", "hot", "top"]).optional().default("newest"),
   time: z.enum(POST_TIME_VALUES).optional().default("all"),
   user: z.string().trim().min(1).optional(),
   tags: z.string().optional(),
@@ -425,6 +425,18 @@ function buildTimeWhere(time: PostTime) {
       gte: new Date(Date.now() - hours * 60 * 60 * 1000),
     },
   };
+}
+
+const HOT_POST_LIFETIME_MS = 24 * 60 * 60 * 1000;
+
+export function calculatePostHotScore(
+  likeCount: number,
+  createdAt: Date,
+  now = new Date(),
+) {
+  const age = Math.max(0, now.getTime() - createdAt.getTime());
+  const freshness = Math.max(0, 1 - age / HOT_POST_LIFETIME_MS);
+  return (Math.max(0, likeCount) + 1) * freshness;
 }
 
 async function assertAllowedModeratorTags(
@@ -1670,8 +1682,8 @@ export async function listPosts(
         : { id: "desc" as const };
 
   const where = {
-    ...buildTimeWhere(input.time),
-    ...(feedCursor
+    ...buildTimeWhere(input.sort === "hot" ? "day" : input.time),
+    ...(feedCursor && input.sort !== "hot"
       ? {
           createdAt:
             input.sort === "oldest"
@@ -1690,6 +1702,63 @@ export async function listPosts(
       : {}),
     ...(viewer.privilegedViewer ? {} : { deletedAt: null, removedAt: null }),
   };
+
+  if (input.sort === "hot") {
+    const cursorMatch = input.cursor?.match(/^hot:(\d+)$/);
+    const offset = cursorMatch ? Number.parseInt(cursorMatch[1], 10) : 0;
+    const now = new Date();
+    const candidates = await db.post.findMany({
+      where,
+      select: {
+        id: true,
+        createdAt: true,
+        _count: { select: { likes: true } },
+      },
+    });
+    const allowedIds = new Set(
+      await filterCoreEntityIdsByTenant({
+        entityType: "Post",
+        ids: candidates.map((post) => post.id),
+        tenantId,
+      }),
+    );
+    const publicIds = new Set(
+      await filterPublishedPostIds(candidates.map((post) => post.id)),
+    );
+    const rankedCandidates = candidates
+      .filter((post) => allowedIds.has(post.id) && publicIds.has(post.id))
+      .sort((first, second) => {
+        const scoreDifference =
+          calculatePostHotScore(second._count.likes, second.createdAt, now) -
+          calculatePostHotScore(first._count.likes, first.createdAt, now);
+        if (scoreDifference !== 0) return scoreDifference;
+        const timeDifference = second.createdAt.getTime() - first.createdAt.getTime();
+        return timeDifference !== 0 ? timeDifference : second.id - first.id;
+      });
+    const pageCandidates = rankedCandidates.slice(offset, offset + limit + 1);
+    const pageIds = pageCandidates.slice(0, limit).map((post) => post.id);
+    const pagePosts = pageIds.length
+      ? await db.post.findMany({
+          where: { id: { in: pageIds } },
+          include: postInclude,
+        })
+      : [];
+    const postsById = new Map(pagePosts.map((post) => [post.id, post]));
+    const items = pageIds
+      .map((id) => postsById.get(id))
+      .filter((post): post is NonNullable<typeof post> => Boolean(post))
+      .map((post) => presentPost(post, viewer));
+    const hasMore = pageCandidates.length > limit;
+
+    return {
+      items,
+      pageInfo: {
+        hasMore,
+        nextCursor: hasMore ? `hot:${offset + limit}` : null,
+        limit,
+      },
+    };
+  }
 
   const posts = await db.post.findMany({
     take: limit + 1,

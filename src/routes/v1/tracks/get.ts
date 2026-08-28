@@ -31,6 +31,7 @@ router.get(
     const input = parseQuery(req, listTracksQuerySchema);
     const result = await listTracks(input, res.locals.tenantId);
 
+    res.setHeader("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
     res.json(result);
   }),
 );

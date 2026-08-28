@@ -13,7 +13,6 @@ import {
   sortJamsByStartTime,
 } from "../../domain/jamPolicies.js";
 import { TTLCache } from "../../lib/cache.js";
-import { invalidatePublicReadCaches } from "../../lib/cacheInvalidation.js";
 import { emitDomainEvent } from "../../lib/domainEvents.js";
 import {
   ConflictError,
@@ -49,7 +48,9 @@ type ActiveJamResult =
       nextJam?: undefined;
     };
 
-const activeJamCache = new TTLCache<ActiveJamResult>(15_000);
+// This public snapshot feeds several home-page sections and is expensive to
+// assemble. The platform worker refreshes it every five minutes.
+const activeJamCache = new TTLCache<ActiveJamResult>(10 * 60_000, "active-jam");
 const jamListCache = new TTLCache<RecentJam[]>(60_000);
 const ACTIVE_JAM_CACHE_KEY = "active-jam";
 const JAM_LIST_CACHE_KEY = "list-jams";
@@ -272,7 +273,8 @@ export async function joinJam({
     },
   });
 
-  invalidatePublicReadCaches("jam");
+  // The signed-in UI updates immediately after joining. Keep the shared public
+  // snapshot available until the background worker refreshes its counts.
   await writeAuditEntry({
     action: "jam.join",
     actor: {
@@ -290,8 +292,12 @@ export async function joinJam({
   });
 }
 
-export async function getCurrentActiveJam(tenantId?: string | null): Promise<ActiveJamResult> {
-  return activeJamCache.getOrSet(tenantCacheKey(ACTIVE_JAM_CACHE_KEY, tenantId), async () => {
+export async function getCurrentActiveJam(
+  tenantId?: string | null,
+  refresh = false,
+): Promise<ActiveJamResult> {
+  const cacheKey = tenantCacheKey(ACTIVE_JAM_CACHE_KEY, tenantId);
+  const loadActiveJam = async () => {
     const jams = await db.jam.findMany({
       where: { isActive: true },
       include: activeJamSummaryInclude,
@@ -340,7 +346,11 @@ export async function getCurrentActiveJam(tenantId?: string | null): Promise<Act
     }
 
     return { phase: getFallbackJamPhase(false) };
-  });
+  };
+
+  return refresh
+    ? activeJamCache.refresh(cacheKey, loadActiveJam)
+    : activeJamCache.getOrSet(cacheKey, loadActiveJam);
 }
 
 export async function checkJamParticipation(

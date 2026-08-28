@@ -9,6 +9,7 @@ export const listTracksQuerySchema = z.object({
   jamSlug: z.preprocess(firstQueryValue, z.string().trim().optional()),
   sort: z.preprocess(firstQueryValue, z.string().trim().optional()),
   pageVersion: z.preprocess(firstQueryValue, z.string().trim().optional()),
+  limit: z.preprocess(firstQueryValue, z.coerce.number().int().min(1).max(50).optional()),
 });
 
 export const trackParamsSchema = z.object({

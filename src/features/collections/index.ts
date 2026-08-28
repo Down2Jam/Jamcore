@@ -22,6 +22,7 @@ export {
   listCollectionsQuerySchema,
   removeCollectionItem,
   resolveCollectionMusicMetadata,
+  resolveLinkMetadata,
   respondCollectionCollaboratorInvite,
   respondCollectionCollaboratorSchema,
   updateCollection,

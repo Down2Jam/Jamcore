@@ -93,6 +93,7 @@ export function createJamcoreClient(config: JamcoreClientConfig = {}) {
     listCollections: (query: RequestOptions["query"] = undefined) => request("GET", "/collections", { query }),
     createCollection: (body: unknown) => request("POST", "/collections", { body }),
     importCollection: (body: unknown) => request("POST", "/collections/import", { body }),
+    getLinkPreview: (query: RequestOptions["query"] = undefined) => request("GET", "/collections/link-preview", { query }),
     getCollection: (collectionId: string) => request("GET", `/collections/${collectionId}`, {  }),
     exportCollection: (collectionId: string) => request("GET", `/collections/${collectionId}/export`, {  }),
     updateCollection: (collectionId: string, body: unknown) => request("PUT", `/collections/${collectionId}`, { body }),

@@ -12,6 +12,7 @@ export {
   trackDetailQuerySchema,
   trackParamsSchema,
 } from "./read.service.js";
+export { clearTrackListingCache } from "./listing.service.js";
 export {
   buildTrackDownloadBySlug,
   getMusicFileByName,

@@ -75,4 +75,15 @@ export class TTLCache<T> {
     recordCacheRequest({ cacheName: this.name, hit: false });
     return value;
   }
+
+  async refresh(key: string, load: () => Promise<T>): Promise<T> {
+    const value = await load();
+    this.set(key, value);
+    await getCacheBackend().set(
+      `cache:${this.name}:${key}`,
+      JSON.stringify(value),
+      this.ttlMs,
+    );
+    return value;
+  }
 }

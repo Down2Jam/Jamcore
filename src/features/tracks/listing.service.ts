@@ -3,6 +3,7 @@ import { PageVersion } from "@prisma/client";
 
 import { filterCoreEntityIdsByTenant } from "../../infra/coreTenantStore.js";
 import { BadRequestError } from "../../lib/errors.js";
+import { TTLCache } from "../../lib/cache.js";
 import { resolveJamReference } from "../jams/index.js";
 import { materializeTrackPage } from "./page.js";
 import { loadTrackCategories, loadTrackListingRecords, parseListingPageVersion } from "./queries.js";
@@ -14,6 +15,20 @@ import {
   sortTracksByScore,
 } from "./ranking.js";
 import { listTracksQuerySchema } from "./schemas.js";
+
+type TrackListingResult = {
+  message: string;
+  data: any[];
+};
+
+const trackListingCache = new TTLCache<TrackListingResult>(
+  10 * 60_000,
+  "track-listings",
+);
+
+export function clearTrackListingCache() {
+  trackListingCache.clear();
+}
 
 function getAllVersionsTrackKey(track: any) {
   return `${track.gameId ?? track.game?.id ?? track.gamePage?.gameId ?? "unknown"}:${
@@ -38,6 +53,7 @@ function preferPostJamTracks(tracks: any[]) {
 export async function listTracks(
   input: z.infer<typeof listTracksQuerySchema>,
   tenantId?: string | null,
+  refresh = false,
 ) {
   const jamSlugParam = input.jamSlug?.trim();
   const jamIdParam = input.jamId?.trim();
@@ -62,68 +78,83 @@ export async function listTracks(
         })
       : null;
 
-  let tracks = await loadTrackListingRecords({
-    jamId: resolvedJam?.id,
-    listingPageVersion,
+  const cacheKey = JSON.stringify({
     sort,
+    jamId: resolvedJam?.id ?? (wantsAllTracks ? "all" : null),
+    pageVersion: listingPageVersion,
+    limit: input.limit ?? null,
+    tenantId: tenantId ?? null,
   });
 
-  const allowedGameIds = new Set(
-    await filterCoreEntityIdsByTenant({
-      entityType: "Game",
-      ids: tracks
-        .map((track) => track.gamePage?.game?.id)
-        .filter((id): id is number => Number.isInteger(id)),
-      tenantId,
-    }),
-  );
-  tracks = tracks.filter((track) => {
-    const gameId = track.gamePage?.game?.id;
-    return Number.isInteger(gameId) && allowedGameIds.has(gameId);
-  });
-
-  tracks = tracks.map((track) => materializeTrackPage(track));
-  if (listingPageVersion === "ALL") {
-    tracks = preferPostJamTracks(tracks);
-  }
-
-  const trackCategories = await loadTrackCategories();
-  const categoryCount = Math.max(trackCategories.length, 1);
-
-  if (sort === "random") {
-    tracks = tracks.sort(() => Math.random() - 0.5);
-  }
-
-  if (sort === "score") {
-    tracks = sortTracksByScore(tracks);
-  }
-
-  if (sort === "leastratings") {
-    tracks = sortTracksByLeastRatings(tracks, categoryCount);
-  }
-
-  if (sort === "danger") {
-    tracks = sortDangerTracks(tracks, categoryCount);
-  }
-
-  if (sort === "ratingbalance") {
-    tracks = sortTracksByRatingBalance(tracks, categoryCount);
-  }
-
-  if (sort === "karma" || sort === "recommended") {
-    tracks = await sortTracksByKarmaOrRecommendation({
-      tracks,
-      categoryCount,
+  const loadListing = async () => {
+    let tracks = await loadTrackListingRecords({
+      jamId: resolvedJam?.id,
+      listingPageVersion,
       sort,
-      trackCategories,
     });
-  }
 
-  return {
-    message:
-      jamSlugParam || (jamIdParam && jamIdParam !== "all")
-        ? `Fetched tracks for jam ${resolvedJam?.slug ?? jamSlugParam ?? jamIdParam}`
-        : "Fetched tracks",
-    data: tracks,
+    const allowedGameIds = new Set(
+      await filterCoreEntityIdsByTenant({
+        entityType: "Game",
+        ids: tracks
+          .map((track) => track.gamePage?.game?.id)
+          .filter((id): id is number => Number.isInteger(id)),
+        tenantId,
+      }),
+    );
+    tracks = tracks.filter((track) => {
+      const gameId = track.gamePage?.game?.id;
+      return Number.isInteger(gameId) && allowedGameIds.has(gameId);
+    });
+
+    tracks = tracks.map((track) => materializeTrackPage(track));
+    if (listingPageVersion === "ALL") {
+      tracks = preferPostJamTracks(tracks);
+    }
+
+    const trackCategories = await loadTrackCategories();
+    const categoryCount = Math.max(trackCategories.length, 1);
+
+    if (sort === "random") {
+      tracks = tracks.sort(() => Math.random() - 0.5);
+    }
+
+    if (sort === "score") {
+      tracks = sortTracksByScore(tracks);
+    }
+
+    if (sort === "leastratings") {
+      tracks = sortTracksByLeastRatings(tracks, categoryCount);
+    }
+
+    if (sort === "danger") {
+      tracks = sortDangerTracks(tracks, categoryCount);
+    }
+
+    if (sort === "ratingbalance") {
+      tracks = sortTracksByRatingBalance(tracks, categoryCount);
+    }
+
+    if (sort === "karma" || sort === "recommended") {
+      tracks = await sortTracksByKarmaOrRecommendation({
+        tracks,
+        categoryCount,
+        sort,
+        trackCategories,
+      });
+    }
+
+    return {
+      message:
+        jamSlugParam || (jamIdParam && jamIdParam !== "all")
+          ? `Fetched tracks for jam ${resolvedJam?.slug ?? jamSlugParam ?? jamIdParam}`
+          : "Fetched tracks",
+      data:
+        typeof input.limit === "number" ? tracks.slice(0, input.limit) : tracks,
+    };
   };
+
+  return refresh
+    ? trackListingCache.refresh(cacheKey, loadListing)
+    : trackListingCache.getOrSet(cacheKey, loadListing);
 }

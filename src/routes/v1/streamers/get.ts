@@ -13,6 +13,7 @@ router.get(
   rateLimit(),
   asyncHandler(async (_req, res) => {
     const featuredStreamers = await listFeaturedStreamers();
+    res.setHeader("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
     res.json({ message: "Fetched streamers", data: featuredStreamers });
   }),
 );

@@ -1711,6 +1711,35 @@
       }
     },
     {
+      "sdkName": "getLinkPreview",
+      "method": "GET",
+      "path": "/collections/link-preview",
+      "tag": "Collections",
+      "summary": "Return safe, cached preview metadata for a public web page",
+      "parameters": [
+        {
+          "name": "url",
+          "in": "query",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uri"
+          }
+        }
+      ],
+      "auth": {
+        "required": false,
+        "optional": false,
+        "kind": "none",
+        "label": "Public"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
       "sdkName": "getCollection",
       "method": "GET",
       "path": "/collections/{collectionId}",

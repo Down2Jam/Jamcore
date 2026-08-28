@@ -5,6 +5,7 @@ import authUser from "@middleware/authUser";
 import authUserOptional from "@middleware/authUserOptional";
 import getUser from "@loaders/getUser";
 import getUserOptional from "@loaders/getUserOptional";
+import rateLimit from "@middleware/rateLimit";
 import { asyncHandler } from "../../middleware/asyncHandler.js";
 import { requireRequestUser } from "../../lib/locals.js";
 import { parseBody, parseParams, parseQuery } from "../../lib/request.js";
@@ -32,6 +33,7 @@ import {
   listCollectionsQuerySchema,
   removeCollectionItem,
   resolveCollectionMusicMetadata,
+  resolveLinkMetadata,
   respondCollectionCollaboratorInvite,
   respondCollectionCollaboratorSchema,
   updateCollection,
@@ -106,11 +108,21 @@ export function createCollectionsRouter() {
 
   router.get(
     "/metadata",
+    rateLimit(),
     authUserOptional,
     getUserOptional,
     asyncHandler(async (req, res) => {
       const { url } = parseQuery(req, metadataQuerySchema);
       res.json(await resolveCollectionMusicMetadata({ url }));
+    }),
+  );
+
+  router.get(
+    "/link-preview",
+    rateLimit(),
+    asyncHandler(async (req, res) => {
+      const { url } = parseQuery(req, metadataQuerySchema);
+      res.json({ data: await resolveLinkMetadata(url) });
     }),
   );
 

@@ -1,4 +1,6 @@
 import { randomUUID } from "node:crypto";
+import { lookup } from "node:dns/promises";
+import { isIP } from "node:net";
 import { z } from "zod";
 
 import { filterCoreEntityIdsByTenant } from "../../infra/coreTenantStore.js";
@@ -252,6 +254,205 @@ function parseYouTubeVideoId(url: string) {
     return null;
   }
   return null;
+}
+
+const linkMetadataCache = new Map<
+  string,
+  { expiresAt: number; value: Awaited<ReturnType<typeof fetchLinkMetadata>> }
+>();
+
+function isPrivateAddress(address: string) {
+  const normalized = address.toLowerCase();
+  if (normalized === "::" || normalized === "::1") return true;
+  if (normalized.startsWith("fc") || normalized.startsWith("fd") || normalized.startsWith("fe8") || normalized.startsWith("fe9") || normalized.startsWith("fea") || normalized.startsWith("feb")) return true;
+  if (normalized.startsWith("::ffff:")) return isPrivateAddress(normalized.slice(7));
+  if (isIP(normalized) !== 4) return false;
+
+  const [a, b] = normalized.split(".").map(Number);
+  return (
+    a === 0 ||
+    a === 10 ||
+    a === 127 ||
+    (a === 100 && b >= 64 && b <= 127) ||
+    (a === 169 && b === 254) ||
+    (a === 172 && b >= 16 && b <= 31) ||
+    (a === 192 && b === 168) ||
+    (a === 198 && (b === 18 || b === 19)) ||
+    a >= 224
+  );
+}
+
+async function assertPublicLinkUrl(value: string) {
+  const parsed = new URL(value);
+  if (!['http:', 'https:'].includes(parsed.protocol)) {
+    throw new BadRequestError("Only HTTP links can be previewed.");
+  }
+
+  const hostname = parsed.hostname.toLowerCase().replace(/\.$/, "");
+  if (hostname === "localhost" || hostname.endsWith(".local") || hostname.endsWith(".internal")) {
+    throw new BadRequestError("Private links cannot be previewed.");
+  }
+
+  const addresses = await lookup(hostname, { all: true, verbatim: true });
+  if (addresses.length === 0 || addresses.some(({ address }) => isPrivateAddress(address))) {
+    throw new BadRequestError("Private links cannot be previewed.");
+  }
+
+  return parsed;
+}
+
+function decodeHtmlText(value: string) {
+  return value
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&#(\d+);/g, (_match, code: string) => String.fromCodePoint(Number(code)))
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function readHtmlAttribute(tag: string, name: string) {
+  const match = tag.match(new RegExp(`\\b${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))`, "i"));
+  return decodeHtmlText(match?.[1] ?? match?.[2] ?? match?.[3] ?? "");
+}
+
+function readMetaContent(html: string, keys: string[]) {
+  for (const tag of html.match(/<meta\b[^>]*>/gi) ?? []) {
+    const key = (readHtmlAttribute(tag, "property") || readHtmlAttribute(tag, "name")).toLowerCase();
+    if (keys.includes(key)) {
+      const content = readHtmlAttribute(tag, "content");
+      if (content) return content;
+    }
+  }
+  return null;
+}
+
+function resolvePageAsset(value: string | null, pageUrl: string) {
+  if (!value) return null;
+  try {
+    const resolved = new URL(value, pageUrl);
+    return ['http:', 'https:'].includes(resolved.protocol) ? resolved.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+async function resolvePublicPageAsset(value: string | null, pageUrl: string) {
+  const resolved = resolvePageAsset(value, pageUrl);
+  if (!resolved) return null;
+  try {
+    await assertPublicLinkUrl(resolved);
+    return resolved;
+  } catch {
+    return null;
+  }
+}
+
+async function fetchHtml(url: string) {
+  let currentUrl = url;
+  for (let redirectCount = 0; redirectCount <= 3; redirectCount += 1) {
+    await assertPublicLinkUrl(currentUrl);
+    const response = await fetch(currentUrl, {
+      redirect: "manual",
+      signal: AbortSignal.timeout(4_000),
+      headers: {
+        accept: "text/html,application/xhtml+xml",
+        "user-agent": "JamcoreLinkPreview/1.0",
+      },
+    });
+
+    if (response.status >= 300 && response.status < 400) {
+      const location = response.headers.get("location");
+      if (!location) throw new BadRequestError("Invalid link redirect.");
+      await response.body?.cancel();
+      currentUrl = new URL(location, currentUrl).toString();
+      continue;
+    }
+
+    if (!response.ok) throw new BadRequestError("Link metadata was unavailable.");
+    const contentType = response.headers.get("content-type")?.toLowerCase() ?? "";
+    if (!contentType.includes("text/html") && !contentType.includes("application/xhtml+xml")) {
+      throw new BadRequestError("Link does not point to an HTML page.");
+    }
+
+    const maxBytes = 512_000;
+    const declaredLength = Number(response.headers.get("content-length") ?? 0);
+    if (declaredLength > maxBytes) {
+      await response.body?.cancel();
+      throw new BadRequestError("Link metadata page is too large.");
+    }
+
+    const reader = response.body?.getReader();
+    if (!reader) throw new BadRequestError("Link metadata was unavailable.");
+    const decoder = new TextDecoder();
+    let html = "";
+    let receivedBytes = 0;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      receivedBytes += value.byteLength;
+      if (receivedBytes > maxBytes) {
+        await reader.cancel();
+        throw new BadRequestError("Link metadata page is too large.");
+      }
+      html += decoder.decode(value, { stream: true });
+    }
+    html += decoder.decode();
+    return { html, finalUrl: currentUrl };
+  }
+  throw new BadRequestError("Too many link redirects.");
+}
+
+async function fetchLinkMetadata(url: string) {
+  const { html, finalUrl } = await fetchHtml(url);
+  const titleTag = html.match(/<title\b[^>]*>([\s\S]*?)<\/title>/i)?.[1] ?? "";
+  const title = decodeHtmlText(readMetaContent(html, ["og:title", "twitter:title"]) ?? titleTag).slice(0, 140);
+  const description = decodeHtmlText(
+    readMetaContent(html, ["og:description", "twitter:description", "description"]) ?? "",
+  ).slice(0, 240);
+  const iconTag = (html.match(/<link\b[^>]*>/gi) ?? []).find((tag) =>
+    /(?:^|\s)(?:shortcut\s+)?icon(?:\s|$)/i.test(readHtmlAttribute(tag, "rel")),
+  );
+  const [image, favicon] = await Promise.all([
+    resolvePublicPageAsset(
+      readMetaContent(html, ["og:image", "twitter:image", "twitter:image:src"]),
+      finalUrl,
+    ),
+    resolvePublicPageAsset(
+      iconTag ? readHtmlAttribute(iconTag, "href") : "/favicon.ico",
+      finalUrl,
+    ),
+  ]);
+  const siteName = decodeHtmlText(readMetaContent(html, ["og:site_name"]) ?? "").slice(0, 80);
+
+  return {
+    title: title || new URL(finalUrl).hostname,
+    description: description || null,
+    image,
+    favicon,
+    siteName: siteName || null,
+    url: finalUrl,
+  };
+}
+
+export async function resolveLinkMetadata(url: string) {
+  const normalizedUrl = (await assertPublicLinkUrl(url.trim())).toString();
+  const cached = linkMetadataCache.get(normalizedUrl);
+  if (cached && cached.expiresAt > Date.now()) return cached.value;
+
+  const value = await fetchLinkMetadata(normalizedUrl);
+  linkMetadataCache.set(normalizedUrl, {
+    expiresAt: Date.now() + 30 * 60 * 1000,
+    value,
+  });
+  if (linkMetadataCache.size > 500) {
+    const oldestKey = linkMetadataCache.keys().next().value;
+    if (oldestKey) linkMetadataCache.delete(oldestKey);
+  }
+  return value;
 }
 
 export async function resolveCollectionMusicMetadata(input: {

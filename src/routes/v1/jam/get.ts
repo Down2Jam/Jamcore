@@ -12,6 +12,7 @@ router.get(
   asyncHandler(async (_req, res) => {
     const activeJam = await getCurrentActiveJam(res.locals.tenantId);
 
+    res.setHeader("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
     res.json({
       message: "Current jam fetched",
       data: {

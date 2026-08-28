@@ -1,16 +1,16 @@
 import { clearGameDetailCache } from "../features/games/detail.service.js";
-import { clearGameListingCache } from "../features/games/listing.service.js";
 import { clearJamServiceCaches } from "../features/jams/service.js";
 import { clearSearchCache } from "../features/search/service.js";
 
 export function invalidatePublicReadCaches(scope: "all" | "content" | "jam" = "all") {
   if (scope === "all" || scope === "content") {
     clearGameDetailCache();
-    clearGameListingCache();
     clearSearchCache();
+    // Ranked game/track listings are shared snapshots refreshed by the
+    // platform worker. Do not make a visitor recompute them after each write.
   }
 
-  if (scope === "all" || scope === "jam") {
+  if (scope === "jam") {
     clearJamServiceCaches();
   }
 }

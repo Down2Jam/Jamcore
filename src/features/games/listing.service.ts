@@ -63,7 +63,10 @@ type RecommendationRating = {
   };
 };
 
-const gameListingCache = new TTLCache<GameListingResult>(30_000);
+// The listing rankings are expensive and identical for every visitor within a
+// tenant. Keep them longer than the five-minute background warming interval so
+// a request never has to become the cache warmer because of minor job drift.
+const gameListingCache = new TTLCache<GameListingResult>(10 * 60_000, "game-listings");
 
 export function clearGameListingCache() {
   gameListingCache.clear();
@@ -625,6 +628,7 @@ export async function listGames({
   cursor,
   limit,
   tenantId,
+  refresh = false,
 }: {
   sort?: unknown;
   jamId?: unknown;
@@ -633,6 +637,7 @@ export async function listGames({
   cursor?: unknown;
   limit?: unknown;
   tenantId?: string | null;
+  refresh?: boolean;
 }): Promise<GameListingResult> {
   const normalizedSort = parseGameListingSort(sort);
   const normalizedLimit = normalizeLimit(limit);
@@ -674,7 +679,7 @@ export async function listGames({
     tenantId: tenantId ?? null,
   });
 
-  return gameListingCache.getOrSet(cacheKey, async () => {
+  const loadListing = async () => {
     const pageVersionWhere: Prisma.GameWhereInput =
       pageVersion === PageVersion.POST_JAM
         ? { pages: { some: { version: PageVersion.POST_JAM } } }
@@ -798,5 +803,9 @@ export async function listGames({
         totalCount,
       },
     };
-  });
+  };
+
+  return refresh
+    ? gameListingCache.refresh(cacheKey, loadListing)
+    : gameListingCache.getOrSet(cacheKey, loadListing);
 }

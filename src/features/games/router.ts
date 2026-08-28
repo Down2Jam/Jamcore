@@ -168,7 +168,7 @@ export function createGamesRouter() {
         tenantId: res.locals.tenantId,
       });
 
-      res.setHeader("Cache-Control", "public, max-age=30, stale-while-revalidate=120");
+      res.setHeader("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
       const isPaginated =
         typeof req.query.cursor !== "undefined" || typeof req.query.limit !== "undefined";
       res.json(isPaginated ? games : games.items);

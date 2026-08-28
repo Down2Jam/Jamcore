@@ -10,26 +10,73 @@ import {
 } from "../features/search/indexing.service.js";
 import { clearSearchCache } from "../features/search/service.js";
 import { listGames } from "../features/games/listing.service.js";
+import { listTracks } from "../features/tracks/listing.service.js";
 import { listJobs, enqueueJob, startJobWorker } from "../infra/jobQueue.js";
 import logger from "../infra/logger.js";
 import { emitDomainEvent } from "../lib/domainEvents.js";
 import { deliverWebhookJob } from "../infra/webhooks.js";
 
 async function precomputeHotCaches() {
-  await getCurrentActiveJam();
+  const tenantIds = [
+    ...new Set([
+      appConfig.platform.multiTenant.defaultTenantId,
+      ...appConfig.platform.multiTenant.tenants.map((tenant) => tenant.id),
+    ]),
+  ];
 
-  const sorts = appConfig.platform.precompute.sorts;
-  for (const sort of sorts) {
+  for (const tenantId of tenantIds) {
+    const activeJam = await getCurrentActiveJam(tenantId, true);
+    const phase = activeJam.phase;
+    const isActivePhase =
+      phase === "Jamming" || phase === "Submission" || phase === "Rating";
+    const isPostJamPhase =
+      phase === "Post-Jam Refinement" || phase === "Post-Jam Rating";
+    const sidebarJamId =
+      activeJam.jam && (isActivePhase || isPostJamPhase)
+        ? String(activeJam.jam.id)
+        : undefined;
+    const sidebarPageVersion = isActivePhase
+      ? "JAM"
+      : isPostJamPhase
+        ? "POST_JAM"
+        : "ALL";
+
     await listGames({
-      sort,
-      pageVersion: "JAM",
-      limit: 24,
+      sort: isActivePhase ? "karma" : "score",
+      jamId: sidebarJamId,
+      pageVersion: sidebarPageVersion,
+      limit: 10,
+      tenantId,
+      refresh: true,
     });
-    await listGames({
-      sort,
-      pageVersion: "POST_JAM",
-      limit: 24,
-    });
+    await listTracks(
+      {
+        sort: isActivePhase ? "random" : "score",
+        jamId: sidebarJamId,
+        pageVersion: sidebarPageVersion,
+        limit: 50,
+      },
+      tenantId,
+      true,
+    );
+
+    const sorts = appConfig.platform.precompute.sorts;
+    for (const sort of sorts) {
+      await listGames({
+        sort,
+        pageVersion: "JAM",
+        limit: 24,
+        tenantId,
+        refresh: true,
+      });
+      await listGames({
+        sort,
+        pageVersion: "POST_JAM",
+        limit: 24,
+        tenantId,
+        refresh: true,
+      });
+    }
   }
 }
 

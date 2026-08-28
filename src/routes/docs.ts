@@ -1560,6 +1560,32 @@ export function renderVersionDocsPage(input: {
         <div class="auth-status" data-api-auth-status>Not logged in for API requests.</div>
       </div>
     </section>
+    <section class="section" id="endpoints">
+      <h2>Endpoints</h2>
+      <p>Browse the public routes available in this API version.</p>
+      ${routesByTag
+        .map(
+          (group) => `
+            <div class="endpoint-index-group">
+              <h3>${escapeHtml(group.name)}</h3>
+              <ul class="endpoint-index-list">
+                ${group.routes
+                  .map(
+                    (route) => `
+                      <li>
+                        <a href="${escapeHtml(endpointHref(route))}">
+                          <span class="sidebar-method sidebar-method-${escapeHtml(route.method.toLowerCase())}">${escapeHtml(route.method)}</span>
+                          <code>/api/${escapeHtml(input.version)}${escapeHtml(route.path)}</code>
+                          <span>${escapeHtml(route.summary)}</span>
+                        </a>
+                      </li>`,
+                  )
+                  .join("")}
+              </ul>
+            </div>`,
+        )
+        .join("")}
+    </section>
     </article>`;
 
   const selectedRouteAuth = selectedRoute
