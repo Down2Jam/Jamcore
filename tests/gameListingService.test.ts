@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const { dbMock, presentersMock } = vi.hoisted(() => ({
   dbMock: {
     game: {
+      count: vi.fn(),
       findMany: vi.fn(),
     },
     jam: {
@@ -43,6 +44,7 @@ import { listGames } from "../src/features/games/listing.service.js";
 describe("game listing service", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    dbMock.game.count.mockResolvedValue(2);
   });
 
   it("paginates basic listing sorts with a cursor-shaped response", async () => {
@@ -68,6 +70,7 @@ describe("game listing service", () => {
       hasMore: true,
       nextCursor: "9",
       limit: 1,
+      totalCount: 2,
     });
   });
 

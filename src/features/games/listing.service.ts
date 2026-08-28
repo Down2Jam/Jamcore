@@ -1,4 +1,4 @@
-import { PageVersion } from "@prisma/client";
+import { PageVersion, type Prisma } from "@prisma/client";
 import { z } from "zod";
 
 import db from "../../infra/db.js";
@@ -37,6 +37,7 @@ type GameListingResult = {
     hasMore: boolean;
     nextCursor: string | null;
     limit: number;
+    totalCount: number;
   };
 };
 type RecommendationRating = {
@@ -636,7 +637,7 @@ export async function listGames({
   const normalizedSort = parseGameListingSort(sort);
   const normalizedLimit = normalizeLimit(limit);
   const normalizedCursor = parseCursor(cursor);
-  const where: { published: true; jamId?: number } = { published: true };
+  const where: Prisma.GameWhereInput = { published: true };
   const resolvedJam =
     typeof jamSlug === "string" || typeof jamId === "string" || typeof jamId === "number"
       ? await resolveJamReference({
@@ -658,6 +659,7 @@ export async function listGames({
         hasMore: false,
         nextCursor: null,
         limit: normalizedLimit,
+        totalCount: 0,
       },
     };
   }
@@ -673,6 +675,27 @@ export async function listGames({
   });
 
   return gameListingCache.getOrSet(cacheKey, async () => {
+    const pageVersionWhere: Prisma.GameWhereInput =
+      pageVersion === PageVersion.POST_JAM
+        ? { pages: { some: { version: PageVersion.POST_JAM } } }
+        : pageVersion === "ALL"
+          ? {
+              pages: {
+                some: {
+                  version: { in: [PageVersion.JAM, PageVersion.POST_JAM] },
+                },
+              },
+            }
+          : { pages: { some: { version: PageVersion.JAM } } };
+    const totalCount = await db.game.count({
+      where: {
+        ...where,
+        ...pageVersionWhere,
+        ...(tenantId
+          ? { OR: [{ tenantId: null }, { tenantId }] }
+          : {}),
+      },
+    });
     const expensiveSort = isExpensiveSort(normalizedSort);
     let listedGames: ReturnType<typeof materializeGameListingEntries>;
 
@@ -772,6 +795,7 @@ export async function listGames({
               : String(items[items.length - 1]?.id ?? "")
             : null,
         limit: normalizedLimit,
+        totalCount,
       },
     };
   });
