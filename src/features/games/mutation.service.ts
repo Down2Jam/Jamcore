@@ -395,7 +395,9 @@ export async function createPostJamPage(
     await upsertGamePage(
       existingGame.id,
       PageVersion.POST_JAM,
-      buildPostJamBodyFromGame(existingGame),
+      buildPostJamBodyFromGame(
+        existingGame as unknown as Parameters<typeof buildPostJamBodyFromGame>[0],
+      ),
     );
     await enqueueSearchEntityIndex({
       entityType: "game",

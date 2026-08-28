@@ -1,5 +1,9 @@
 import { appConfig } from "../../../config/app.js";
-import { buildFederatedContent, type FederationEmoji } from "./content.js";
+import {
+  buildFederatedContent,
+  extractMarkdownImageUrls,
+  type FederationEmoji,
+} from "./content.js";
 import { buildActorPublicKey } from "./keys.js";
 import {
   getCommentObjectId,
@@ -175,6 +179,12 @@ export function buildPostObject(post: FederatedPostView) {
   const rendered = buildFederatedContent({
     value: post.content,
   });
+  const imageAttachments = extractMarkdownImageUrls(post.content)
+    .map((url) => ({
+      type: "Image" as const,
+      url: resolvePublicUrl(url),
+    }))
+    .filter((item): item is { type: "Image"; url: string } => Boolean(item.url));
 
   return {
     "@context": ACTIVITY_STREAMS_CONTEXT,
@@ -192,6 +202,7 @@ export function buildPostObject(post: FederatedPostView) {
     to: ["https://www.w3.org/ns/activitystreams#Public"],
     cc: [getJamActorId()],
     audience: getJamActorId(),
+    ...(imageAttachments.length > 0 ? { attachment: imageAttachments } : {}),
     ...(rendered.tags.length > 0 ? { tag: rendered.tags } : {}),
   };
 }

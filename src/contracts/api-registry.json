@@ -3716,10 +3716,10 @@
         }
       ],
       "auth": {
-        "required": true,
-        "optional": false,
+        "required": false,
+        "optional": true,
         "kind": "user",
-        "label": "Requires user login"
+        "label": "Uses login if present"
       },
       "visibility": "public",
       "rateLimit": {

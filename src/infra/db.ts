@@ -3,10 +3,12 @@ import { PrismaClient } from "@prisma/client";
 import "../config/env.js";
 import logger from "./logger.js";
 import { recordDbQuery } from "./metrics.js";
+import { createPrismaAdapter } from "./prisma-adapter.js";
 
 const SLOW_QUERY_THRESHOLD_MS = 200;
 
 const db = new PrismaClient({
+  adapter: createPrismaAdapter(),
   log: [
     { emit: "event", level: "query" },
     { emit: "event", level: "warn" },

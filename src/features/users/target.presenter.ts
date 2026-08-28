@@ -6,8 +6,8 @@ import type { GameRatingLike } from "./recommendation.service.js";
 import type {
   FavoriteGameCount,
   FavoriteTrackCount,
-  TargetUserDetailRecord,
 } from "../../types/user.js";
+import type { RawTargetUser } from "./target.queries.js";
 
 function materializeGameSummaryForVersion(
   game: {
@@ -34,7 +34,7 @@ export function sortByIdOrder<T extends { id: number }>(items: T[], ids: number[
 }
 
 type PresentTargetUserArgs = {
-  user: TargetUserDetailRecord;
+  user: RawTargetUser;
   ratings: Array<GameRatingLike & { pageVersion: PageVersion }>;
   gameCandidates: Array<any>;
   recommendedGames: Array<any>;

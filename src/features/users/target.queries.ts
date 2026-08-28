@@ -22,6 +22,10 @@ export async function loadRawTargetUser(
   });
 }
 
+export type RawTargetUser = NonNullable<
+  Awaited<ReturnType<typeof loadRawTargetUser>>
+>;
+
 export async function loadRecommendationUsers(
   currentUserId: number,
   activeJamId: number | null,

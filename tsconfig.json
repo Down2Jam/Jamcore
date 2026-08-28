@@ -6,15 +6,14 @@
     "types": ["node"],
     "rootDir": ".",
     "noEmit": true,
-    "baseUrl": ".",
     "paths": {
-      "@features/*": ["src/features/*"],
-      "@infra/*": ["src/infra/*"],
-      "@loaders/*": ["src/loaders/*"],
-      "@lib/*": ["src/lib/*"],
-      "@middleware/*": ["src/middleware/*"],
-      "@guards/*": ["src/guards/*"],
-      "@types/*": ["src/types/*"]
+      "@features/*": ["./src/features/*"],
+      "@infra/*": ["./src/infra/*"],
+      "@loaders/*": ["./src/loaders/*"],
+      "@lib/*": ["./src/lib/*"],
+      "@middleware/*": ["./src/middleware/*"],
+      "@guards/*": ["./src/guards/*"],
+      "@types/*": ["./src/types/*"]
     },
     "resolveJsonModule": true,
     "esModuleInterop": true,

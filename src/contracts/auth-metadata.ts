@@ -27,7 +27,6 @@ const requiredUserGetRoutes = new Set([
   "GET /posts/autosave",
   "GET /self",
   "GET /self/current-game",
-  "GET /themes",
   "GET /themes/suggestion",
   "GET /themes/votes",
 ]);
@@ -41,6 +40,8 @@ const optionalUserGetPrefixes = [
   "/results",
   "/tracks",
 ];
+
+const optionalUserGetRoutes = new Set(["GET /themes"]);
 
 const requiredUserGetPrefixes = ["/messages"];
 
@@ -84,6 +85,15 @@ export function getRouteAuthMetadata(route: RouteLike): RouteAuthMetadata {
       optional: false,
       kind: "user",
       label: "Requires user login",
+    };
+  }
+
+  if (optionalUserGetRoutes.has(key)) {
+    return {
+      required: false,
+      optional: true,
+      kind: "user",
+      label: "Uses login if present",
     };
   }
 

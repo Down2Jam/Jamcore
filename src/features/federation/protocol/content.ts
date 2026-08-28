@@ -49,6 +49,15 @@ export function extractCustomEmojiShortcodes(value: string | null | undefined) {
   return [...new Set(matches.map((match) => match[2].toLowerCase()))];
 }
 
+export function extractMarkdownImageUrls(value: string | null | undefined) {
+  if (!value) return [];
+
+  const matches = [
+    ...value.matchAll(/!\[[^\]]*\]\(([^\s)]+)(?:\s+["'][^"']*["'])?\)/g),
+  ];
+  return [...new Set(matches.map((match) => match[1]).filter(Boolean))];
+}
+
 export function buildFederatedContent({
   value,
   emojis = [],

@@ -185,6 +185,16 @@ describe("themes service", () => {
     ]);
   });
 
+  it("lists themes for guests without loading user-specific votes", async () => {
+    dbMock.themeSuggestion.findMany.mockResolvedValue([{ id: 1, suggestion: "Space" }]);
+
+    await listThemesForJam({ jamId: 3 });
+
+    expect(dbMock.themeSuggestion.findMany).toHaveBeenCalledWith({
+      where: { jamId: 3 },
+    });
+  });
+
   it("returns the highest-ranked top theme", async () => {
     dbMock.themeSuggestion.findMany.mockResolvedValueOnce([
       {

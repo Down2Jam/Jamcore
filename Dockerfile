@@ -35,7 +35,7 @@ ENV NODE_ENV=production
 COPY --chown=node:node --from=builder /usr/src/app ./
 RUN npm prune --omit=dev \
     && npm cache clean --force \
-    && mkdir -p logs .jamcore public/images \
-    && chown -R node:node logs .jamcore public/images
+    && mkdir -p logs .jamcore public/images public/music \
+    && chown -R node:node logs .jamcore public/images public/music
 USER node
 CMD ["npm", "start"]

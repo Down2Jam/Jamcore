@@ -1,7 +1,8 @@
 import { PrismaClient } from "@prisma/client";
 import { faker } from "@faker-js/faker";
+import { createPrismaAdapter } from "../src/infra/prisma-adapter.js";
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({ adapter: createPrismaAdapter() });
 
 async function main() {
   console.log("Seeding random slaughter votes...");

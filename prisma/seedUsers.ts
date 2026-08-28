@@ -1,15 +1,16 @@
 import { PrismaClient } from "@prisma/client";
 import { faker } from "@faker-js/faker";
+import { createPrismaAdapter } from "../src/infra/prisma-adapter.js";
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({ adapter: createPrismaAdapter() });
 
 async function main() {
   console.log("Seeding random users...");
 
   // Generate 10 random users
   const users = Array.from({ length: 10 }).map(() => ({
-    slug: faker.internet.userName(),
-    name: faker.name.fullName(),
+    slug: faker.internet.username(),
+    name: faker.person.fullName(),
     email: faker.internet.email(),
     password: faker.internet.password({ length: 8 }), // Use bcrypt in production
     bio: faker.lorem.sentence(),

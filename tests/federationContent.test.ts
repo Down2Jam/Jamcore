@@ -4,6 +4,7 @@ import {
   buildFederatedContent,
   extractCustomEmojiShortcodes,
   extractHashtags,
+  extractMarkdownImageUrls,
 } from "../src/features/federation/protocol/content.js";
 
 describe("federation content", () => {
@@ -13,6 +14,14 @@ describe("federation content", () => {
       "jamjar",
       "spark",
     ]);
+  });
+
+  it("extracts unique markdown images for ActivityPub attachments", () => {
+    expect(
+      extractMarkdownImageUrls(
+        "![Vote results](/api/v1/images/votes.png)\n\n![Again](/api/v1/images/votes.png)",
+      ),
+    ).toEqual(["/api/v1/images/votes.png"]);
   });
 
   it("renders activitypub-safe HTML and builds tags", () => {

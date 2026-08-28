@@ -1,6 +1,7 @@
 import { PrismaClient, GameCategory, PageVersion } from "@prisma/client";
+import { createPrismaAdapter } from "../src/infra/prisma-adapter.js";
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({ adapter: createPrismaAdapter() });
 
 async function main() {
   console.log("Adding test data...");

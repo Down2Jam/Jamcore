@@ -103,7 +103,7 @@ describe("federation serializers", () => {
     const post = buildPostObject({
       id: 12,
       title: "Theme ideas",
-      content: "Let us cook",
+      content: "![Theme votes](/api/v1/images/theme-votes.png)\n\n#ThemeVote",
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
       updatedAt: new Date("2026-01-01T00:00:00.000Z"),
       author: { slug: "ben" },
@@ -119,6 +119,12 @@ describe("federation serializers", () => {
 
     expect(post.id).toBe(getPostObjectId(12));
     expect(post.type).toBe("Article");
+    expect(post.attachment).toEqual([
+      expect.objectContaining({
+        type: "Image",
+        url: expect.stringContaining("/api/v1/images/theme-votes.png"),
+      }),
+    ]);
     expect(comment.id).toBe(getCommentObjectId(34));
     expect(comment.inReplyTo).toBe(getPostObjectId(12));
   });

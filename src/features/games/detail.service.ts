@@ -194,27 +194,6 @@ type GameDetailRecord = Prisma.GameGetPayload<{
   include: typeof gameDetailInclude;
 }>;
 
-type NormalizedRating = GameDetailRecord["ratings"][number] & {
-  gameId: number;
-  gamePageId: number | null;
-  pageVersion: PageVersion;
-};
-
-type NormalizedTeam = Omit<GameDetailRecord["team"], "users"> & {
-  users: Array<
-    Omit<GameDetailRecord["team"]["users"][number], "ratings"> & {
-      ratings: Array<
-        GameDetailRecord["team"]["users"][number]["ratings"][number] & {
-          gameId: number | null;
-          gamePageId: number | null;
-          pageVersion: PageVersion;
-          game: GameDetailRecord["team"]["users"][number]["ratings"][number]["gamePage"]["game"] | null;
-        }
-      >;
-    }
-  >;
-};
-
 export const gameDetailParamsSchema = z.object({
   gameSlug: z.string().trim().min(1),
 });
@@ -315,14 +294,14 @@ export async function loadGameDetailResponse({
       }
     }
 
-    const normalizedRatings: NormalizedRating[] = (game.ratings ?? []).map((rating) => ({
+    const normalizedRatings = (game.ratings ?? []).map((rating) => ({
       ...rating,
       gameId: rating.gamePage?.gameId ?? game.id,
       gamePageId: rating.gamePage?.id ?? null,
       pageVersion: getRatingPageVersion(rating),
     }));
 
-    const normalizedTeam: NormalizedTeam = {
+    const normalizedTeam = {
       ...game.team,
       users: (game.team?.users ?? []).map((teamUser) => ({
         ...teamUser,

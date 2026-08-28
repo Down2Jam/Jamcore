@@ -1,12 +1,11 @@
 import { Router } from "express";
 import rateLimit from "@middleware/rateLimit";
-import authenticateUser from "@middleware/authUser";
-import getUser from "@loaders/getUser";
+import authUserOptional from "@middleware/authUserOptional";
+import getUserOptional from "@loaders/getUserOptional";
 import getJam from "@loaders/getJam";
 import { asyncHandler } from "@middleware/asyncHandler";
 import { listThemesForJam, listThemesQuerySchema } from "@features/themes";
-import { checkJamParticipation } from "@features/jams";
-import { requireLoadedJam, requireRequestUser } from "@lib/locals";
+import { requireLoadedJam } from "@lib/locals";
 import { parseQuery } from "../../../lib/request.js";
 
 const router = Router();
@@ -17,17 +16,15 @@ const router = Router();
 router.get(
   "/",
   rateLimit(),
-  authenticateUser,
-  getUser,
+  authUserOptional,
+  getUserOptional,
   getJam,
-  checkJamParticipation,
   asyncHandler(async (req, res) => {
     const { isVoting } = parseQuery(req, listThemesQuerySchema);
     const jam = requireLoadedJam(res);
-    const user = requireRequestUser(res);
     const themes = await listThemesForJam({
       jamId: jam.id,
-      userId: user.id,
+      userId: res.locals.user?.id,
       isVoting: isVoting === "1",
     });
 

@@ -57,6 +57,7 @@ services:
       - jamcore_runtime:/usr/src/app/.jamcore
       - jamcore_logs:/usr/src/app/logs
       - jamcore_images:/usr/src/app/public/images
+      - jamcore_music:/usr/src/app/public/music
     entrypoint: >
       sh -c "npx prisma migrate deploy && npm start"
     healthcheck:
@@ -70,3 +71,4 @@ volumes:
   jamcore_runtime:
   jamcore_logs:
   jamcore_images:
+  jamcore_music:

@@ -6,7 +6,7 @@ export async function listThemesForJam({
   isVoting,
 }: {
   jamId: number;
-  userId: number;
+  userId?: number;
   isVoting?: boolean;
 }) {
   if (isVoting) {
@@ -37,13 +37,15 @@ export async function listThemesForJam({
         id: { in: themeIds },
         jamId,
       },
-      include: {
-        votes2: {
-          where: {
-            userId,
-          },
-        },
-      },
+      ...(userId === undefined
+        ? {}
+        : {
+            include: {
+              votes2: {
+                where: { userId },
+              },
+            },
+          }),
     });
 
     return themesWithScores.map((score) => ({
@@ -53,13 +55,15 @@ export async function listThemesForJam({
   }
 
   return db.themeSuggestion.findMany({
-    include: {
-      votes: {
-        where: {
-          userId,
-        },
-      },
-    },
+    ...(userId === undefined
+      ? {}
+      : {
+          include: {
+            votes: {
+              where: { userId },
+            },
+          },
+        }),
     where: {
       jamId,
     },

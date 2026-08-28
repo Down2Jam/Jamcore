@@ -1,9 +1,6 @@
 import { PageVersion } from "@prisma/client";
 
-import type {
-  GamePageRecord,
-  GameWithPages,
-} from "../../types/game.js";
+import type { GamePageRecord, GameWithPages } from "../../types/game.js";
 import { getJamPage, getPostJamPage } from "./page.helpers.js";
 
 export const postJamPageInclude = {
