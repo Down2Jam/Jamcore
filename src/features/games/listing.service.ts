@@ -76,6 +76,7 @@ export const gameListingQuerySchema = z.object({
   sort: z.unknown().optional(),
   jamId: z.unknown().optional(),
   jamSlug: z.unknown().optional(),
+  externalJams: z.unknown().optional(),
   pageVersion: z.unknown().optional(),
   cursor: z.unknown().optional(),
   limit: z.unknown().optional(),
@@ -628,6 +629,7 @@ export async function listGames({
   sort,
   jamId,
   jamSlug,
+  externalJams,
   pageVersion,
   cursor,
   limit,
@@ -637,6 +639,7 @@ export async function listGames({
   sort?: unknown;
   jamId?: unknown;
   jamSlug?: unknown;
+  externalJams?: unknown;
   pageVersion: ListingPageVersion;
   cursor?: unknown;
   limit?: unknown;
@@ -646,16 +649,20 @@ export async function listGames({
   const normalizedSort = parseGameListingSort(sort);
   const normalizedLimit = normalizeLimit(limit);
   const normalizedCursor = parseCursor(cursor);
+  const externalJamsOnly = externalJams === true || externalJams === "true";
   const where: Prisma.GameWhereInput = { published: true };
   const resolvedJam =
-    typeof jamSlug === "string" || typeof jamId === "string" || typeof jamId === "number"
+    !externalJamsOnly &&
+    (typeof jamSlug === "string" || typeof jamId === "string" || typeof jamId === "number")
       ? await resolveJamReference({
           jamId: typeof jamId === "string" || typeof jamId === "number" ? jamId : null,
           jamSlug: typeof jamSlug === "string" ? jamSlug : null,
         })
       : null;
 
-  if (resolvedJam) {
+  if (externalJamsOnly) {
+    where.jam = { sourcePlatform: { not: null } };
+  } else if (resolvedJam) {
     where.jamId = resolvedJam.id;
   } else if (
     (typeof jamSlug === "string" && jamSlug.trim().length > 0) ||
@@ -677,6 +684,7 @@ export async function listGames({
     sort: normalizedSort ?? null,
     jamId: where.jamId ?? null,
     jamSlug: resolvedJam?.slug ?? (typeof jamSlug === "string" ? jamSlug.trim() : null),
+    externalJams: externalJamsOnly,
     pageVersion,
     cursor: normalizedCursor,
     limit: normalizedLimit,

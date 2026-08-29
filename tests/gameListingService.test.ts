@@ -101,4 +101,25 @@ describe("game listing service", () => {
       }),
     );
   });
+
+  it("can filter the listing to games from external jams", async () => {
+    dbMock.game.findMany.mockResolvedValueOnce([]);
+
+    await listGames({
+      sort: "newest",
+      externalJams: "true",
+      pageVersion: "JAM",
+      limit: "24",
+    });
+
+    expect(dbMock.jam.findUnique).not.toHaveBeenCalled();
+    expect(dbMock.game.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          published: true,
+          jam: { sourcePlatform: { not: null } },
+        }),
+      }),
+    );
+  });
 });
