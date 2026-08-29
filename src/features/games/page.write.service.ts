@@ -40,6 +40,9 @@ function buildTrackCreateData(song: SongInput): GamePageTrackCreateData {
     commentary: trackData.commentary,
     bpm: trackData.bpm,
     musicalKey: trackData.musicalKey,
+    integratedLufs: trackData.integratedLufs,
+    truePeakDb: trackData.truePeakDb,
+    loudnessGainDb: trackData.loudnessGainDb,
     softwareUsed: trackData.softwareUsed,
     license: trackData.license,
     allowDownload: trackData.allowDownload,
@@ -74,6 +77,10 @@ async function syncGamePageTracks(
     select: {
       id: true,
       slug: true,
+      url: true,
+      integratedLufs: true,
+      truePeakDb: true,
+      loudnessGainDb: true,
       ratings: { select: { id: true } },
       timestampComments: { select: { id: true } },
     },
@@ -109,6 +116,7 @@ async function syncGamePageTracks(
 
     const existingTrack = existingTrackBySlug.get(slug);
     if (existingTrack) {
+      const preservesExistingAudio = existingTrack.url === trackData.url;
       await db.gamePageTrack.update({
         where: { id: existingTrack.id },
         data: {
@@ -118,6 +126,15 @@ async function syncGamePageTracks(
           commentary: trackData.commentary,
           bpm: trackData.bpm,
           musicalKey: trackData.musicalKey,
+          integratedLufs:
+            trackData.integratedLufs ??
+            (preservesExistingAudio ? existingTrack.integratedLufs : null),
+          truePeakDb:
+            trackData.truePeakDb ??
+            (preservesExistingAudio ? existingTrack.truePeakDb : null),
+          loudnessGainDb:
+            trackData.loudnessGainDb ??
+            (preservesExistingAudio ? existingTrack.loudnessGainDb : null),
           softwareUsed: trackData.softwareUsed,
           license: trackData.license,
           allowDownload: trackData.allowDownload,
@@ -140,6 +157,9 @@ async function syncGamePageTracks(
         commentary: trackData.commentary,
         bpm: trackData.bpm,
         musicalKey: trackData.musicalKey,
+        integratedLufs: trackData.integratedLufs,
+        truePeakDb: trackData.truePeakDb,
+        loudnessGainDb: trackData.loudnessGainDb,
         softwareUsed: trackData.softwareUsed,
         license: trackData.license,
         allowDownload: trackData.allowDownload,

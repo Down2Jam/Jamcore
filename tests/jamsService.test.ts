@@ -21,6 +21,7 @@ import {
   getCurrentActiveJam,
   hasUserJoinedJam,
   joinJam,
+  leaveJam,
   listJams,
 } from "../src/features/jams";
 import { JAM_PHASES } from "../src/domain/jamTimeline.js";
@@ -86,6 +87,28 @@ describe("jams service", () => {
       data: {
         users: {
           connect: {
+            id: 5,
+          },
+        },
+      },
+    });
+  });
+
+  it("disconnects a user when they leave a jam", async () => {
+    dbMock.jam.update = vi.fn().mockResolvedValueOnce({});
+
+    await leaveJam({
+      jamId: 3,
+      userId: 5,
+    });
+
+    expect(dbMock.jam.update).toHaveBeenCalledWith({
+      where: {
+        id: 3,
+      },
+      data: {
+        users: {
+          disconnect: {
             id: 5,
           },
         },

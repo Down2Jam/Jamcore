@@ -31,6 +31,14 @@ type ActiveJamSummary = {
   id: number;
   slug: string;
   startTime: Date | string;
+  suggestionHours: number;
+  slaughterHours: number;
+  votingHours: number;
+  jammingHours: number;
+  submissionHours: number;
+  ratingHours: number;
+  postJamRefinementHours: number;
+  postJamRatingHours: number;
   themePerUser?: number;
   users: Array<{ id: number; slug: string }>;
   games: any[];
@@ -285,6 +293,43 @@ export async function joinJam({
   });
   await emitDomainEvent({
     type: "jam.joined",
+    payload: {
+      jamId,
+      userId,
+    },
+  });
+}
+
+export async function leaveJam({
+  jamId,
+  userId,
+}: {
+  jamId: number;
+  userId: number;
+}) {
+  await db.jam.update({
+    where: {
+      id: jamId,
+    },
+    data: {
+      users: {
+        disconnect: {
+          id: userId,
+        },
+      },
+    },
+  });
+
+  await writeAuditEntry({
+    action: "jam.leave",
+    actor: {
+      id: userId,
+      type: "user",
+    },
+    resource: `jam:${jamId}`,
+  });
+  await emitDomainEvent({
+    type: "jam.left",
     payload: {
       jamId,
       userId,

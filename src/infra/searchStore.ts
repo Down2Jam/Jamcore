@@ -295,24 +295,24 @@ export async function querySearchDocuments(input: {
         indexed_at AS "indexedAt",
         (
           ts_rank(document_tsv, websearch_to_tsquery('simple', $3))
-          + CASE WHEN lower(title) = lower($4) THEN $5 ELSE 0 END
-          + CASE WHEN lower(title) LIKE lower($4 || '%') THEN $6 ELSE 0 END
-          + CASE WHEN lower(title) LIKE lower('%' || $4 || '%') THEN $7 ELSE 0 END
+          + CASE WHEN lower(title) = lower($4) THEN $5::double precision ELSE 0 END
+          + CASE WHEN lower(title) LIKE lower($4 || '%') THEN $6::double precision ELSE 0 END
+          + CASE WHEN lower(title) LIKE lower('%' || $4 || '%') THEN $7::double precision ELSE 0 END
           + GREATEST(similarity(coalesce(title, ''), $4), similarity(coalesce(slug, ''), $4))
           + CASE entity_type
-              WHEN 'game' THEN $9
-              WHEN 'track' THEN $10
-              WHEN 'post' THEN $11
-              WHEN 'user' THEN $12
-              WHEN 'team' THEN $13
-              ELSE 1
+              WHEN 'game' THEN $9::double precision
+              WHEN 'track' THEN $10::double precision
+              WHEN 'post' THEN $11::double precision
+              WHEN 'user' THEN $12::double precision
+              WHEN 'team' THEN $13::double precision
+              ELSE 1::double precision
             END
           + CASE
               WHEN entity_type = 'post'
               THEN exp(
                 -LN(2)
                 * (EXTRACT(EPOCH FROM (NOW() - source_updated_at)) / 3600.0)
-                / GREATEST($14, 1)
+                / GREATEST($14::double precision, 1)
               )
               ELSE 0
             END
@@ -323,8 +323,8 @@ export async function querySearchDocuments(input: {
         AND entity_type = ANY($2::text[])
         AND (
           document_tsv @@ websearch_to_tsquery('simple', $3)
-          OR similarity(coalesce(title, ''), $4) > $8
-          OR similarity(coalesce(slug, ''), $4) > $8
+          OR similarity(coalesce(title, ''), $4) > $8::double precision
+          OR similarity(coalesce(slug, ''), $4) > $8::double precision
         )
       ORDER BY score DESC, source_updated_at DESC
       LIMIT $15

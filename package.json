@@ -23,6 +23,7 @@
     "check:query-plans": "node scripts/check-query-plans.mjs",
     "search:backfill": "tsx scripts/backfill-search.ts",
     "search:loadtest": "node scripts/loadtest-search.mjs",
+    "music:backfill-loudness": "tsx scripts/backfill-track-loudness.ts",
     "seed-users": "tsx prisma/seedUsers.ts",
     "seed-suggestions": "tsx prisma/seedSuggestions.ts",
     "seed-slaughter-votes": "tsx prisma/seedSlaughterVotes.ts",

@@ -54,6 +54,19 @@ describe("taxonomies service", () => {
     expect(dbMock.tag.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { postTag: true },
+        include: expect.objectContaining({
+          _count: {
+            select: {
+              posts: {
+                where: {
+                  deletedAt: null,
+                  removedAt: null,
+                  draftStatus: "published",
+                },
+              },
+            },
+          },
+        }),
       }),
     );
   });

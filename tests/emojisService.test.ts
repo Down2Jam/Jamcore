@@ -30,6 +30,7 @@ const { dbMock } = vi.hoisted(() => ({
     radioEmote: {
       groupBy: vi.fn(),
     },
+    $queryRaw: vi.fn(),
     $transaction: vi.fn(async (operations: unknown[]) => operations),
   },
 }));
@@ -49,9 +50,7 @@ import {
 describe("emojis service", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    dbMock.postReaction.groupBy.mockResolvedValue([]);
-    dbMock.commentReaction.groupBy.mockResolvedValue([]);
-    dbMock.radioEmote.groupBy.mockResolvedValue([]);
+    dbMock.$queryRaw.mockResolvedValue([]);
   });
 
   it("creates a user emoji with the user's prefix", async () => {
@@ -162,6 +161,21 @@ describe("emojis service", () => {
           thumbnail: "thumb.png",
         }),
       }),
+    );
+  });
+
+  it("combines time-decayed reaction and radio popularity", async () => {
+    dbMock.reaction.findMany.mockResolvedValueOnce([
+      { id: 1, slug: "fresh", ownerGame: null },
+    ]);
+    dbMock.$queryRaw
+      .mockResolvedValueOnce([{ reactionId: 1, score: 2.5 }])
+      .mockResolvedValueOnce([{ slug: "fresh", score: 1.25 }]);
+
+    const emojis = await listEmojis();
+
+    expect(emojis[0]).toEqual(
+      expect.objectContaining({ popularityScore: 3.75 }),
     );
   });
 });

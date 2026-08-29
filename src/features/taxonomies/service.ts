@@ -22,7 +22,20 @@ export async function listTrackFlags() {
 export async function listPostTags() {
   return db.tag.findMany({
     orderBy: { name: "asc" },
-    include: { category: true },
+    include: {
+      category: true,
+      _count: {
+        select: {
+          posts: {
+            where: {
+              deletedAt: null,
+              removedAt: null,
+              draftStatus: "published",
+            },
+          },
+        },
+      },
+    },
     where: {
       postTag: true,
     },

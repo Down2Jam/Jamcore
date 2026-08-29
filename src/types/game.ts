@@ -26,6 +26,9 @@ export type GamePageWriteSong = {
   flagIds?: number[];
   bpm?: number | null;
   musicalKey?: string | null;
+  integratedLufs?: number | null;
+  truePeakDb?: number | null;
+  loudnessGainDb?: number | null;
   softwareUsed?: string[];
   links?: LabeledUrl[];
   credits?: CreditInput[];

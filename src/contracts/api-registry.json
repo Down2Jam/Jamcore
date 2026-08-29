@@ -538,6 +538,38 @@
       }
     },
     {
+      "sdkName": "leaveJam",
+      "method": "DELETE",
+      "path": "/jams/{jamSlug}/participation",
+      "tag": "Jams",
+      "summary": "Leave a jam",
+      "parameters": [
+        {
+          "name": "jamSlug",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
       "sdkName": "getResults",
       "method": "GET",
       "path": "/results",

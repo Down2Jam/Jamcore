@@ -3,10 +3,15 @@ import express from "express";
 import rateLimit from "@middleware/rateLimit";
 import authUser from "@middleware/authUser";
 import getJam from "@loaders/getJam";
+import getUser from "@loaders/getUser";
 import logger from "@infra/logger";
 import { asyncHandler } from "@middleware/asyncHandler";
-import { getRandomJam, hasUserJoinedJam } from "./service.js";
-import { requireLoadedJam, requireUserSlug } from "../../lib/locals.js";
+import { getRandomJam, hasUserJoinedJam, leaveJam } from "./service.js";
+import {
+  requireLoadedJam,
+  requireRequestUser,
+  requireUserSlug,
+} from "../../lib/locals.js";
 
 export function createJamsRouter() {
   const router = express.Router();
@@ -62,6 +67,25 @@ export function createJamsRouter() {
           : "This user has not joined the jam",
         data: hasJoined,
       });
+    }),
+  );
+
+  router.delete(
+    "/:jamSlug/participation",
+    rateLimit(),
+    getJam,
+    authUser,
+    getUser,
+    asyncHandler(async (_req, res) => {
+      const jam = requireLoadedJam(res);
+      const user = requireRequestUser(res);
+
+      await leaveJam({
+        jamId: jam.id,
+        userId: user.id,
+      });
+
+      res.send({ message: "Left jam" });
     }),
   );
 

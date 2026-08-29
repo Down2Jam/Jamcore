@@ -5,7 +5,7 @@ ARG NODE_VERSION=24.14.0
 # --- Base Stage ---
 FROM node:${NODE_VERSION}-alpine AS base
 WORKDIR /usr/src/app
-RUN apk add --no-cache postgresql-client
+RUN apk add --no-cache ffmpeg postgresql-client
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=development
 EXPOSE 3005

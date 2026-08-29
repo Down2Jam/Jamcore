@@ -589,6 +589,9 @@ model GamePageTrack {
   allowBackgroundUseAttribution Boolean  @default(false)
   bpm                           Int?
   musicalKey                    String?
+  integratedLufs                Float?
+  truePeakDb                    Float?
+  loudnessGainDb                Float?
   softwareUsed                  String[] @default([])
   createdAt                     DateTime @default(now())
   updatedAt                     DateTime @updatedAt

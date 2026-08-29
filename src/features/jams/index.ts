@@ -5,6 +5,7 @@ export {
   getRandomJam,
   hasUserJoinedJam,
   joinJam,
+  leaveJam,
   listJams,
   resolveJamReference,
   userIsInJam,

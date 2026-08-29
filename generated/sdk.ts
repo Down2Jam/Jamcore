@@ -61,6 +61,7 @@ export function createJamcoreClient(config: JamcoreClientConfig = {}) {
     getJam: (jamSlug: string) => request("GET", `/jams/${jamSlug}`, {  }),
     getJamParticipation: (jamSlug: string) => request("GET", `/jams/${jamSlug}/participation`, {  }),
     joinJam: (body: unknown) => request("POST", "/join-jam", { body }),
+    leaveJam: (jamSlug: string) => request("DELETE", `/jams/${jamSlug}/participation`, {  }),
     getResults: (query: RequestOptions["query"] = undefined) => request("GET", "/results", { query }),
     getRecap: (query: RequestOptions["query"] = undefined) => request("GET", "/recap", { query }),
     updateRecap: (body: unknown) => request("PUT", "/recap", { body }),

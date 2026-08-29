@@ -175,6 +175,9 @@ export function buildPostJamBodyFromGame(game: PageCollection<GamePageRecord>) {
       flagIds: (song.flags ?? []).map((entry) => entry.id),
       bpm: song.bpm ?? null,
       musicalKey: song.musicalKey ?? null,
+      integratedLufs: song.integratedLufs ?? null,
+      truePeakDb: song.truePeakDb ?? null,
+      loudnessGainDb: song.loudnessGainDb ?? null,
       softwareUsed: song.softwareUsed ?? [],
       links: (song.links ?? []).map((entry) => ({
         label: entry.label,

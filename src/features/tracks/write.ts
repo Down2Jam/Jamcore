@@ -1,3 +1,5 @@
+import { calculateLoudnessGainDb } from "../uploads/audio-loudness.js";
+
 export const backgroundUsageAllowedByDefault = (license?: string | null) => {
   const normalized = (license ?? "").toUpperCase().replace(/\s+/g, " ").trim();
   return normalized === "CC0" || normalized === "CC BY";
@@ -27,6 +29,9 @@ type RawSong = {
   commentary?: string | null;
   bpm?: number | null;
   musicalKey?: string | null;
+  integratedLufs?: number | null;
+  truePeakDb?: number | null;
+  loudnessGainDb?: number | null;
   softwareUsed?: unknown[];
   license?: string | null;
   allowDownload?: boolean;
@@ -92,6 +97,14 @@ export function buildTrackWriteData(song: RawSong) {
   const normalizedCredits = normalizeTrackCredits(song.credits);
   const composerId = getPrimaryComposerId(normalizedCredits, song.composerId);
   const normalizedLicense = song.license?.trim() || null;
+  const integratedLufs =
+    typeof song.integratedLufs === "number" && Number.isFinite(song.integratedLufs)
+      ? song.integratedLufs
+      : null;
+  const truePeakDb =
+    typeof song.truePeakDb === "number" && Number.isFinite(song.truePeakDb)
+      ? song.truePeakDb
+      : null;
 
   return {
     name: String(song.name ?? "").trim(),
@@ -103,6 +116,12 @@ export function buildTrackWriteData(song: RawSong) {
         ? Math.max(1, Math.floor(song.bpm))
         : null,
     musicalKey: song.musicalKey?.trim() || null,
+    integratedLufs,
+    truePeakDb,
+    loudnessGainDb:
+      integratedLufs != null && truePeakDb != null
+        ? calculateLoudnessGainDb(integratedLufs, truePeakDb)
+        : null,
     softwareUsed: Array.isArray(song.softwareUsed)
       ? song.softwareUsed.map((value) => String(value).trim()).filter(Boolean)
       : [],

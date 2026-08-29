@@ -1,6 +1,6 @@
 ﻿import { z } from "zod";
 
-import type { Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 
 import { appConfig } from "../../config/app.js";
 import { filterCoreEntityIdsByTenant } from "../../infra/coreTenantStore.js";
@@ -46,6 +46,7 @@ const emojiInclude = {
 const MIN_PREFIX_LENGTH = 4;
 const MAX_PREFIX_LENGTH = 8;
 const DEFAULT_PREFIX_LENGTH = 6;
+const EMOJI_POPULARITY_HALF_LIFE_DAYS = 28;
 
 const emojiInputSchemaBase = {
   slug: z.string().trim().min(1),
@@ -336,32 +337,54 @@ function materializeEmoji<TEmoji extends EmojiRecord>(emoji: TEmoji) {
 }
 
 async function loadEmojiUseCounts() {
-  const [postCounts, commentCounts, radioCounts] = await Promise.all([
-    db.postReaction.groupBy({
-      by: ["reactionId"],
-      _count: { _all: true },
-    }),
-    db.commentReaction.groupBy({
-      by: ["reactionId"],
-      _count: { _all: true },
-    }),
-    db.radioEmote.groupBy({
-      by: ["emote"],
-      _count: { emote: true },
-    }),
+  const halfLifeSeconds = EMOJI_POPULARITY_HALF_LIFE_DAYS * 24 * 60 * 60;
+  const [reactionScores, radioScores] = await Promise.all([
+    db.$queryRaw<Array<{ reactionId: number; score: number }>>(Prisma.sql`
+      SELECT
+        uses."reactionId",
+        SUM(
+          POWER(
+            0.5::double precision,
+            GREATEST(
+              EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - uses."createdAt")) /
+                ${halfLifeSeconds},
+              0
+            )::double precision
+          )
+        )::double precision AS score
+      FROM (
+        SELECT "reactionId", "createdAt" FROM "PostReaction"
+        UNION ALL
+        SELECT "reactionId", "createdAt" FROM "CommentReaction"
+      ) AS uses
+      GROUP BY uses."reactionId"
+    `),
+    db.$queryRaw<Array<{ slug: string; score: number }>>(Prisma.sql`
+      SELECT
+        emote AS slug,
+        SUM(
+          POWER(
+            0.5::double precision,
+            GREATEST(
+              EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - created_at)) /
+                ${halfLifeSeconds},
+              0
+            )::double precision
+          )
+        )::double precision AS score
+      FROM "RadioEmote"
+      GROUP BY emote
+    `),
   ]);
 
   const byReactionId = new Map<number, number>();
-  for (const row of postCounts) {
-    byReactionId.set(row.reactionId, (byReactionId.get(row.reactionId) ?? 0) + row._count._all);
-  }
-  for (const row of commentCounts) {
-    byReactionId.set(row.reactionId, (byReactionId.get(row.reactionId) ?? 0) + row._count._all);
+  for (const row of reactionScores) {
+    byReactionId.set(row.reactionId, row.score);
   }
 
   const bySlug = new Map<string, number>();
-  for (const row of radioCounts) {
-    bySlug.set(row.emote, row._count.emote);
+  for (const row of radioScores) {
+    bySlug.set(row.slug, row.score);
   }
 
   return { byReactionId, bySlug };
@@ -373,7 +396,7 @@ function withEmojiUseCount<TEmoji extends ReturnType<typeof materializeEmoji>>(
 ) {
   return {
     ...emoji,
-    globalUseCount:
+    popularityScore:
       (counts.byReactionId.get(emoji.id) ?? 0) + (counts.bySlug.get(emoji.slug) ?? 0),
   };
 }
