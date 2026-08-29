@@ -1,13 +1,18 @@
 import db from "../../infra/db.js";
 import { filterCoreEntityIdsByTenant } from "../../infra/coreTenantStore.js";
+import { EXTERNAL_GAME_CATEGORY } from "../../domain/gamePolicies.js";
 import { gamePageInclude, materializeGamePage } from "./page.helpers.js";
 
-export async function getRandomPublishedGame(tenantId?: string | null) {
+export async function getRandomPublishedGame(
+  tenantId?: string | null,
+  includeExternal = true,
+) {
   const game = await db.$queryRaw<{ id: number; name: string }[]>`
     WITH active_jams AS (
       SELECT j.id
       FROM "Jam" j
-      WHERE NOW() >= j."startTime"
+      WHERE j."sourcePlatform" IS NULL
+        AND NOW() >= j."startTime"
         AND NOW() < j."startTime"
           + (COALESCE(j."jammingHours", 0)
              + COALESCE(j."submissionHours", 0)
@@ -16,6 +21,7 @@ export async function getRandomPublishedGame(tenantId?: string | null) {
     SELECT g.*
     FROM "Game" g
     WHERE g."published" = TRUE
+      AND (${includeExternal} OR g."category"::text <> ${EXTERNAL_GAME_CATEGORY})
       AND (
         NOT EXISTS (SELECT 1 FROM active_jams)
         OR g."jamId" IN (SELECT id FROM active_jams)

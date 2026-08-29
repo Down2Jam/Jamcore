@@ -135,8 +135,12 @@ export function createGamesRouter() {
 
   router.get(
     "/random",
-    asyncHandler(async (_req: Request, res: Response) => {
-      const game = await getRandomPublishedGame(res.locals.tenantId);
+    asyncHandler(async (req: Request, res: Response) => {
+      const includeExternal = req.query.includeExternal !== "false";
+      const game = await getRandomPublishedGame(
+        res.locals.tenantId,
+        includeExternal,
+      );
       res.json({
         message:
           "Fetched random published game (active jam if exists, else any game)",

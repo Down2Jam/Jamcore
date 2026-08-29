@@ -44,6 +44,27 @@ describe("game discovery service", () => {
     });
   });
 
+  it("can exclude external games from random selection", async () => {
+    dbMock.$queryRaw.mockResolvedValueOnce([]);
+
+    await expect(getRandomPublishedGame(undefined, false)).resolves.toBeNull();
+
+    const query = dbMock.$queryRaw.mock.calls[0];
+    expect(query[0].join(" ")).toContain('g."category"::text <>');
+    expect(query).toContain(false);
+    expect(query).toContain("EXTERNAL");
+  });
+
+  it("never treats imported jams as active", async () => {
+    dbMock.$queryRaw.mockResolvedValueOnce([]);
+
+    await getRandomPublishedGame();
+
+    expect(dbMock.$queryRaw.mock.calls[0][0].join(" ")).toContain(
+      'j."sourcePlatform" IS NULL',
+    );
+  });
+
   it("returns the current user's games with jam and post-jam pages split out", async () => {
     dbMock.game.findMany.mockResolvedValueOnce([
       {
