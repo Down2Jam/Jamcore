@@ -11,12 +11,22 @@ export async function getRandomPublishedGame(
     WITH active_jams AS (
       SELECT j.id
       FROM "Jam" j
-      WHERE j."sourcePlatform" IS NULL
+      WHERE j."source_platform" IS NULL
         AND NOW() >= j."startTime"
         AND NOW() < j."startTime"
           + (COALESCE(j."jammingHours", 0)
              + COALESCE(j."submissionHours", 0)
              + COALESCE(j."ratingHours", 0)) * INTERVAL '1 hour'
+        AND EXISTS (
+          SELECT 1
+          FROM "Game" active_game
+          WHERE active_game."jamId" = j.id
+            AND active_game."published" = TRUE
+            AND (
+              ${includeExternal}
+              OR active_game."category"::text <> ${EXTERNAL_GAME_CATEGORY}
+            )
+        )
     )
     SELECT g.*
     FROM "Game" g

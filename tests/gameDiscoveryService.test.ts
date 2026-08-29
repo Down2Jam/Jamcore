@@ -61,8 +61,19 @@ describe("game discovery service", () => {
     await getRandomPublishedGame();
 
     expect(dbMock.$queryRaw.mock.calls[0][0].join(" ")).toContain(
-      'j."sourcePlatform" IS NULL',
+      'j."source_platform" IS NULL',
     );
+  });
+
+  it("only prefers active jams that have an eligible published game", async () => {
+    dbMock.$queryRaw.mockResolvedValueOnce([]);
+
+    await getRandomPublishedGame(undefined, false);
+
+    const sql = dbMock.$queryRaw.mock.calls[0][0].join(" ");
+    expect(sql).toContain("AND EXISTS");
+    expect(sql).toContain('active_game."published" = TRUE');
+    expect(sql).toContain('active_game."category"::text <>');
   });
 
   it("returns the current user's games with jam and post-jam pages split out", async () => {
