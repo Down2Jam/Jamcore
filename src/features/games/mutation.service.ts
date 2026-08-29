@@ -391,6 +391,10 @@ export async function createPostJamPage(
 
   assertCanMutateGame(existingGame, actor, grants);
 
+  if (existingGame.category === "EXTERNAL") {
+    throw new BadRequestError("External games do not have post-jam pages.");
+  }
+
   if (!getPostJamPage(existingGame)) {
     await upsertGamePage(
       existingGame.id,

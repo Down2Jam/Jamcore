@@ -11,9 +11,9 @@ import {
 } from "../../prisma/selects.js";
 import { materializeGameListingEntries } from "./presenters.js";
 import {
-  EXTRA_GAME_CATEGORY,
   OVERALL_RATING_CATEGORY_NAME,
   isAllowedJamRater,
+  isNonCompetitiveGameCategory,
 } from "./policies.js";
 import {
   applyRecommendationOverrides,
@@ -127,14 +127,18 @@ function parseGameListingSort(value: unknown): GameListingSort | undefined {
   }
 }
 
-function getListingOrderBy(sort?: GameListingSort) {
+function getListingOrderBy(
+  sort?: GameListingSort,
+): Prisma.GameOrderByWithRelationInput[] | undefined {
   switch (sort) {
     case "oldest":
-      return { id: "asc" } as const;
+      return [{ createdAt: "asc" }, { id: "asc" }];
     case "newest":
-      return { id: "desc" } as const;
+      return [{ createdAt: "desc" }, { id: "desc" }];
     default:
-      return sort ? undefined : ({ id: "desc" } as const);
+      return sort
+        ? undefined
+        : [{ createdAt: "desc" }, { id: "desc" }];
   }
 }
 
@@ -234,7 +238,7 @@ function sortByLeastRated(games: ListedGame[], ratingCategoryCount: number) {
 
 function sortByDanger(games: ListedGame[], ratingCategoryCount: number) {
   return [...games]
-    .filter((game) => game.category !== EXTRA_GAME_CATEGORY)
+    .filter((game) => !isNonCompetitiveGameCategory(game.category))
     .filter((game) =>
       game.ratingCategories.some((category) => {
         const allowedCount = game.ratings.filter(
@@ -282,7 +286,7 @@ function sortByRatingBalance(games: ListedGame[], ratingCategoryCount: number) {
               team.game &&
               team.game.jamId === game.jamId &&
               team.game.published &&
-              team.game.category !== EXTRA_GAME_CATEGORY,
+              !isNonCompetitiveGameCategory(team.game.category),
           ).length > 0,
       ).length /
       (game.ratingCategories.length + ratingCategoryCount);
@@ -504,7 +508,7 @@ async function sortByKarmaOrRecommended(
               team.game &&
               team.game.jamId === game.jamId &&
               team.game.published &&
-              team.game.category !== EXTRA_GAME_CATEGORY,
+              !isNonCompetitiveGameCategory(team.game.category),
           ).length > 0,
       ).length /
       (game.ratingCategories.length + ratingCategories.length);

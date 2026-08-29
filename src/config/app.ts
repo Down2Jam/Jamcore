@@ -79,6 +79,7 @@ const appConfigSchema = z.object({
     categories: z.object({
       regular: z.string(),
       extra: z.string(),
+      external: z.string(),
       oda: z.string(),
     }),
     ratingCategoryNames: z.object({
@@ -223,6 +224,7 @@ const defaultConfig: AppConfig = {
     categories: {
       regular: "REGULAR",
       extra: "EXTRA",
+      external: "EXTERNAL",
       oda: "ODA",
     },
     ratingCategoryNames: {

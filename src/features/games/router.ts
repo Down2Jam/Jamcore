@@ -17,6 +17,9 @@ import { JAM_PHASES } from "../../domain/jamTimeline.js";
 import {
   createGame,
   createGameSchema,
+  importItchGame,
+  importItchGameSchema,
+  previewItchGame,
   createPostJamPage,
   gameDetailParamsSchema,
   gameDetailQuerySchema,
@@ -32,9 +35,37 @@ import {
 } from "./index.js";
 import { NotFoundError } from "@lib/errors";
 import { parseBody, parseParams, parseQuery } from "../../lib/request.js";
+import { requireRequestUser } from "../../lib/locals.js";
 
 export function createGamesRouter() {
   const router = express.Router();
+
+  router.post(
+    "/import/itch/preview",
+    rateLimit(),
+    authUser,
+    getUser,
+    asyncHandler(async (req, res) => {
+      const input = parseBody(req, importItchGameSchema);
+      res.json(await previewItchGame(input));
+    }),
+  );
+
+  router.post(
+    "/import/itch",
+    rateLimit(),
+    authUser,
+    getUser,
+    asyncHandler(async (req, res) => {
+      const input = parseBody(req, importItchGameSchema);
+      const game = await importItchGame({
+        actorUser: requireRequestUser(res),
+        input,
+        tenantId: res.locals.tenantId,
+      });
+      res.status(201).json(game);
+    }),
+  );
 
   router.post(
     "/",

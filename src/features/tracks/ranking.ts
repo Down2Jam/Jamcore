@@ -5,7 +5,7 @@ import {
   applyRecommendationOverrides,
   rankRecommendationCandidates,
 } from "../users/recommendations.core.js";
-import { EXTRA_GAME_CATEGORY } from "../games/policies.js";
+import { isNonCompetitiveGameCategory } from "../games/policies.js";
 import { loadTrackRecommendationUsers } from "./queries.js";
 
 const SCORE_SORT_RATING_GOAL = 5;
@@ -19,7 +19,7 @@ export function isAllowedRaterInJam(rating: any, jamId: number) {
       candidateGame &&
       candidateGame.published &&
       candidateGame.jamId === jamId &&
-      candidateGame.category !== EXTRA_GAME_CATEGORY
+      !isNonCompetitiveGameCategory(candidateGame.category)
     );
   });
 }
@@ -265,7 +265,7 @@ export function sortTracksByLeastRatings(tracks: any[], categoryCount: number) {
 
 export function sortDangerTracks(tracks: any[], categoryCount: number) {
   return tracks
-    .filter((track) => track.game.category !== EXTRA_GAME_CATEGORY)
+    .filter((track) => !isNonCompetitiveGameCategory(track.game.category))
     .filter((track) => {
       const allowedCount = track.ratings.filter((rating: any) =>
         isAllowedRaterInJam(rating, track.game.jamId),
@@ -379,7 +379,7 @@ export function buildTrackDetailScores({
             candidateGame &&
             candidateGame.published &&
             candidateGame.jamId === jamId &&
-            candidateGame.category !== EXTRA_GAME_CATEGORY
+            !isNonCompetitiveGameCategory(candidateGame.category)
           );
         }),
       );
@@ -436,7 +436,7 @@ export function buildTrackDetailScores({
         avg.categoryName === appConfig.games.ratingCategoryNames.overallTrack,
     );
     return (
-      candidate.gamePage.game.category !== EXTRA_GAME_CATEGORY &&
+      !isNonCompetitiveGameCategory(candidate.gamePage.game.category) &&
       overallCategory &&
       overallCategory.rankedRatingCount >= 5 &&
       candidate.ratingsCount >= 4.99
@@ -478,7 +478,7 @@ export function buildTrackDetailScores({
   if (target) {
     target.categoryAverages.forEach((category: any) => {
       const canBeRanked =
-        target.gamePage.game.category !== EXTRA_GAME_CATEGORY &&
+        !isNonCompetitiveGameCategory(target.gamePage.game.category) &&
         category.rankedRatingCount >= 5 &&
         target.ratingsCount >= 4.99;
 

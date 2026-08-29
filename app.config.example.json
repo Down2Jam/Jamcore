@@ -57,6 +57,7 @@
     "categories": {
       "regular": "REGULAR",
       "extra": "EXTRA",
+      "external": "EXTERNAL",
       "oda": "ODA"
     },
     "ratingCategoryNames": {

@@ -113,6 +113,11 @@ export const createGameSchema = z.object({
     .optional(),
 });
 
+export const importItchGameSchema = z.object({
+  url: z.string().trim().url(),
+  jamUrl: z.string().trim().url().optional(),
+});
+
 export const updateGameSchema = z.object({
   name: z.string().trim().min(1),
   slug: z.string().trim().min(1),

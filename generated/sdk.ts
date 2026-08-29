@@ -52,6 +52,8 @@ export function createJamcoreClient(config: JamcoreClientConfig = {}) {
     listGames: (query: RequestOptions["query"] = undefined) => request("GET", "/games", { query }),
     getRandomGame: () => request("GET", "/games/random", {  }),
     createGame: (body: unknown) => request("POST", "/games", { body }),
+    importItchGame: (body: unknown) => request("POST", "/games/import/itch", { body }),
+    previewItchGame: (body: unknown) => request("POST", "/games/import/itch/preview", { body }),
     getGame: (gameSlug: string, query: RequestOptions["query"] = undefined) => request("GET", `/games/${gameSlug}`, { query }),
     updateGame: (gameSlug: string, body: unknown) => request("PUT", `/games/${gameSlug}`, { body }),
     createPostJamPage: (gameSlug: string) => request("POST", `/games/${gameSlug}/post-jam`, {  }),

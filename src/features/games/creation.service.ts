@@ -60,12 +60,18 @@ export async function createGame({
   targetTeam,
   input,
   tenantId,
+  sourceUrl,
+  sourcePlatform,
+  sourceCreatedAt,
 }: {
   actorUser: any;
   jam: any;
   targetTeam: any;
   input: z.infer<typeof createGameSchema>;
   tenantId?: string;
+  sourceUrl?: string | null;
+  sourcePlatform?: string | null;
+  sourceCreatedAt?: Date | null;
 }) {
   const cleanedPrefix = input.emotePrefix?.trim().toLowerCase() || buildPrefix(input.slug);
 
@@ -87,8 +93,11 @@ export async function createGame({
       },
       teamId: targetTeam.id,
       category: input.category,
+      createdAt: sourceCreatedAt ?? undefined,
       published: input.published,
-      publishedAt: input.published ? new Date() : null,
+      publishedAt: input.published ? (sourceCreatedAt ?? new Date()) : null,
+      sourceUrl,
+      sourcePlatform,
       tags: {
         connect: input.tags.map((id) => ({ id })),
       },
@@ -111,6 +120,7 @@ export async function createGame({
   await db.gamePage.create({
     data: {
       version: PageVersion.JAM,
+      createdAt: sourceCreatedAt ?? undefined,
       name: input.name,
       description: input.description,
       short: input.short,

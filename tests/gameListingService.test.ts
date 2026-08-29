@@ -62,7 +62,7 @@ describe("game listing service", () => {
     expect(dbMock.game.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         take: 2,
-        orderBy: { id: "desc" },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       }),
     );
     expect(result.items).toHaveLength(1);

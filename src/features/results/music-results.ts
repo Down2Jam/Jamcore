@@ -4,9 +4,9 @@ import db from "../../infra/db.js";
 import { appConfig } from "../../config/app.js";
 import { materializeTrackPage } from "../tracks/page.js";
 import {
-  EXTRA_GAME_CATEGORY,
   ODA_GAME_CATEGORY,
   REGULAR_GAME_CATEGORY,
+  isNonCompetitiveGameCategory,
 } from "../games/policies.js";
 
 const RESULT_RATING_TARGET = 5;
@@ -205,7 +205,7 @@ export async function loadMusicResults({
                 candidateGame &&
                 candidateGame.published &&
                 candidateGame.jamId === jamId &&
-                candidateGame.category !== EXTRA_GAME_CATEGORY
+                !isNonCompetitiveGameCategory(candidateGame.category)
               );
             }),
         ) ?? [];
@@ -229,7 +229,7 @@ export async function loadMusicResults({
               candidateGame &&
               candidateGame.published &&
               candidateGame.jamId === jamId &&
-              candidateGame.category !== EXTRA_GAME_CATEGORY
+              !isNonCompetitiveGameCategory(candidateGame.category)
             );
           }),
         );
@@ -311,7 +311,7 @@ export async function loadMusicResults({
       };
     })
     .filter((track): track is NonNullable<typeof track> => Boolean(track))
-    .filter((track) => track.game.category !== EXTRA_GAME_CATEGORY);
+    .filter((track) => !isNonCompetitiveGameCategory(track.game.category));
 
   const qualifiedTracks = rankedTracksWithScores
     .filter((track) => {
@@ -320,7 +320,7 @@ export async function loadMusicResults({
           avg.categoryName === appConfig.games.ratingCategoryNames.overallTrack,
       );
       return (
-        track.game.category !== EXTRA_GAME_CATEGORY &&
+        !isNonCompetitiveGameCategory(track.game.category) &&
         overall &&
         overall.rankedRatingCount >= 5
       );

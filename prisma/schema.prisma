@@ -334,6 +334,8 @@ model Jam {
   icon                   String?
   color                  String?
   tenantId               String?  @map("tenant_id")
+  sourceUrl              String?  @unique @map("source_url")
+  sourcePlatform         String?  @map("source_platform")
 
   // Relations
   games            Game[]            @relation(name: "GameToJam")
@@ -379,6 +381,7 @@ enum GameCategory {
   REGULAR
   ODA
   EXTRA
+  EXTERNAL
 }
 
 model Game {
@@ -392,6 +395,8 @@ model Game {
   published           Boolean          @default(false)
   publishedAt         DateTime?        @map("published_at")
   tenantId            String?          @map("tenant_id")
+  sourceUrl           String?          @unique @map("source_url")
+  sourcePlatform      String?          @map("source_platform")
 
   // Relations
   team               Team               @relation(fields: [teamId], references: [id], name: "GameToTeam")

@@ -55,6 +55,7 @@ export async function listCurrentUserGames({
       },
       jamId,
     },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     include: {
       pages: {
         where: {

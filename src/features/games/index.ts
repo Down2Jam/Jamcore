@@ -1,4 +1,6 @@
 export { createGame, createGameSchema } from "./creation.service.js";
+export { importItchGame, previewItchGame } from "./itch-import.service.js";
+export { importItchGameSchema } from "./write.schemas.js";
 export { gameDevlogQuerySchema, listGameDevlogPosts } from "./devlog.service.js";
 export { loadGameDetailResponse } from "./detail.service.js";
 export {
@@ -33,6 +35,7 @@ export {
 } from "./page.helpers.js";
 export {
   EXTRA_GAME_CATEGORY,
+  EXTERNAL_GAME_CATEGORY,
   GAME_CATEGORY_VALUES,
   ODA_GAME_CATEGORY,
   OVERALL_RATING_CATEGORY_NAME,
@@ -41,6 +44,7 @@ export {
   canViewGameScores,
   buildJamScoreVisibilityTimeline,
   isAllowedJamRater,
+  isNonCompetitiveGameCategory,
 } from "./policies.js";
 export {
   getListingVersions,

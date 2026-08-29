@@ -3,9 +3,9 @@ import type { CategoryAverage, ScoreSummary } from "../../types/game.js";
 
 import db from "../../infra/db.js";
 import {
-  EXTRA_GAME_CATEGORY,
   OVERALL_RATING_CATEGORY_NAME,
   REGULAR_GAME_CATEGORY,
+  isNonCompetitiveGameCategory,
 } from "./policies.js";
 import { materializeGamePage } from "./page.helpers.js";
 import { getRatingPageVersion } from "./page.service.js";
@@ -246,7 +246,7 @@ export async function buildVersionScores({
           candidateGame &&
           candidateGame.published &&
           candidateGame.jamId === game.jamId &&
-          candidateGame.category !== EXTRA_GAME_CATEGORY
+          !isNonCompetitiveGameCategory(candidateGame.category)
         );
       }),
     );
@@ -322,7 +322,7 @@ export async function buildVersionScores({
     })
     .filter((entry) => entry.ratingsCount >= 4.99);
 
-  if (game.category !== EXTRA_GAME_CATEGORY) {
+  if (!isNonCompetitiveGameCategory(game.category)) {
     rankedGames.forEach((entry) => {
       entry.categoryAverages.forEach((category: CategoryAverage) => {
         const rankedGamesInCategory = rankedGames

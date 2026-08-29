@@ -3,6 +3,7 @@ import { buildJamTimeline, JAM_PHASES } from "./jamTimeline.js";
 import { appConfig } from "../config/app.js";
 
 export const EXTRA_GAME_CATEGORY = appConfig.games.categories.extra;
+export const EXTERNAL_GAME_CATEGORY = appConfig.games.categories.external;
 export const REGULAR_GAME_CATEGORY = appConfig.games.categories.regular;
 export const ODA_GAME_CATEGORY = appConfig.games.categories.oda;
 export const OVERALL_RATING_CATEGORY_NAME =
@@ -11,7 +12,8 @@ export const GAME_CATEGORY_VALUES = [
   ODA_GAME_CATEGORY,
   REGULAR_GAME_CATEGORY,
   EXTRA_GAME_CATEGORY,
-] as [string, string, string];
+  EXTERNAL_GAME_CATEGORY,
+] as [string, string, string, string];
 
 const POST_JAM_PHASES = new Set<JamPhase>([
   JAM_PHASES.postJamRefinement,
@@ -20,6 +22,14 @@ const POST_JAM_PHASES = new Set<JamPhase>([
 
 export function isExtraGameCategory(category: string | null | undefined) {
   return category === EXTRA_GAME_CATEGORY;
+}
+
+export function isNonCompetitiveGameCategory(
+  category: string | null | undefined,
+) {
+  return (
+    category === EXTRA_GAME_CATEGORY || category === EXTERNAL_GAME_CATEGORY
+  );
 }
 
 export function isPostJamPhase(phase: JamPhase | string | undefined) {
@@ -71,7 +81,7 @@ export function isAllowedJamRater(
     candidateGame &&
       candidateGame.published &&
       candidateGame.jamId === jamId &&
-      !isExtraGameCategory(candidateGame.category),
+      !isNonCompetitiveGameCategory(candidateGame.category),
   );
 }
 

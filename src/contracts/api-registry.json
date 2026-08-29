@@ -245,6 +245,52 @@
       }
     },
     {
+      "sdkName": "importItchGame",
+      "method": "POST",
+      "path": "/games/import/itch",
+      "tag": "Games",
+      "summary": "Import one itch.io game and associate it with its itch jam",
+      "requestBody": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "previewItchGame",
+      "method": "POST",
+      "path": "/games/import/itch/preview",
+      "tag": "Games",
+      "summary": "Preview itch.io game metadata and jam associations",
+      "requestBody": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
       "sdkName": "getGame",
       "method": "GET",
       "path": "/games/{gameSlug}",

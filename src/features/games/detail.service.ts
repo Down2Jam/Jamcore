@@ -34,6 +34,7 @@ export function clearGameDetailCache() {
 }
 
 const gameDetailInclude = {
+  jam: true,
   downloadLinks: true,
   ratingCategories: true,
   majRatingCategories: true,

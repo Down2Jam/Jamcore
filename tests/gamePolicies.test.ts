@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   EXTRA_GAME_CATEGORY,
+  EXTERNAL_GAME_CATEGORY,
   REGULAR_GAME_CATEGORY,
   buildJamScoreVisibilityTimeline,
   canChangeGameCategory,
@@ -41,6 +42,12 @@ describe("gamePolicies", () => {
     expect(
       isAllowedJamRater(
         { published: true, jamId: 3, category: EXTRA_GAME_CATEGORY },
+        3,
+      ),
+    ).toBe(false);
+    expect(
+      isAllowedJamRater(
+        { published: true, jamId: 3, category: EXTERNAL_GAME_CATEGORY },
         3,
       ),
     ).toBe(false);
