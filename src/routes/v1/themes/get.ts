@@ -20,12 +20,13 @@ router.get(
   getUserOptional,
   getJam,
   asyncHandler(async (req, res) => {
-    const { isVoting } = parseQuery(req, listThemesQuerySchema);
+    const { isVoting, includeAll } = parseQuery(req, listThemesQuerySchema);
     const jam = requireLoadedJam(res);
     const themes = await listThemesForJam({
       jamId: jam.id,
       userId: res.locals.user?.id,
       isVoting: isVoting === "1",
+      includeAll: includeAll === "1" && res.locals.user?.admin === true,
     });
 
     res.send({ message: "Themes fetched", data: themes });

@@ -29,6 +29,8 @@ type TwitchStreamsResponse = {
 
 const MIN_FEATURED_STREAMERS = 3;
 const blockedStreamerNames = new Set(["morninchai", "lana_lux"]);
+const fallbackExcludedTitlePattern =
+  /\b(?:vibe\s+(?:code|coding)|codex|claude|grok)\b/i;
 const FEATURED_STREAMERS_CACHE_KEY = "featured-streamers";
 
 function loadFeaturedStreamers() {
@@ -223,6 +225,7 @@ export async function updateFeaturedStreamers() {
       .filter((s) => s.language === "en")
       .filter((s) => !hasPriorityTag(s))
       .filter((s) => !isKnownStreamer(s))
+      .filter((s) => !fallbackExcludedTitlePattern.test(s.title))
       .sort(
         (a, b) =>
           Math.log10(b.viewer_count + 1) -

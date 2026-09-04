@@ -27,4 +27,5 @@ export const votingVoteSchema = z.object({
 
 export const listThemesQuerySchema = z.object({
   isVoting: z.union([z.literal("0"), z.literal("1")]).optional(),
+  includeAll: z.union([z.literal("0"), z.literal("1")]).optional(),
 });

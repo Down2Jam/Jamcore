@@ -167,9 +167,19 @@ const postInclude = {
   },
 } as const;
 
+const postContentSchema = z
+  .string()
+  .transform((value) =>
+    value.replace(
+      /^[\s\u200B-\u200D\uFEFF]+|[\s\u200B-\u200D\uFEFF]+$/g,
+      "",
+    ),
+  )
+  .pipe(z.string().min(1));
+
 export const createPostSchema = z.object({
   title: z.string().trim().min(1),
-  content: z.string().trim().min(1),
+  content: postContentSchema,
   tags: z.array(z.number().int().positive()).optional(),
   sticky: z.boolean().optional().default(false),
   draftStatus: z.enum(["draft", "scheduled", "published"]).optional().default("published"),
@@ -186,7 +196,7 @@ export const updatePostSchema = z
   .object({
     postId: z.coerce.number().int().positive(),
     title: z.string().trim().min(1).optional(),
-    content: z.string().trim().min(1).optional(),
+    content: postContentSchema.optional(),
     tags: z.array(z.number().int().positive()).optional(),
     sticky: z.boolean().optional(),
     draftStatus: z.enum(["draft", "scheduled", "published"]).optional(),

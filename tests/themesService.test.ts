@@ -177,12 +177,31 @@ describe("themes service", () => {
       isVoting: true,
     });
 
+    expect(dbMock.themeVote.groupBy).toHaveBeenCalledWith(
+      expect.objectContaining({ take: 15 }),
+    );
     expect(themes).toEqual([
       expect.objectContaining({
         id: 1,
         slaughterScoreSum: 5,
       }),
     ]);
+  });
+
+  it("lists all elimination results when requested by an admin route", async () => {
+    dbMock.themeVote.groupBy.mockResolvedValue([]);
+    dbMock.themeSuggestion.findMany.mockResolvedValue([]);
+
+    await listThemesForJam({
+      jamId: 3,
+      userId: 2,
+      isVoting: true,
+      includeAll: true,
+    });
+
+    expect(dbMock.themeVote.groupBy.mock.calls[0]?.[0]).not.toHaveProperty(
+      "take",
+    );
   });
 
   it("lists themes for guests without loading user-specific votes", async () => {

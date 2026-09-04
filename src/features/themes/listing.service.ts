@@ -4,10 +4,12 @@ export async function listThemesForJam({
   jamId,
   userId,
   isVoting,
+  includeAll,
 }: {
   jamId: number;
   userId?: number;
   isVoting?: boolean;
+  includeAll?: boolean;
 }) {
   if (isVoting) {
     const themesWithScores = await db.themeVote.groupBy({
@@ -28,7 +30,7 @@ export async function listThemesForJam({
       where: {
         jamId,
       },
-      take: 15,
+      ...(includeAll ? {} : { take: 15 }),
     });
 
     const themeIds = themesWithScores.map((theme) => theme.themeSuggestionId);

@@ -3791,6 +3791,13 @@
           "schema": {
             "type": "string"
           }
+        },
+        {
+          "name": "includeAll",
+          "in": "query",
+          "schema": {
+            "type": "string"
+          }
         }
       ],
       "auth": {
