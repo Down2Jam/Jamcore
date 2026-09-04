@@ -39,15 +39,17 @@ export async function listThemesForJam({
         id: { in: themeIds },
         jamId,
       },
-      ...(userId === undefined
-        ? {}
-        : {
-            include: {
-              votes2: {
-                where: { userId },
+      ...(includeAll
+        ? { include: { votes2: true } }
+        : userId === undefined
+          ? {}
+          : {
+              include: {
+                votes2: {
+                  where: { userId },
+                },
               },
-            },
-          }),
+            }),
     });
 
     return themesWithScores.map((score) => ({
