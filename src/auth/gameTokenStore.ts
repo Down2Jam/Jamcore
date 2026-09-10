@@ -140,12 +140,19 @@ export async function touchDeviceAuthRequestPolledInDb(id: string) {
 
 export async function consumeDeviceAuthRequestPendingTokenInDb(id: string) {
   const request = await db.deviceAuthRequest.findUnique({ where: { id } });
-  if (!request?.pendingToken) {
+  if (!request?.pendingToken || !request.userId) {
     return null;
   }
 
   await db.deviceAuthRequest.delete({ where: { id } });
-  return request.pendingToken;
+  return { pendingToken: request.pendingToken, userId: request.userId };
+}
+
+export async function findUserProfileByIdInDb(userId: number) {
+  return db.user.findUnique({
+    where: { id: userId },
+    select: { id: true, slug: true, name: true, profilePicture: true },
+  });
 }
 
 export async function deleteExpiredDeviceAuthRequestsInDb() {

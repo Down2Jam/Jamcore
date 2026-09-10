@@ -18,6 +18,9 @@ const { dbMock } = vi.hoisted(() => ({
       delete: vi.fn(),
       deleteMany: vi.fn(),
     },
+    user: {
+      findUnique: vi.fn(),
+    },
   },
 }));
 
@@ -265,19 +268,33 @@ describe("device authorization flow", () => {
       expect(result).toEqual({ status: "authorization_pending" });
     });
 
-    it("hands over the pending token exactly once, then reports expired", async () => {
+    it("hands over the pending token and the approving user's profile exactly once, then reports expired", async () => {
       dbMock.deviceAuthRequest.findUnique
         .mockResolvedValueOnce({
           id: "device-1",
           status: "APPROVED",
           expiresAt: new Date(Date.now() + 60_000),
         })
-        .mockResolvedValueOnce({ id: "device-1", pendingToken: "d2j_secret" });
+        .mockResolvedValueOnce({ id: "device-1", pendingToken: "d2j_secret", userId: 7 });
+      dbMock.user.findUnique.mockResolvedValue({
+        id: 7,
+        slug: "ategon",
+        name: "Ategon",
+        profilePicture: null,
+      });
 
       const result = await pollDeviceAuthRequest({ deviceCode: "d2jd_x" });
 
-      expect(result).toEqual({ status: "approved", token: "d2j_secret" });
+      expect(result).toEqual({
+        status: "approved",
+        token: "d2j_secret",
+        user: { id: 7, slug: "ategon", name: "Ategon", profilePicture: null },
+      });
       expect(dbMock.deviceAuthRequest.delete).toHaveBeenCalledWith({ where: { id: "device-1" } });
+      expect(dbMock.user.findUnique).toHaveBeenCalledWith({
+        where: { id: 7 },
+        select: { id: true, slug: true, name: true, profilePicture: true },
+      });
     });
   });
 });

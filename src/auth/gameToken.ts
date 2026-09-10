@@ -117,12 +117,19 @@ export async function denyDeviceAuthRequest(input: { userCode: string }) {
   await GameTokenStore.denyDeviceAuthRequestInDb(request.id);
 }
 
+export type DevicePollResultUser = {
+  id: number;
+  slug: string;
+  name: string;
+  profilePicture: string | null;
+};
+
 export type DevicePollResult =
   | { status: "authorization_pending" }
   | { status: "slow_down" }
   | { status: "denied" }
   | { status: "expired" }
-  | { status: "approved"; token: string };
+  | { status: "approved"; token: string; user: DevicePollResultUser };
 
 export async function pollDeviceAuthRequest(input: { deviceCode: string }): Promise<DevicePollResult> {
   const request = await GameTokenStore.findDeviceAuthRequestByRawDeviceCodeInDb(input.deviceCode);
@@ -143,12 +150,17 @@ export async function pollDeviceAuthRequest(input: { deviceCode: string }): Prom
     return tooSoon ? { status: "slow_down" } : { status: "authorization_pending" };
   }
 
-  const pendingToken = await GameTokenStore.consumeDeviceAuthRequestPendingTokenInDb(request.id);
-  if (!pendingToken) {
+  const consumed = await GameTokenStore.consumeDeviceAuthRequestPendingTokenInDb(request.id);
+  if (!consumed) {
     return { status: "expired" };
   }
 
-  return { status: "approved", token: pendingToken };
+  const user = await GameTokenStore.findUserProfileByIdInDb(consumed.userId);
+  if (!user) {
+    return { status: "expired" };
+  }
+
+  return { status: "approved", token: consumed.pendingToken, user };
 }
 
 export function cleanupExpiredDeviceAuthRequests() {
