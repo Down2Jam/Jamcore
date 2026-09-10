@@ -5,9 +5,9 @@ import { ApiError } from "../lib/errors.js";
 /**
  * Middleware to check if the user is authenticated and that the authentication is valid
  */
-function authUser(req: Request, res: Response, next: NextFunction): void {
+async function authUser(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    res.locals.userSlug = authenticateRequest(req, res) ?? undefined;
+    res.locals.userSlug = (await authenticateRequest(req, res)) ?? undefined;
     next();
   } catch (error) {
     next(error instanceof ApiError ? error : error);

@@ -2,7 +2,7 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 
 import db from "../infra/db.js";
 
-const GAME_TOKEN_PREFIX = "d2j_";
+export const GAME_TOKEN_PREFIX = "d2j_";
 const DEVICE_CODE_PREFIX = "d2jd_";
 const USER_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 

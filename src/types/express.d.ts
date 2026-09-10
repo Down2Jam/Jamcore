@@ -36,6 +36,7 @@ declare global {
         updatedAt: string;
       }>;
       authorizationGrantsContextKey?: string;
+      authMethod?: "session" | "gameToken";
       userSlug?: string;
       user?: RequestUserLocals;
       targetUser?: TargetUserContext;

@@ -5,13 +5,13 @@ import { ApiError } from "../lib/errors.js";
 /**
  * Middleware to check if the user is authenticated and that the authentication is valid
  */
-function authUserOptional(
+async function authUserOptional(
   req: Request,
   res: Response,
   next: NextFunction
-): void {
+): Promise<void> {
   try {
-    const userSlug = authenticateRequest(req, res, true);
+    const userSlug = await authenticateRequest(req, res, true);
     if (userSlug) {
       res.locals.userSlug = userSlug;
     }
