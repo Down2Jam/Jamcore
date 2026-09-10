@@ -97,10 +97,11 @@ export async function authenticateRequest(req: Request, res: Response, optional 
   const accessToken = getAuthorizationToken(req);
 
   if (accessToken?.startsWith(GAME_TOKEN_PREFIX)) {
-    const user = await resolveUserByGameAccessToken(accessToken);
-    if (user) {
+    const resolved = await resolveUserByGameAccessToken(accessToken);
+    if (resolved) {
       res.locals.authMethod = "gameToken";
-      return user.slug;
+      res.locals.gameAccessTokenId = resolved.tokenId;
+      return resolved.user.slug;
     }
 
     if (optional) {

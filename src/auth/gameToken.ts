@@ -69,7 +69,7 @@ export async function resolveUserByGameAccessToken(rawKey: string) {
   }
 
   await GameTokenStore.touchGameAccessTokenLastUsedInDb(token.id);
-  return token.user;
+  return { user: token.user, tokenId: token.id };
 }
 
 export async function startDeviceAuthRequest(input: { clientName: string }) {

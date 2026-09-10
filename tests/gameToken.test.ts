@@ -77,15 +77,15 @@ describe("game access tokens", () => {
     expect(token).not.toHaveProperty("keyHash");
   });
 
-  it("resolves the owning user for a valid token and bumps lastUsedAt", async () => {
+  it("resolves the owning user and token id for a valid token, and bumps lastUsedAt", async () => {
     dbMock.gameAccessToken.findFirst.mockResolvedValue({
       id: "token-1",
       user: { id: 7, slug: "ategon" },
     });
 
-    const user = await resolveUserByGameAccessToken("d2j_whatever");
+    const resolved = await resolveUserByGameAccessToken("d2j_whatever");
 
-    expect(user).toEqual({ id: 7, slug: "ategon" });
+    expect(resolved).toEqual({ user: { id: 7, slug: "ategon" }, tokenId: "token-1" });
     expect(dbMock.gameAccessToken.update).toHaveBeenCalledWith({
       where: { id: "token-1" },
       data: { lastUsedAt: expect.any(Date) },
@@ -95,9 +95,9 @@ describe("game access tokens", () => {
   it("returns null for an unknown or revoked token, without touching lastUsedAt", async () => {
     dbMock.gameAccessToken.findFirst.mockResolvedValue(null);
 
-    const user = await resolveUserByGameAccessToken("d2j_nope");
+    const resolved = await resolveUserByGameAccessToken("d2j_nope");
 
-    expect(user).toBeNull();
+    expect(resolved).toBeNull();
     expect(dbMock.gameAccessToken.update).not.toHaveBeenCalled();
   });
 

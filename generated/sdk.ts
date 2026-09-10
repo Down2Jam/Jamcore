@@ -177,6 +177,7 @@ export function createJamcoreClient(config: JamcoreClientConfig = {}) {
     getCurrentGame: () => request("GET", "/self/current-game", {  }),
     listGameTokens: () => request("GET", "/self/game-tokens", {  }),
     revokeGameToken: (body: unknown) => request("DELETE", "/self/game-tokens", { body }),
+    revokeCurrentGameToken: () => request("DELETE", "/self/game-tokens/current", {  }),
     startDeviceAuth: (body: unknown) => request("POST", "/device/code", { body }),
     approveDeviceAuth: (body: unknown) => request("POST", "/device/approve", { body }),
     denyDeviceAuth: (body: unknown) => request("POST", "/device/deny", { body }),

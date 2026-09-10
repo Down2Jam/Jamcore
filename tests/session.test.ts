@@ -74,7 +74,10 @@ describe("authenticateRequest", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("resolves a request bearing a valid game token, without needing a refresh cookie", async () => {
-    resolveUserByGameAccessTokenMock.mockResolvedValue({ id: 1, slug: "ategon" });
+    resolveUserByGameAccessTokenMock.mockResolvedValue({
+      user: { id: 1, slug: "ategon" },
+      tokenId: "token-1",
+    });
     const req = makeReq({ authorization: "Bearer d2j_abc123" });
     const res = makeRes();
 
@@ -82,6 +85,7 @@ describe("authenticateRequest", () => {
 
     expect(userSlug).toBe("ategon");
     expect(res.locals.authMethod).toBe("gameToken");
+    expect(res.locals.gameAccessTokenId).toBe("token-1");
     expect(resolveUserByGameAccessTokenMock).toHaveBeenCalledWith("d2j_abc123");
   });
 
