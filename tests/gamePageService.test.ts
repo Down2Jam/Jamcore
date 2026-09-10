@@ -26,6 +26,10 @@ describe("gamePageService", () => {
           trailerUrl: null,
           itchEmbedUrl: null,
           itchEmbedAspectRatio: null,
+        playableBuildUrl: null,
+        playableBuildAspectRatio: null,
+        playableBuildShowFullscreenButton: true,
+        playableBuildId: null,
           inputMethods: [],
           estOneRun: null,
           estAnyPercent: null,
@@ -53,6 +57,7 @@ describe("gamePageService", () => {
       expect.objectContaining({
         name: "Jam Name",
         soundtrackThumbnail: "album.png",
+        playableBuildShowFullscreenButton: true,
         ratingCategories: [1],
         songs: [expect.objectContaining({ slug: "song" })],
       }),

@@ -101,6 +101,8 @@ describe("API docs routes", () => {
     expect(html).toContain("Jams");
     expect(html).toContain("Return detailed data for a jam");
     expect(html).toContain("/api/v1/games/random");
+    expect(html).toContain("/api/v1/games/featured-videos");
+    expect(html).toContain("List featured game videos");
     expect(html).toContain("/api/v1/tracks");
     expect(html).toContain("/api/v1/tracks/random");
     expect(html).toContain("/api/v1/tracks/{trackSlug}");
@@ -148,6 +150,16 @@ describe("API docs routes", () => {
     expect(html).not.toContain("Return detailed data for a game");
   });
 
+  it("documents the featured game videos endpoint", async () => {
+    const response = await fetch(`${baseUrl}/api/v1/docs/get-games-featured-videos`);
+    const html = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(html).toContain("List featured game videos");
+    expect(html).toContain("/api/v1/games/featured-videos");
+    expect(html).toContain("Maximum number of unique, valid YouTube trailers");
+  });
+
   it("returns 404 for an unknown endpoint documentation page", async () => {
     const response = await fetch(`${baseUrl}/api/v1/docs/not-a-route`);
 
@@ -170,6 +182,13 @@ describe("API docs routes", () => {
     expect(document.info?.title).toContain(appConfig.appName);
     expect(document.paths?.["/capabilities"]?.get).toBeTruthy();
     expect(document.paths?.["/games"]?.get?.security).toBeUndefined();
+    expect(document.paths?.["/games/featured-videos"]?.get?.parameters).toContainEqual(
+      expect.objectContaining({
+        name: "limit",
+        in: "query",
+        schema: expect.objectContaining({ minimum: 1, maximum: 50, default: 10 }),
+      }),
+    );
     expect(document.paths?.["/games"]?.post?.security).toEqual([
       { bearerAuth: [], refreshCookie: [] },
     ]);

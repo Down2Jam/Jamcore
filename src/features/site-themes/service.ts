@@ -6,6 +6,7 @@ export type RawSiteTheme = {
   name: string;
   type: string;
   extends?: string;
+  hidden?: boolean;
   colors: Record<string, string>;
 };
 
@@ -68,6 +69,7 @@ function resolveTheme(
         refs[key] = value;
       } else {
         merged[key] = value;
+        delete refs[key];
       }
     }
   }

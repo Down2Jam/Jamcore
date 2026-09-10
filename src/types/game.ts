@@ -50,6 +50,9 @@ export type GamePageWriteBody = {
   trailerUrl?: string | null;
   itchEmbedUrl?: string | null;
   itchEmbedAspectRatio?: string | null;
+  playableBuildUrl?: string | null;
+  playableBuildAspectRatio?: string | null;
+  playableBuildShowFullscreenButton?: boolean;
   inputMethods?: string[];
   estOneRun?: string | null;
   estAnyPercent?: string | null;

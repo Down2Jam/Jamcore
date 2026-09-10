@@ -25,6 +25,7 @@ type RecentJam = {
   id: number;
   slug: string;
   startTime: Date | string;
+  sourcePlatform?: string | null;
 };
 
 type ActiveJamSummary = {
@@ -146,10 +147,20 @@ function tenantCacheKey(base: string, tenantId?: string | null) {
 
 export async function listJams(tenantId?: string | null): Promise<RecentJam[]> {
   return jamListCache.getOrSet(tenantCacheKey(JAM_LIST_CACHE_KEY, tenantId), async () => {
-    const jams = await db.jam.findMany({
-      take: tenantId ? 50 : 10,
-      orderBy: { id: "desc" },
-    });
+    const candidateLimit = tenantId ? 50 : 10;
+    const [d2Jams, externalJams] = await Promise.all([
+      db.jam.findMany({
+        where: { sourcePlatform: null },
+        take: candidateLimit,
+        orderBy: { id: "desc" },
+      }),
+      db.jam.findMany({
+        where: { sourcePlatform: { not: null } },
+        take: candidateLimit,
+        orderBy: { id: "desc" },
+      }),
+    ]);
+    const jams = [...d2Jams, ...externalJams];
 
     const allowedJamIds = new Set(
       await filterCoreEntityIdsByTenant({
@@ -161,13 +172,22 @@ export async function listJams(tenantId?: string | null): Promise<RecentJam[]> {
     );
     const now = Date.now();
 
-    return jams
+    const visibleJams = jams
       .filter((jam) => allowedJamIds.has(jam.id))
       .filter((jam) => {
         const jamEnd = new Date(jam.startTime).getTime();
         return jamEnd < now;
-      })
+      });
+    const recentD2Jams = visibleJams
+      .filter((jam) => !jam.sourcePlatform)
       .slice(0, 10);
+    const latestExternalJam = visibleJams.find((jam) => jam.sourcePlatform);
+
+    // Consumers list D2Jams individually and use the presence of one external
+    // jam to offer their combined "External jams" option.
+    return latestExternalJam
+      ? [...recentD2Jams, latestExternalJam]
+      : recentD2Jams;
   });
 }
 

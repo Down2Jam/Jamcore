@@ -1,7 +1,7 @@
 import { Router } from "express";
 import rateLimit from "@middleware/rateLimit";
 import { asyncHandler } from "@middleware/asyncHandler";
-import { listSiteThemes } from "@features/site-themes";
+import { listSiteThemesWithUsage } from "@features/site-themes/usage.service";
 
 const router = Router();
 
@@ -12,7 +12,7 @@ router.get(
   "/",
   rateLimit(),
   asyncHandler(async (_req, res) => {
-    const result = await listSiteThemes();
+    const result = await listSiteThemesWithUsage(res.locals.tenantId);
 
     res.send({ message: "Themes fetched", data: result });
   }),

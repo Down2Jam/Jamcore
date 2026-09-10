@@ -36,18 +36,55 @@ describe("jams service", () => {
     const past = new Date(Date.now() - 60_000).toISOString();
     const future = new Date(Date.now() + 60_000).toISOString();
 
-    dbMock.jam.findMany.mockResolvedValueOnce([
-      { id: 3, slug: "future-jam", startTime: future },
-      { id: 2, slug: "past-jam", startTime: past },
-    ]);
+    dbMock.jam.findMany
+      .mockResolvedValueOnce([
+        { id: 3, slug: "future-jam", startTime: future, sourcePlatform: null },
+        { id: 2, slug: "past-jam", startTime: past, sourcePlatform: null },
+      ])
+      .mockResolvedValueOnce([]);
 
     const result = await listJams();
 
-    expect(dbMock.jam.findMany).toHaveBeenCalledWith({
+    expect(dbMock.jam.findMany).toHaveBeenNthCalledWith(1, {
+      where: { sourcePlatform: null },
       take: 10,
       orderBy: { id: "desc" },
     });
-    expect(result).toEqual([{ id: 2, slug: "past-jam", startTime: past }]);
+    expect(dbMock.jam.findMany).toHaveBeenNthCalledWith(2, {
+      where: { sourcePlatform: { not: null } },
+      take: 10,
+      orderBy: { id: "desc" },
+    });
+    expect(result).toEqual([
+      { id: 2, slug: "past-jam", startTime: past, sourcePlatform: null },
+    ]);
+  });
+
+  it("keeps recent D2Jams when external jams exist", async () => {
+    const past = new Date(Date.now() - 60_000).toISOString();
+    const d2Jams = Array.from({ length: 10 }, (_, index) => ({
+      id: 10 - index,
+      slug: `d2jam-${10 - index}`,
+      startTime: past,
+      sourcePlatform: null,
+    }));
+    const externalJams = Array.from({ length: 10 }, (_, index) => ({
+      id: 20 - index,
+      slug: `itch-jam-${20 - index}`,
+      startTime: past,
+      sourcePlatform: "ITCH",
+    }));
+
+    dbMock.jam.findMany
+      .mockResolvedValueOnce(d2Jams)
+      .mockResolvedValueOnce(externalJams);
+
+    const result = await listJams();
+
+    expect(result.filter((jam) => !jam.sourcePlatform)).toEqual(d2Jams);
+    expect(result.filter((jam) => jam.sourcePlatform)).toEqual([
+      externalJams[0],
+    ]);
   });
 
   it("checks whether a user has joined a jam", async () => {

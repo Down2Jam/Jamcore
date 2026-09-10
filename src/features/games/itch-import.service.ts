@@ -490,6 +490,7 @@ export async function importItchGame({
       trailerUrl: metadata.trailerUrl,
       itchEmbedUrl: metadata.itchEmbedUrl,
       itchEmbedAspectRatio: metadata.itchEmbedUrl ? "16 / 9" : null,
+      playableBuildShowFullscreenButton: true,
       inputMethods: [],
       estOneRun: null,
       estAnyPercent: null,

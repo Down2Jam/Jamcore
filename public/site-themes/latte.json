@@ -6,7 +6,7 @@
     "base": "#eff1f5",
     "mantle": "#e6e9ef",
     "crust": "#dce0e8",
-    "text": "#4c4f69",
+    "text": "#000000",
 
     "textLight": "@base",
     "textLightFaded": "@base > darken > darken",

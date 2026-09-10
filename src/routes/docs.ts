@@ -10,7 +10,8 @@ type RouteParameter = {
   name: string;
   in: string;
   required?: boolean;
-  schema?: { type?: string } | Record<string, unknown>;
+  description?: string;
+  schema?: Record<string, unknown>;
 };
 
 type ApiRegistryRoute = {
@@ -95,6 +96,8 @@ export function hasBrowsableDocsRoute(routeId: string) {
 }
 
 function describeDocsParameter(parameter: RouteParameter) {
+  if (parameter.description) return parameter.description;
+
   const descriptions: Record<string, string> = {
     sort: "Sort order",
     jamSlug: "Filter by jam slug",
@@ -1635,7 +1638,7 @@ export function renderVersionDocsPage(input: {
                                     <td>${escapeHtml(String(parameter.schema?.type ?? "string"))}</td>
                                     <td>${escapeHtml(describeDocsParameter(parameter))}</td>
                                     <td>${parameter.required ? "Yes" : "No"}</td>
-                                    <td><code class="parameter-default">${escapeHtml(parameter.name)}</code></td>
+                                    <td><code class="parameter-default">${escapeHtml(String(parameter.schema?.default ?? "—"))}</code></td>
                                   </tr>`,
                               )
                               .join("")}

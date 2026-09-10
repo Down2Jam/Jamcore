@@ -8,7 +8,9 @@ export {
   gameDetailQuerySchema,
 } from "./detail.service.js";
 export {
+  featuredGameVideosQuerySchema,
   getRandomPublishedGame,
+  listFeaturedGameVideos,
   listCurrentUserGames,
 } from "./discovery.service.js";
 export { gameListingQuerySchema, listGames } from "./listing.service.js";

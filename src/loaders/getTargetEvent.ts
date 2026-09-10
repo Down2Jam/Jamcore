@@ -40,11 +40,21 @@ async function getTargetEvent(
       where: {
         id: normalizedEventId,
       },
+      include: {
+        host: {
+          select: { id: true, slug: true, name: true, profilePicture: true },
+        },
+      },
     });
   } else {
     event = await db.event.findUnique({
       where: {
         slug: eventSlug as string,
+      },
+      include: {
+        host: {
+          select: { id: true, slug: true, name: true, profilePicture: true },
+        },
       },
     });
   }

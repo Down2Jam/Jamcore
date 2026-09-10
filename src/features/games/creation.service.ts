@@ -11,6 +11,11 @@ import { publishGameCreated } from "../federation/index.js";
 import { buildTrackWriteData } from "../tracks/write.js";
 import { buildPrefix } from "./prefix.js";
 import { createGameSchema, trackInputSchema } from "./write.schemas.js";
+import {
+  assertWebBuildCanAttach,
+  attachWebBuildToPage,
+  webBuildIdFromUrl,
+} from "./web-build.service.js";
 
 function createTrackCreateData(song: z.infer<typeof trackInputSchema>) {
   const trackData = buildTrackWriteData(song);
@@ -73,6 +78,8 @@ export async function createGame({
   sourcePlatform?: string | null;
   sourceCreatedAt?: Date | null;
 }) {
+  await assertWebBuildCanAttach(input.playableBuildUrl, actorUser.id);
+  const playableBuildId = webBuildIdFromUrl(input.playableBuildUrl);
   const cleanedPrefix = input.emotePrefix?.trim().toLowerCase() || buildPrefix(input.slug);
 
   const game = await db.game.create({
@@ -117,7 +124,7 @@ export async function createGame({
     });
   }
 
-  await db.gamePage.create({
+  const gamePage = await db.gamePage.create({
     data: {
       version: PageVersion.JAM,
       createdAt: sourceCreatedAt ?? undefined,
@@ -131,6 +138,10 @@ export async function createGame({
       trailerUrl: input.trailerUrl,
       itchEmbedUrl: input.itchEmbedUrl,
       itchEmbedAspectRatio: input.itchEmbedAspectRatio,
+      playableBuildUrl: input.playableBuildUrl,
+      playableBuildAspectRatio: input.playableBuildAspectRatio,
+      playableBuildShowFullscreenButton:
+        input.playableBuildShowFullscreenButton,
       inputMethods: input.inputMethods,
       estOneRun: input.estOneRun,
       estAnyPercent: input.estAnyPercent,
@@ -179,6 +190,9 @@ export async function createGame({
       },
     },
   });
+  if (playableBuildId) {
+    await attachWebBuildToPage(gamePage.id, input.playableBuildUrl);
+  }
 
   await notifyNewMentions({
     type: "game",

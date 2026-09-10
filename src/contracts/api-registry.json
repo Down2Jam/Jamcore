@@ -196,6 +196,37 @@
       }
     },
     {
+      "sdkName": "listFeaturedGameVideos",
+      "method": "GET",
+      "path": "/games/featured-videos",
+      "tag": "Games",
+      "summary": "List featured game videos",
+      "parameters": [
+        {
+          "name": "limit",
+          "in": "query",
+          "description": "Maximum number of unique, valid YouTube trailers to return. Post-jam trailers are preferred when a game has both page versions.",
+          "schema": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50,
+            "default": 10
+          }
+        }
+      ],
+      "auth": {
+        "required": false,
+        "optional": false,
+        "kind": "none",
+        "label": "Public"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
       "sdkName": "getRandomGame",
       "method": "GET",
       "path": "/games/random",
