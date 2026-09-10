@@ -1,5 +1,6 @@
 ﻿import express from "express";
 import authUser from "../../../middleware/authUser";
+import { allowGameToken } from "../../../middleware/allowGameToken.js";
 import getUser from "../../../loaders/getUser.js";
 import rateLimit from "@middleware/rateLimit";
 import assertUserModOrUserTeamMemberOrUserScoreOwner from "@guards/assertUserModOrUserScoreOwner";
@@ -11,6 +12,8 @@ import { asyncHandler } from "../../../middleware/asyncHandler.js";
 import { deleteScore } from "@features/scores";
 
 const router = express.Router();
+
+router.use(allowGameToken);
 
 router.delete(
   "/",

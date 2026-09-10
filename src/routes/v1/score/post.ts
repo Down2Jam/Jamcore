@@ -1,6 +1,7 @@
 import express from "express";
 
 import authUser from "../../../middleware/authUser";
+import { allowGameToken } from "../../../middleware/allowGameToken.js";
 import getUser from "../../../loaders/getUser.js";
 import rateLimit from "@middleware/rateLimit";
 import getLeaderboard from "@loaders/getLeaderboard";
@@ -10,6 +11,8 @@ import { requireLoadedLeaderboard, requireRequestUser } from "@lib/locals";
 import { parseBody } from "../../../lib/request.js";
 
 const router = express.Router();
+
+router.use(allowGameToken);
 
 router.post(
   "/",

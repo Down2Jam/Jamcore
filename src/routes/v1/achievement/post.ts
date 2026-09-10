@@ -1,6 +1,7 @@
 import { Router } from "express";
 
 import authUser from "../../../middleware/authUser.js";
+import { allowGameToken } from "../../../middleware/allowGameToken.js";
 import getUser from "../../../loaders/getUser.js";
 import { asyncHandler } from "../../../middleware/asyncHandler.js";
 import {
@@ -11,6 +12,8 @@ import { requireRequestUser } from "@lib/locals";
 import { parseBody } from "../../../lib/request.js";
 
 const router = Router();
+
+router.use(allowGameToken);
 
 router.post(
   "/",
