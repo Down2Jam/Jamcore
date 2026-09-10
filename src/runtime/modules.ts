@@ -5,6 +5,7 @@ import { startScheduledPostPublisherRuntime } from "../features/posts/publisher.
 import { startRadioRuntime } from "../features/radio/index.js";
 import { startStreamersRuntime } from "../features/streamers/index.js";
 import { startPlatformRuntime } from "../jobs/platform.js";
+import { startDeviceAuthCleanupJob } from "../auth/deviceAuthCleanupJob.js";
 
 export type RuntimeModuleHandle = {
   name: string;
@@ -16,12 +17,18 @@ export type RuntimeModules = {
 };
 
 export async function startRuntimeModules(): Promise<RuntimeModules> {
+  const deviceAuthCleanupTask = startDeviceAuthCleanupJob();
+
   const handles = await Promise.all([
     startFederationRuntime(),
     Promise.resolve(startPlatformRuntime()),
     Promise.resolve(startScheduledPostPublisherRuntime()),
     startRadioRuntime(),
     startStreamersRuntime(),
+    Promise.resolve({
+      name: "device-auth-cleanup",
+      stop: () => deviceAuthCleanupTask.stop(),
+    }),
   ]);
 
   return {

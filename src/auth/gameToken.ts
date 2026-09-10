@@ -1,9 +1,23 @@
+import { z } from "zod";
+
 import { env } from "../config/env.js";
 import { NotFoundError } from "../lib/errors.js";
 import * as GameTokenStore from "./gameTokenStore.js";
 
 const DEVICE_CODE_EXPIRES_IN_MS = 10 * 60 * 1000;
 const DEVICE_POLL_INTERVAL_SECONDS = 5;
+
+export const startDeviceAuthRequestSchema = z.object({
+  clientName: z.string().trim().min(1).max(200),
+});
+
+export const deviceUserCodeSchema = z.object({
+  userCode: z.string().trim().min(1),
+});
+
+export const deviceCodeSchema = z.object({
+  deviceCode: z.string().trim().min(1),
+});
 
 export type GameAccessTokenSummary = {
   id: string;
