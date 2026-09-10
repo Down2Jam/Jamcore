@@ -7,6 +7,7 @@ import * as GameTokenStore from "./gameTokenStore.js";
 const DEVICE_CODE_EXPIRES_IN_MS = 10 * 60 * 1000;
 const DEVICE_POLL_INTERVAL_SECONDS = 5;
 
+// Used to auto-validate schema's
 export const startDeviceAuthRequestSchema = z.object({
   clientName: z.string().trim().min(1).max(200),
 });
@@ -17,6 +18,10 @@ export const deviceUserCodeSchema = z.object({
 
 export const deviceCodeSchema = z.object({
   deviceCode: z.string().trim().min(1),
+});
+
+export const revokeGameAccessTokenSchema = z.object({
+  id: z.string().trim().min(1),
 });
 
 export type GameAccessTokenSummary = {
