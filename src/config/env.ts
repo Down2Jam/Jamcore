@@ -38,6 +38,15 @@ const optionalString = (schema: z.ZodString) =>
     schema.optional(),
   );
 
+const booleanString = (defaultValue: boolean) =>
+  z.preprocess(
+    (value) =>
+      typeof value === "string"
+        ? ["1", "true", "yes", "on"].includes(value.toLowerCase())
+        : value,
+    z.boolean().default(defaultValue),
+  );
+
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().int().positive().default(3005),
@@ -53,6 +62,9 @@ const envSchema = z.object({
   SERVICE_API_KEYS: optionalString(z.string()),
   TOKEN_SECRET: optionalString(z.string().min(1)),
   DISCORD_QUILT_WEBHOOK_URL: optionalString(z.string().url()),
+  CLAMAV_HOST: optionalString(z.string()),
+  CLAMAV_PORT: z.coerce.number().int().positive().default(3310),
+  WEB_BUILD_REQUIRE_MALWARE_SCAN: booleanString(false),
 });
 
 const parsed = envSchema.parse(process.env);
@@ -119,4 +131,7 @@ export const env = {
   serviceApiKeys: parsed.SERVICE_API_KEYS,
   tokenSecret: parsed.TOKEN_SECRET,
   discordQuiltWebhookUrl: parsed.DISCORD_QUILT_WEBHOOK_URL,
+  clamavHost: parsed.CLAMAV_HOST,
+  clamavPort: parsed.CLAMAV_PORT,
+  webBuildRequireMalwareScan: parsed.WEB_BUILD_REQUIRE_MALWARE_SCAN,
 } as const;

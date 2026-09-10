@@ -62,6 +62,7 @@ model User {
   trackRatings                  TrackRating[]           @relation(name: "TrackRatingToUser")
   commentReactions              CommentReaction[]
   gamePageAchievements          GamePageAchievement[]   @relation(name: "GamePageAchievementToUsers")
+  achievementUnlocks            AchievementUnlock[]     @relation(name: "AchievementUnlockToUser")
   receivedNotifications         Notification[]          @relation(name: "NotificationToRecipient")
   sentNotifications             Notification[]          @relation(name: "NotificationToActor")
   PostReaction                  PostReaction[]
@@ -81,6 +82,7 @@ model User {
   hideRatings                   Boolean                 @default(false)
   autoHideRatingsWhileStreaming Boolean                 @default(false)
   messageRequestPolicy           MessageRequestPolicy   @default(EVERYONE)
+  siteTheme                      String?
   quiltSubmissions              QuiltSubmission[]       @relation(name: "QuiltSubmissionToAuthor")
   quiltRemovals                 QuiltSubmission[]       @relation(name: "QuiltSubmissionToRemover")
   quiltVotes                    QuiltVote[]             @relation(name: "QuiltVoteToUser")
@@ -88,6 +90,7 @@ model User {
   conversationMemberships       ConversationMember[]    @relation(name: "ConversationMemberUser")
   conversationInvitesSent       ConversationMember[]    @relation(name: "ConversationMemberInviter")
   conversationMessages          ConversationMessage[]   @relation(name: "ConversationMessageSender")
+  webBuilds                     WebBuild[]               @relation(name: "WebBuildToOwner")
   usersBlocked                  UserBlock[]              @relation(name: "UserBlockBlocker")
   blockedByUsers                UserBlock[]              @relation(name: "UserBlockBlocked")
   gameAccessTokens              GameAccessToken[]
@@ -432,6 +435,10 @@ model GamePage {
   trailerUrl           String?
   itchEmbedUrl         String?
   itchEmbedAspectRatio String?
+  playableBuildUrl     String?
+  playableBuildAspectRatio String?
+  playableBuildShowFullscreenButton Boolean @default(true)
+  playableBuildId      String?
   inputMethods         String[]    @default([])
   estOneRun            String?
   estAnyPercent        String?
@@ -442,6 +449,7 @@ model GamePage {
   emotePrefix          String?
 
   game                Game                   @relation(fields: [gameId], references: [id], name: "GameToPages")
+  playableBuild       WebBuild?               @relation(fields: [playableBuildId], references: [id], onDelete: SetNull)
   gameId              Int
   ratingCategories    RatingCategory[]
   majRatingCategories RatingCategory[]       @relation(name: "GamePageToMajorityContentRating")
@@ -457,6 +465,26 @@ model GamePage {
   ratings             Rating[]               @relation(name: "RatingToGamePage")
 
   @@unique([gameId, version])
+  @@index([playableBuildId])
+}
+
+model WebBuild {
+  id            String    @id
+  ownerId       Int
+  archiveBytes  Int
+  expandedBytes Int
+  fileCount     Int
+  scanned       Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  claimedAt     DateTime?
+  deleteAfter   DateTime?
+
+  owner User @relation(name: "WebBuildToOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  gamePages GamePage[]
+
+  @@index([ownerId, createdAt])
+  @@index([claimedAt, createdAt])
+  @@index([deleteAfter])
 }
 
 model Flag {
@@ -688,8 +716,22 @@ model GamePageAchievement {
   updatedAt   DateTime @updatedAt
 
   users      User[]   @relation(name: "GamePageAchievementToUsers")
+  unlocks    AchievementUnlock[] @relation(name: "AchievementUnlockToAchievement")
   gamePage   GamePage @relation(fields: [gamePageId], references: [id], name: "AchievementToGamePage")
   gamePageId Int
+}
+
+model AchievementUnlock {
+  achievementId Int
+  userId        Int
+  earnedAt      DateTime @default(now())
+
+  achievement GamePageAchievement @relation(name: "AchievementUnlockToAchievement", fields: [achievementId], references: [id], onDelete: Cascade)
+  user        User                @relation(name: "AchievementUnlockToUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([achievementId, userId])
+  @@index([earnedAt(sort: Desc)])
+  @@index([userId])
 }
 
 model Ghost {

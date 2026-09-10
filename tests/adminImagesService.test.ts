@@ -12,6 +12,14 @@ const { dbMock, s3Mock, fsMock } = vi.hoisted(() => ({
     jam: { findMany: vi.fn() },
     teamRole: { findMany: vi.fn() },
     featuredStreamer: { findMany: vi.fn() },
+    post: { findMany: vi.fn() },
+    comment: { findMany: vi.fn() },
+    documentationDocument: { findMany: vi.fn() },
+    gamePageTrack: { findMany: vi.fn() },
+    collectionComment: { findMany: vi.fn() },
+    collection: { findMany: vi.fn() },
+    postRevision: { findMany: vi.fn() },
+    postAutosave: { findMany: vi.fn() },
   },
   s3Mock: {
     IsUsingS3: vi.fn(),
@@ -55,6 +63,14 @@ describe("admin images service", () => {
     dbMock.jam.findMany.mockResolvedValue([]);
     dbMock.teamRole.findMany.mockResolvedValue([]);
     dbMock.featuredStreamer.findMany.mockResolvedValue([]);
+    dbMock.post.findMany.mockResolvedValue([]);
+    dbMock.comment.findMany.mockResolvedValue([]);
+    dbMock.documentationDocument.findMany.mockResolvedValue([]);
+    dbMock.gamePageTrack.findMany.mockResolvedValue([]);
+    dbMock.collectionComment.findMany.mockResolvedValue([]);
+    dbMock.collection.findMany.mockResolvedValue([]);
+    dbMock.postRevision.findMany.mockResolvedValue([]);
+    dbMock.postAutosave.findMany.mockResolvedValue([]);
   });
 
   it("lists local images with usage counts", async () => {
@@ -86,6 +102,30 @@ describe("admin images service", () => {
         ],
       }),
     );
+  });
+
+  it("does not delete images embedded in rich text", async () => {
+    const oldTimestamp = Date.now() - 8 * 24 * 60 * 60 * 1000;
+    dbMock.post.findMany.mockResolvedValueOnce([
+      {
+        content:
+          'A post with <img src="/api/v1/image/embedded.png"> and ![](/api/v1/image/second.webp)',
+      },
+    ]);
+    fsMock.readdir.mockResolvedValueOnce(["embedded.png", "second.webp"]);
+    fsMock.stat.mockResolvedValue({
+      size: 123,
+      mtimeMs: oldTimestamp,
+      mtime: new Date(oldTimestamp),
+    });
+
+    const result = await listAdminImages();
+
+    expect(result.files).toEqual([
+      expect.objectContaining({ name: "embedded.png", usageCount: 1 }),
+      expect.objectContaining({ name: "second.webp", usageCount: 1 }),
+    ]);
+    expect(fsMock.unlink).not.toHaveBeenCalled();
   });
 });
 

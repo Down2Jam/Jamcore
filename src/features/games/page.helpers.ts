@@ -101,6 +101,9 @@ type MaterializableGamePage = {
   trailerUrl?: string | null;
   itchEmbedUrl?: string | null;
   itchEmbedAspectRatio?: string | null;
+  playableBuildUrl?: string | null;
+  playableBuildAspectRatio?: string | null;
+  playableBuildShowFullscreenButton?: boolean;
   inputMethods?: string[];
   estOneRun?: string | null;
   estAnyPercent?: string | null;
@@ -141,6 +144,10 @@ export function materializeGamePage<TGame extends object, TPage extends Material
     trailerUrl: page.trailerUrl,
     itchEmbedUrl: page.itchEmbedUrl,
     itchEmbedAspectRatio: page.itchEmbedAspectRatio,
+    playableBuildUrl: page.playableBuildUrl,
+    playableBuildAspectRatio: page.playableBuildAspectRatio,
+    playableBuildShowFullscreenButton:
+      page.playableBuildShowFullscreenButton,
     inputMethods: page.inputMethods,
     estOneRun: page.estOneRun,
     estAnyPercent: page.estAnyPercent,
@@ -173,6 +180,10 @@ export function buildGamePagePayload(body: GamePageWriteBody) {
     trailerUrl: body?.trailerUrl ?? null,
     itchEmbedUrl: body?.itchEmbedUrl ?? null,
     itchEmbedAspectRatio: body?.itchEmbedAspectRatio ?? null,
+    playableBuildUrl: body?.playableBuildUrl ?? null,
+    playableBuildAspectRatio: body?.playableBuildAspectRatio ?? null,
+    playableBuildShowFullscreenButton:
+      body?.playableBuildShowFullscreenButton ?? true,
     inputMethods: Array.isArray(body?.inputMethods) ? body.inputMethods : [],
     estOneRun: body?.estOneRun ?? null,
     estAnyPercent: body?.estAnyPercent ?? null,

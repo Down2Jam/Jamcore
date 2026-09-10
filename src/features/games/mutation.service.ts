@@ -28,6 +28,7 @@ import {
 } from "./page.service.js";
 import { ITCH_EMBED_ASPECT_RATIOS, updateGameSchema } from "./write.schemas.js";
 import { jamAndPostJamVersions } from "../../prisma/selects.js";
+import { assertWebBuildCanAttach } from "./web-build.service.js";
 
 const itchEmbedAspectRatios = new Set(ITCH_EMBED_ASPECT_RATIOS);
 
@@ -167,6 +168,11 @@ export async function updateGameBySlug({
   }
 
   assertCanMutateGame(existingGame, actor, grants);
+  await assertWebBuildCanAttach(
+    body.playableBuildUrl,
+    actor!.id,
+    existingGame.pages.map((page) => page.playableBuildUrl),
+  );
 
   const currentVersionCategory = existingGame.category;
 

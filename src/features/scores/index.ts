@@ -1,1 +1,6 @@
-export { createScore, createScoreSchema, deleteScore } from "./service.js";
+export {
+  createScore,
+  createScoreSchema,
+  deleteScore,
+  listRecentTopScores,
+} from "./service.js";

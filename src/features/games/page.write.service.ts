@@ -7,6 +7,11 @@ import type { GamePageWriteBody } from "../../types/game.js";
 import { buildTrackWriteData } from "../tracks/write.js";
 import { buildGamePagePayload } from "./page.helpers.js";
 import { postJamPageInclude } from "./page.read.js";
+import {
+  attachWebBuildToPage,
+  scheduleWebBuildDeletionIfUnreferenced,
+  webBuildIdFromUrl,
+} from "./web-build.service.js";
 
 type DownloadLinkInput = NonNullable<GamePageWriteBody["downloadLinks"]>[number];
 type AchievementInput = NonNullable<GamePageWriteBody["achievements"]>[number];
@@ -275,10 +280,22 @@ export async function upsertGamePage(
       gameId,
       version,
     },
-    select: { id: true },
+    select: {
+      id: true,
+      playableBuildId: true,
+      playableBuildShowFullscreenButton: true,
+    },
   });
 
   const pagePayload = buildGamePagePayload(body);
+  if (
+    existingPage &&
+    body.playableBuildShowFullscreenButton === undefined
+  ) {
+    pagePayload.playableBuildShowFullscreenButton =
+      existingPage.playableBuildShowFullscreenButton;
+  }
+  const nextPlayableBuildId = webBuildIdFromUrl(body.playableBuildUrl);
   const relationData = {
     ratingCategories: (body.ratingCategories ?? []).map((id: number) => ({
       id,
@@ -328,6 +345,9 @@ export async function upsertGamePage(
           image: achievement.image || "",
         })),
       },
+      ...(!nextPlayableBuildId
+        ? { playableBuild: { disconnect: true } }
+        : {}),
     };
 
     await db.gamePage.update({
@@ -338,6 +358,12 @@ export async function upsertGamePage(
 
     await syncGamePageLeaderboards(existingPage.id, body.leaderboards);
     await syncGamePageTracks(existingPage.id, body.songs ?? []);
+    if (nextPlayableBuildId) {
+      await attachWebBuildToPage(existingPage.id, body.playableBuildUrl);
+    }
+    if (existingPage.playableBuildId !== nextPlayableBuildId) {
+      await scheduleWebBuildDeletionIfUnreferenced(existingPage.playableBuildId);
+    }
     return db.gamePage.findUnique({
       where: { id: existingPage.id },
       include: postJamPageInclude,
@@ -386,6 +412,10 @@ export async function upsertGamePage(
     data: createData,
     include: postJamPageInclude,
   });
+
+  if (nextPlayableBuildId) {
+    await attachWebBuildToPage(createdPage.id, body.playableBuildUrl);
+  }
 
   await syncGamePageLeaderboards(createdPage.id, body.leaderboards);
 

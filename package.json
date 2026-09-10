@@ -44,6 +44,7 @@
     "@types/node": "^26.4.0",
     "@types/node-cron": "^3.0.11",
     "@types/pg": "^8.23.1",
+    "@types/yauzl": "^3.4.0",
     "prisma": "^7.10.0",
     "tsc-alias": "^1.9.2",
     "tsx": "^4.23.12",
@@ -73,12 +74,14 @@
     "sharp": "^0.35.4",
     "uuid": "^14.0.2",
     "winston": "^3.19.0",
+    "yauzl": "^3.4.0",
     "zod": "^4.4.3"
   },
   "overrides": {
     "body-parser": "2.3.0",
     "deepmerge-ts": "8.0.2",
-    "ip-address": "10.5.0"
+    "ip-address": "10.5.0",
+    "mysql2": "3.24.4"
   },
   "allowScripts": {
     "@prisma/engines@7.10.0": true,

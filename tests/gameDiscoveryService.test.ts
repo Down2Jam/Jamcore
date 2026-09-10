@@ -27,6 +27,7 @@ vi.mock("../src/features/games/page.helpers.js", () => ({
 
 import {
   getRandomPublishedGame,
+  listFeaturedGameVideos,
   listCurrentUserGames,
 } from "../src/features/games/discovery.service.js";
 
@@ -105,6 +106,46 @@ describe("game discovery service", () => {
         jamPage: expect.objectContaining({ version: "JAM" }),
         postJamPage: expect.objectContaining({ version: "POST_JAM" }),
       }),
+    ]);
+  });
+
+  it("returns unique valid YouTube trailers up to the requested limit", async () => {
+    dbMock.$queryRaw.mockResolvedValueOnce([
+      {
+        gameId: 1,
+        gameName: "Alpha",
+        trailerUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      },
+      {
+        gameId: 2,
+        gameName: "Duplicate",
+        trailerUrl: "https://youtu.be/dQw4w9WgXcQ",
+      },
+      {
+        gameId: 3,
+        gameName: "Invalid",
+        trailerUrl: "https://example.com/video",
+      },
+      {
+        gameId: 4,
+        gameName: "Beta",
+        trailerUrl: "https://youtube.com/shorts/9bZkp7q19f0",
+      },
+    ]);
+
+    await expect(listFeaturedGameVideos({ limit: 2 })).resolves.toEqual([
+      {
+        gameId: 1,
+        gameName: "Alpha",
+        trailerUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        videoId: "dQw4w9WgXcQ",
+      },
+      {
+        gameId: 4,
+        gameName: "Beta",
+        trailerUrl: "https://youtube.com/shorts/9bZkp7q19f0",
+        videoId: "9bZkp7q19f0",
+      },
     ]);
   });
 });

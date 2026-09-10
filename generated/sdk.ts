@@ -50,6 +50,7 @@ export function createJamcoreClient(config: JamcoreClientConfig = {}) {
     getOpenApi: () => request("GET", "/openapi", {  }),
     getCapabilities: () => request("GET", "/capabilities", {  }),
     listGames: (query: RequestOptions["query"] = undefined) => request("GET", "/games", { query }),
+    listFeaturedGameVideos: (query: RequestOptions["query"] = undefined) => request("GET", "/games/featured-videos", { query }),
     getRandomGame: () => request("GET", "/games/random", {  }),
     createGame: (body: unknown) => request("POST", "/games", { body }),
     importItchGame: (body: unknown) => request("POST", "/games/import/itch", { body }),

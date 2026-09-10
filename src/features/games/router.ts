@@ -1,5 +1,10 @@
-import type { Request, Response } from "express";
+import type { NextFunction, Request, Response } from "express";
 import express from "express";
+import multer from "multer";
+import fs from "node:fs";
+import fsPromises from "node:fs/promises";
+import path from "node:path";
+import { v4 as uuidv4 } from "uuid";
 
 import authUser from "@middleware/authUser";
 import authUserOptional from "@middleware/authUserOptional";
@@ -25,7 +30,9 @@ import {
   gameDetailQuerySchema,
   gameDevlogQuerySchema,
   gameListingQuerySchema,
+  featuredGameVideosQuerySchema,
   getRandomPublishedGame,
+  listFeaturedGameVideos,
   listGameDevlogPosts,
   listGames,
   loadGameDetailResponse,
@@ -33,12 +40,114 @@ import {
   updateGameBySlug,
   updateGameSchema,
 } from "./index.js";
-import { NotFoundError } from "@lib/errors";
+import { BadRequestError, NotFoundError } from "@lib/errors";
 import { parseBody, parseParams, parseQuery } from "../../lib/request.js";
 import { requireRequestUser } from "../../lib/locals.js";
+import {
+  MAX_WEB_BUILD_ARCHIVE_BYTES,
+  assertWebBuildQuota,
+  deleteStoredWebBuild,
+  registerWebBuild,
+  storeWebBuildArchive,
+  acquireWebBuildProcessingSlot,
+} from "./web-build.service.js";
+import { scanWebBuildArchive } from "./web-build.scan.js";
 
 export function createGamesRouter() {
   const router = express.Router();
+
+  const webBuildStagingDir = path.resolve(process.cwd(), ".jamcore", "web-build-staging");
+  const webBuildUpload = multer({
+    storage: multer.diskStorage({
+      destination: (_req, _file, callback) => {
+        fs.mkdirSync(webBuildStagingDir, { recursive: true, mode: 0o700 });
+        callback(null, webBuildStagingDir);
+      },
+      filename: (_req, _file, callback) => callback(null, `${uuidv4()}.zip`),
+    }),
+    limits: { fileSize: MAX_WEB_BUILD_ARCHIVE_BYTES, files: 1 },
+    fileFilter: (_req, file, callback) => {
+      const isZip =
+        file.originalname.toLowerCase().endsWith(".zip") &&
+        [
+          "application/octet-stream",
+          "application/zip",
+          "application/x-zip-compressed",
+        ].includes(file.mimetype);
+      if (!isZip) {
+        callback(new BadRequestError("Web builds must be uploaded as a ZIP file."));
+        return;
+      }
+      callback(null, true);
+    },
+  });
+  const parseWebBuildUpload = (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) => {
+    webBuildUpload.single("upload")(req, res, (error) => {
+      if (error) {
+        next(
+          error instanceof BadRequestError
+            ? error
+            : new BadRequestError(
+                error instanceof multer.MulterError && error.code === "LIMIT_FILE_SIZE"
+                  ? "The web build ZIP must be 95 MB or smaller."
+                  : "The web build ZIP could not be uploaded.",
+              ),
+        );
+        return;
+      }
+      next();
+    });
+  };
+  const reserveWebBuildProcessor = (
+    _req: Request,
+    res: Response,
+    next: NextFunction,
+  ) => {
+    try {
+      const release = acquireWebBuildProcessingSlot();
+      res.once("finish", release);
+      res.once("close", release);
+      next();
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  router.post(
+    "/web-builds",
+    rateLimit(3, 60_000),
+    authUser,
+    getUser,
+    reserveWebBuildProcessor,
+    parseWebBuildUpload,
+    asyncHandler(async (req, res) => {
+      if (!req.file) throw new BadRequestError("Choose a ZIP file to upload.");
+      try {
+        const actor = requireRequestUser(res);
+        await assertWebBuildQuota(actor.id, req.file.size);
+        const scan = await scanWebBuildArchive(req.file.path);
+        const build = await storeWebBuildArchive(req.file.path);
+        try {
+          await registerWebBuild({
+            ownerId: actor.id,
+            archiveBytes: req.file.size,
+            scanned: scan.scanned,
+            build,
+          });
+        } catch (error) {
+          await deleteStoredWebBuild(build.buildId);
+          throw error;
+        }
+        res.status(201).json(build);
+      } finally {
+        await fsPromises.rm(req.file.path, { force: true });
+      }
+    }),
+  );
 
   router.post(
     "/import/itch/preview",
@@ -130,6 +239,20 @@ export function createGamesRouter() {
         grants,
       );
       res.json(game);
+    }),
+  );
+
+  router.get(
+    "/featured-videos",
+    asyncHandler(async (req: Request, res: Response) => {
+      const query = parseQuery(req, featuredGameVideosQuerySchema);
+      const videos = await listFeaturedGameVideos({
+        limit: query.limit,
+        tenantId: res.locals.tenantId,
+      });
+
+      res.setHeader("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
+      res.json(videos);
     }),
   );
 

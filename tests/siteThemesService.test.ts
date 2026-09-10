@@ -82,4 +82,33 @@ describe("site themes service", () => {
       },
     ]);
   });
+
+  it("lets child themes replace inherited computed colors with literals", async () => {
+    readdirMock.mockResolvedValue(["base.json", "child.json"]);
+    readFileMock
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          name: "base",
+          type: "dark",
+          colors: {
+            text: "#ffffff",
+            textFaded: "@text > darken",
+          },
+        }),
+      )
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          name: "child",
+          type: "dark",
+          extends: "base",
+          colors: {
+            textFaded: "#9aaab4",
+          },
+        }),
+      );
+
+    const themes = await listSiteThemes();
+
+    expect(themes[1]?.colors.textFaded).toBe("#9aaab4");
+  });
 });

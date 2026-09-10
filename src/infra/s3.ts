@@ -1,10 +1,14 @@
 import {
   GetObjectCommand,
+  HeadObjectCommand,
+  DeleteObjectsCommand,
+  ListObjectsV2Command,
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
 
 import "dotenv/config";
+import type { Readable } from "node:stream";
 
 let s3: any;
 let bucketName: string | undefined;
@@ -33,8 +37,9 @@ export async function IsUsingS3() {
 export async function UploadS3File(
   folder: string,
   fileName: string,
-  fileBuffer: Buffer,
-  mimeType: string
+  fileBuffer: Buffer | Readable,
+  mimeType: string,
+  contentLength?: number,
 ) {
   if (!bucketName || !s3) {
     return;
@@ -45,6 +50,7 @@ export async function UploadS3File(
     Key: `${folder}/${fileName}`,
     Body: fileBuffer,
     ContentType: mimeType,
+    ...(typeof contentLength === "number" ? { ContentLength: contentLength } : {}),
   };
 
   try {
@@ -96,4 +102,75 @@ export async function GetS3File(folder: string, fileName: string) {
     console.error("Error getting image from S3", error);
     return null;
   }
+}
+
+export async function HeadS3File(folder: string, fileName: string) {
+  if (!bucketName || !s3) return null;
+  try {
+    const data = await s3.send(new HeadObjectCommand({
+      Bucket: bucketName,
+      Key: `${folder}/${fileName}`,
+    }));
+    return { contentLength: data.ContentLength as number | undefined };
+  } catch (error) {
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      (("Code" in error && error.Code === "NoSuchKey") ||
+        ("$metadata" in error &&
+          (error as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode === 404))
+    ) return null;
+    throw error;
+  }
+}
+
+export async function GetS3FileStream(
+  folder: string,
+  fileName: string,
+  range?: string,
+) {
+  if (!bucketName || !s3) return null;
+  try {
+    const data = await s3.send(new GetObjectCommand({
+      Bucket: bucketName,
+      Key: `${folder}/${fileName}`,
+      ...(range ? { Range: range } : {}),
+    }));
+    return {
+      body: data.Body as Readable,
+      contentLength: data.ContentLength as number | undefined,
+      contentRange: data.ContentRange as string | undefined,
+    };
+  } catch (error) {
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "Code" in error &&
+      error.Code === "NoSuchKey"
+    ) return null;
+    throw error;
+  }
+}
+
+export async function DeleteS3Prefix(prefix: string) {
+  if (!bucketName || !s3) return false;
+  let continuationToken: string | undefined;
+  do {
+    const listed = await s3.send(new ListObjectsV2Command({
+      Bucket: bucketName,
+      Prefix: prefix,
+      ContinuationToken: continuationToken,
+    }));
+    const objects = (listed.Contents ?? [])
+      .map((entry: { Key?: string }) => entry.Key ? { Key: entry.Key } : null)
+      .filter(Boolean);
+    if (objects.length > 0) {
+      await s3.send(new DeleteObjectsCommand({
+        Bucket: bucketName,
+        Delete: { Objects: objects },
+      }));
+    }
+    continuationToken = listed.NextContinuationToken;
+  } while (continuationToken);
+  return true;
 }

@@ -13,6 +13,14 @@ const extractFilename = (value?: string | null) => {
   return null;
 };
 
+const extractFilenames = (value?: string | null) => {
+  if (!value) return [];
+  return Array.from(
+    value.matchAll(/\/api\/v1\/image\/([^/?#)"'\s<>]+)/gi),
+    (match) => match[1],
+  );
+};
+
 const daysToMs = (days: number) => days * 24 * 60 * 60 * 1000;
 
 export async function listAdminImages() {
@@ -30,6 +38,12 @@ export async function listAdminImages() {
     for (const value of values) track(value);
   };
 
+  const trackEmbedded = (value?: string | null) => {
+    for (const filename of extractFilenames(value)) {
+      usage.set(filename, (usage.get(filename) ?? 0) + 1);
+    }
+  };
+
   const [
     users,
     gamePages,
@@ -41,12 +55,21 @@ export async function listAdminImages() {
     jams,
     roles,
     streamers,
+    posts,
+    comments,
+    documents,
+    trackCommentary,
+    collectionComments,
+    collections,
+    postRevisions,
+    postAutosaves,
   ] = await Promise.all([
     db.user.findMany({
       select: {
         profilePicture: true,
         bannerPicture: true,
         profileBackground: true,
+        bio: true,
       },
     }),
     db.gamePage.findMany({
@@ -55,16 +78,25 @@ export async function listAdminImages() {
         soundtrackThumbnail: true,
         banner: true,
         screenshots: true,
+        description: true,
       },
     }),
     db.gamePageAchievement.findMany({ select: { image: true } }),
     db.reaction.findMany({ select: { image: true } }),
-    db.event.findMany({ select: { icon: true } }),
+    db.event.findMany({ select: { icon: true, content: true } }),
     db.tag.findMany({ select: { icon: true } }),
     db.flag.findMany({ select: { icon: true } }),
     db.jam.findMany({ select: { icon: true } }),
     db.teamRole.findMany({ select: { icon: true } }),
     db.featuredStreamer.findMany({ select: { thumbnailUrl: true } }),
+    db.post.findMany({ select: { content: true } }),
+    db.comment.findMany({ select: { content: true } }),
+    db.documentationDocument.findMany({ select: { content: true } }),
+    db.gamePageTrack.findMany({ select: { commentary: true } }),
+    db.collectionComment.findMany({ select: { content: true } }),
+    db.collection.findMany({ select: { description: true } }),
+    db.postRevision.findMany({ select: { content: true } }),
+    db.postAutosave.findMany({ select: { content: true } }),
   ]);
 
   users.forEach((user) =>
@@ -84,6 +116,17 @@ export async function listAdminImages() {
   jams.forEach((jam) => track(jam.icon));
   roles.forEach((role) => track(role.icon));
   streamers.forEach((streamer) => track(streamer.thumbnailUrl));
+  users.forEach((user) => trackEmbedded(user.bio));
+  gamePages.forEach((page) => trackEmbedded(page.description));
+  posts.forEach((post) => trackEmbedded(post.content));
+  comments.forEach((comment) => trackEmbedded(comment.content));
+  documents.forEach((document) => trackEmbedded(document.content));
+  events.forEach((event) => trackEmbedded(event.content));
+  trackCommentary.forEach((track) => trackEmbedded(track.commentary));
+  collectionComments.forEach((comment) => trackEmbedded(comment.content));
+  collections.forEach((collection) => trackEmbedded(collection.description));
+  postRevisions.forEach((revision) => trackEmbedded(revision.content));
+  postAutosaves.forEach((autosave) => trackEmbedded(autosave.content));
 
   let files: string[] = [];
   try {

@@ -2,6 +2,111 @@ import db from "../../infra/db.js";
 import { filterCoreEntityIdsByTenant } from "../../infra/coreTenantStore.js";
 import { EXTERNAL_GAME_CATEGORY } from "../../domain/gamePolicies.js";
 import { gamePageInclude, materializeGamePage } from "./page.helpers.js";
+import { z } from "zod";
+
+const DEFAULT_FEATURED_VIDEO_LIMIT = 10;
+const MAX_FEATURED_VIDEO_LIMIT = 50;
+const YOUTUBE_ID_PATTERN = /^[A-Za-z0-9_-]{11}$/;
+
+export const featuredGameVideosQuerySchema = z.object({
+  limit: z.unknown().optional(),
+});
+
+function normalizeFeaturedVideoLimit(value: unknown) {
+  const parsed =
+    typeof value === "number"
+      ? value
+      : typeof value === "string"
+        ? Number.parseInt(value, 10)
+        : Number.NaN;
+
+  if (!Number.isInteger(parsed)) return DEFAULT_FEATURED_VIDEO_LIMIT;
+  return Math.min(Math.max(parsed, 1), MAX_FEATURED_VIDEO_LIMIT);
+}
+
+function extractYouTubeId(value: string) {
+  try {
+    const url = new URL(value);
+    const hostname = url.hostname.toLowerCase().replace(/^www\./, "");
+    let candidate: string | null = null;
+
+    if (hostname === "youtu.be") {
+      candidate = url.pathname.split("/").filter(Boolean)[0] ?? null;
+    } else if (
+      hostname === "youtube.com" ||
+      hostname.endsWith(".youtube.com") ||
+      hostname === "youtube-nocookie.com" ||
+      hostname.endsWith(".youtube-nocookie.com")
+    ) {
+      candidate =
+        url.searchParams.get("v") ??
+        url.pathname.match(/^\/(?:embed|shorts|live)\/([^/?]+)/)?.[1] ??
+        null;
+    }
+
+    return candidate && YOUTUBE_ID_PATTERN.test(candidate) ? candidate : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function listFeaturedGameVideos({
+  limit,
+  tenantId,
+}: {
+  limit?: unknown;
+  tenantId?: string | null;
+}) {
+  const normalizedLimit = normalizeFeaturedVideoLimit(limit);
+  const candidateLimit = normalizedLimit * 10;
+  const candidates = await db.$queryRaw<
+    Array<{ gameId: number; gameName: string; trailerUrl: string }>
+  >`
+    WITH eligible AS (
+      SELECT DISTINCT ON (g.id)
+        g.id AS "gameId",
+        gp.name AS "gameName",
+        gp."trailerUrl"
+      FROM "Game" g
+      INNER JOIN "GamePage" gp ON gp."gameId" = g.id
+      WHERE g.published = TRUE
+        AND gp."trailerUrl" IS NOT NULL
+        AND BTRIM(gp."trailerUrl") <> ''
+        AND (
+          ${tenantId ?? null}::text IS NULL
+          OR g.tenant_id IS NULL
+          OR g.tenant_id = ${tenantId ?? null}
+        )
+      ORDER BY
+        g.id,
+        CASE gp.version::text WHEN 'POST_JAM' THEN 0 ELSE 1 END,
+        gp."updatedAt" DESC
+    )
+    SELECT *
+    FROM eligible
+    ORDER BY RANDOM()
+    LIMIT ${candidateLimit}
+  `;
+
+  const seen = new Set<string>();
+  const videos = [];
+
+  for (const candidate of candidates) {
+    const videoId = extractYouTubeId(candidate.trailerUrl);
+    if (!videoId || seen.has(videoId)) continue;
+
+    seen.add(videoId);
+    videos.push({
+      gameId: candidate.gameId,
+      gameName: candidate.gameName,
+      trailerUrl: candidate.trailerUrl,
+      videoId,
+    });
+    if (videos.length >= normalizedLimit) break;
+  }
+
+  return videos;
+}
 
 export async function getRandomPublishedGame(
   tenantId?: string | null,

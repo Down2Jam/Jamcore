@@ -6,6 +6,7 @@ import { startRadioRuntime } from "../features/radio/index.js";
 import { startStreamersRuntime } from "../features/streamers/index.js";
 import { startPlatformRuntime } from "../jobs/platform.js";
 import { startDeviceAuthCleanupJob } from "../auth/deviceAuthCleanupJob.js";
+import { startWebBuildCleanupRuntime } from "../features/games/web-build.runtime.js";
 
 export type RuntimeModuleHandle = {
   name: string;
@@ -23,6 +24,7 @@ export async function startRuntimeModules(): Promise<RuntimeModules> {
     startFederationRuntime(),
     Promise.resolve(startPlatformRuntime()),
     Promise.resolve(startScheduledPostPublisherRuntime()),
+    Promise.resolve(startWebBuildCleanupRuntime()),
     startRadioRuntime(),
     startStreamersRuntime(),
     Promise.resolve({

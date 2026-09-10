@@ -15,6 +15,22 @@ services:
       timeout: 5s
       retries: 12
 
+  clamav:
+    image: clamav/clamav:1.5.4-debian13-slim
+    restart: unless-stopped
+    environment:
+      CLAMD_CONF_StreamMaxLength: 100M
+      CLAMD_CONF_MaxScanSize: 600M
+      CLAMD_CONF_MaxFileSize: 250M
+    volumes:
+      - clamav_data:/var/lib/clamav
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/clamdcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 120s
+
   jamcore:
     build:
       context: .
@@ -47,17 +63,23 @@ services:
       R2_BUCKET_NAME: ${R2_BUCKET_NAME:-}
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      CLAMAV_HOST: ${CLAMAV_HOST:-clamav}
+      CLAMAV_PORT: ${CLAMAV_PORT:-3310}
+      WEB_BUILD_REQUIRE_MALWARE_SCAN: ${WEB_BUILD_REQUIRE_MALWARE_SCAN:-true}
       DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}"
     ports:
       - 127.0.0.1:3005:3005
     depends_on:
       postgres:
         condition: service_healthy
+      clamav:
+        condition: service_healthy
     volumes:
       - jamcore_runtime:/usr/src/app/.jamcore
       - jamcore_logs:/usr/src/app/logs
       - jamcore_images:/usr/src/app/public/images
       - jamcore_music:/usr/src/app/public/music
+      - jamcore_game_builds:/usr/src/app/public/game-builds
     entrypoint: >
       sh -c "npx prisma migrate deploy && npm start"
     healthcheck:
@@ -72,3 +94,5 @@ volumes:
   jamcore_logs:
   jamcore_images:
   jamcore_music:
+  jamcore_game_builds:
+  clamav_data:
