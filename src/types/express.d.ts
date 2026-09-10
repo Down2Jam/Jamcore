@@ -37,6 +37,7 @@ declare global {
       }>;
       authorizationGrantsContextKey?: string;
       authMethod?: "session" | "gameToken";
+      gameTokenAllowed?: boolean;
       userSlug?: string;
       user?: RequestUserLocals;
       targetUser?: TargetUserContext;
