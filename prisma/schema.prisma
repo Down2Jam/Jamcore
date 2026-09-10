@@ -1639,6 +1639,7 @@ model DeviceAuthRequest {
   status       String
   userId       Int?
   tokenId      String?   @map("token_id")
+  pendingToken String?   @map("pending_token")
   expiresAt    DateTime  @map("expires_at")
   lastPolledAt DateTime? @map("last_polled_at")
   createdAt    DateTime  @default(now()) @map("created_at")

@@ -21,6 +21,7 @@ CREATE TABLE "DeviceAuthRequest" (
     "status" TEXT NOT NULL,
     "userId" INTEGER,
     "token_id" TEXT,
+    "pending_token" TEXT,
     "expires_at" TIMESTAMP(3) NOT NULL,
     "last_polled_at" TIMESTAMP(3),
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
