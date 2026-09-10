@@ -90,6 +90,7 @@ model User {
   conversationMessages          ConversationMessage[]   @relation(name: "ConversationMessageSender")
   usersBlocked                  UserBlock[]              @relation(name: "UserBlockBlocker")
   blockedByUsers                UserBlock[]              @relation(name: "UserBlockBlocked")
+  gameAccessTokens              GameAccessToken[]
 
   @@index([tenantId])
 }
@@ -1613,4 +1614,32 @@ model RemoteComment {
   @@unique([tenantId, objectId])
   @@index([tenantId, status, targetKind, targetId], map: "remote_comments_target_id_idx")
   @@index([tenantId, status, targetKind, targetSlug], map: "remote_comments_target_slug_idx")
+}
+
+model GameAccessToken {
+  id         String    @id
+  userId     Int
+  name       String
+  keyPrefix  String    @map("key_prefix")
+  keyHash    String    @map("key_hash")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  lastUsedAt DateTime? @map("last_used_at")
+  revokedAt  DateTime? @map("revoked_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+model DeviceAuthRequest {
+  id           String    @id
+  deviceCode   String    @unique @map("device_code")
+  userCode     String    @unique @map("user_code")
+  clientName   String    @map("client_name")
+  status       String
+  userId       Int?
+  tokenId      String?   @map("token_id")
+  expiresAt    DateTime  @map("expires_at")
+  lastPolledAt DateTime? @map("last_polled_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
 }
