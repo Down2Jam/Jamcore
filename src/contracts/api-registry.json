@@ -4106,6 +4106,139 @@
       }
     },
     {
+      "sdkName": "listGameTokens",
+      "method": "GET",
+      "path": "/self/game-tokens",
+      "tag": "Session",
+      "summary": "List the authenticated user's game access tokens",
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "revokeGameToken",
+      "method": "DELETE",
+      "path": "/self/game-tokens",
+      "tag": "Session",
+      "summary": "Revoke a game access token",
+      "requestBody": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "startDeviceAuth",
+      "method": "POST",
+      "path": "/device/code",
+      "tag": "Session",
+      "summary": "Start a device authorization request for a game client",
+      "requestBody": true,
+      "auth": {
+        "required": false,
+        "optional": false,
+        "kind": "none",
+        "label": "Public"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "approveDeviceAuth",
+      "method": "POST",
+      "path": "/device/approve",
+      "tag": "Session",
+      "summary": "Approve a pending device authorization request",
+      "requestBody": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "denyDeviceAuth",
+      "method": "POST",
+      "path": "/device/deny",
+      "tag": "Session",
+      "summary": "Deny a pending device authorization request",
+      "requestBody": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "pollDeviceAuth",
+      "method": "POST",
+      "path": "/device/token",
+      "tag": "Session",
+      "summary": "Poll for a device authorization result and collect the issued game token",
+      "requestBody": true,
+      "auth": {
+        "required": false,
+        "optional": false,
+        "kind": "none",
+        "label": "Public"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
       "sdkName": "listNotifications",
       "method": "GET",
       "path": "/notifications",
