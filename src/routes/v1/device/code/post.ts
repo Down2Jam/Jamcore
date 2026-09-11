@@ -11,8 +11,8 @@ router.post(
   "/",
   rateLimit(),
   asyncHandler(async (req, res) => {
-    const { clientName } = parseBody(req, startDeviceAuthRequestSchema);
-    const request = await startDeviceAuthRequest({ clientName });
+    const { clientName, gameSlug } = parseBody(req, startDeviceAuthRequestSchema);
+    const request = await startDeviceAuthRequest({ clientName, gameSlug });
 
     res.status(200).send(request);
   }),

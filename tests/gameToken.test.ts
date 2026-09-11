@@ -21,6 +21,9 @@ const { dbMock } = vi.hoisted(() => ({
     user: {
       findUnique: vi.fn(),
     },
+    game: {
+      findUnique: vi.fn(),
+    },
   },
 }));
 
@@ -65,13 +68,14 @@ describe("game access tokens", () => {
       }),
     );
 
-    const { key, token } = await createGameAccessToken({ userId: 1, name: "Steam Deck" });
+    const { key, token } = await createGameAccessToken({ userId: 1, gameId: 42, name: "Steam Deck" });
 
     expect(key.startsWith("d2j_")).toBe(true);
     expect(token.keyPrefix).toBe(key.slice(0, 12));
     expect(dbMock.gameAccessToken.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         userId: 1,
+        gameId: 42,
         name: "Steam Deck",
         keyPrefix: key.slice(0, 12),
         keyHash: hashKey(key),
@@ -80,15 +84,16 @@ describe("game access tokens", () => {
     expect(token).not.toHaveProperty("keyHash");
   });
 
-  it("resolves the owning user and token id for a valid token, and bumps lastUsedAt", async () => {
+  it("resolves the owning user, token id and game id for a valid token, and bumps lastUsedAt", async () => {
     dbMock.gameAccessToken.findFirst.mockResolvedValue({
       id: "token-1",
+      gameId: 42,
       user: { id: 7, slug: "ategon" },
     });
 
     const resolved = await resolveUserByGameAccessToken("d2j_whatever");
 
-    expect(resolved).toEqual({ user: { id: 7, slug: "ategon" }, tokenId: "token-1" });
+    expect(resolved).toEqual({ user: { id: 7, slug: "ategon" }, tokenId: "token-1", gameId: 42 });
     expect(dbMock.gameAccessToken.update).toHaveBeenCalledWith({
       where: { id: "token-1" },
       data: { lastUsedAt: expect.any(Date) },
@@ -149,18 +154,38 @@ describe("game access tokens", () => {
 describe("device authorization flow", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("builds a verification URI from the configured client origin", async () => {
+  it("builds a verification URI from the configured client origin and resolved game", async () => {
+    dbMock.game.findUnique.mockResolvedValue({ id: 42 });
     dbMock.deviceAuthRequest.create.mockImplementation(({ data }: { data: Record<string, unknown> }) =>
       Promise.resolve({ ...data, id: "device-1" }),
     );
 
-    const request = await startDeviceAuthRequest({ clientName: "Godot Client" });
+    const request = await startDeviceAuthRequest({
+      clientName: "Godot Client",
+      gameSlug: "weldroot",
+    });
 
     expect(request.deviceCode.startsWith("d2jd_")).toBe(true);
     expect(request.verificationUri).toBe(
-      `https://jam.example.test/link-device?code=${request.userCode}`,
+      `https://jam.example.test/link-device?code=${request.userCode}&game=weldroot`,
     );
     expect(request.interval).toBe(5);
+    expect(dbMock.game.findUnique).toHaveBeenCalledWith({
+      where: { slug: "weldroot" },
+      select: { id: true },
+    });
+    expect(dbMock.deviceAuthRequest.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ gameId: 42 }),
+    });
+  });
+
+  it("rejects starting a device link for an unknown game", async () => {
+    dbMock.game.findUnique.mockResolvedValue(null);
+
+    await expect(
+      startDeviceAuthRequest({ clientName: "Godot Client", gameSlug: "nope" }),
+    ).rejects.toBeInstanceOf(NotFoundError);
+    expect(dbMock.deviceAuthRequest.create).not.toHaveBeenCalled();
   });
 
   it("rejects approval of an unknown, non-pending, or expired code", async () => {
@@ -171,11 +196,12 @@ describe("device authorization flow", () => {
     ).rejects.toBeInstanceOf(NotFoundError);
   });
 
-  it("issues a token and stages its raw value on the device row on approval", async () => {
+  it("issues a token scoped to the device row's game, and stages its raw value for pickup", async () => {
     dbMock.deviceAuthRequest.findUnique.mockResolvedValue({
       id: "device-1",
       status: "PENDING",
       clientName: "Godot Client",
+      gameId: 42,
       expiresAt: new Date(Date.now() + 60_000),
     });
     dbMock.gameAccessToken.create.mockImplementation(({ data }: { data: Record<string, unknown> }) =>
@@ -185,6 +211,9 @@ describe("device authorization flow", () => {
 
     await approveDeviceAuthRequest({ userCode: "AAAA-BBBB", userId: 7 });
 
+    expect(dbMock.gameAccessToken.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ userId: 7, gameId: 42 }),
+    });
     expect(dbMock.deviceAuthRequest.updateMany).toHaveBeenCalledWith({
       where: { id: "device-1", status: "PENDING" },
       data: expect.objectContaining({

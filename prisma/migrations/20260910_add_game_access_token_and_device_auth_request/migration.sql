@@ -2,6 +2,7 @@
 CREATE TABLE "GameAccessToken" (
     "id" TEXT NOT NULL,
     "userId" INTEGER NOT NULL,
+    "gameId" INTEGER NOT NULL,
     "name" TEXT NOT NULL,
     "key_prefix" TEXT NOT NULL,
     "key_hash" TEXT NOT NULL,
@@ -18,6 +19,7 @@ CREATE TABLE "DeviceAuthRequest" (
     "device_code" TEXT NOT NULL,
     "user_code" TEXT NOT NULL,
     "client_name" TEXT NOT NULL,
+    "gameId" INTEGER NOT NULL,
     "status" TEXT NOT NULL,
     "userId" INTEGER,
     "token_id" TEXT,
@@ -33,10 +35,22 @@ CREATE TABLE "DeviceAuthRequest" (
 CREATE INDEX "GameAccessToken_userId_idx" ON "GameAccessToken"("userId");
 
 -- CreateIndex
+CREATE INDEX "GameAccessToken_gameId_idx" ON "GameAccessToken"("gameId");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "DeviceAuthRequest_device_code_key" ON "DeviceAuthRequest"("device_code");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "DeviceAuthRequest_user_code_key" ON "DeviceAuthRequest"("user_code");
 
+-- CreateIndex
+CREATE INDEX "DeviceAuthRequest_gameId_idx" ON "DeviceAuthRequest"("gameId");
+
 -- AddForeignKey
 ALTER TABLE "GameAccessToken" ADD CONSTRAINT "GameAccessToken_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "GameAccessToken" ADD CONSTRAINT "GameAccessToken_gameId_fkey" FOREIGN KEY ("gameId") REFERENCES "Game"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "DeviceAuthRequest" ADD CONSTRAINT "DeviceAuthRequest_gameId_fkey" FOREIGN KEY ("gameId") REFERENCES "Game"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

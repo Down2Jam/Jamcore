@@ -101,6 +101,7 @@ export async function authenticateRequest(req: Request, res: Response, optional 
     if (resolved) {
       res.locals.authMethod = "gameToken";
       res.locals.gameAccessTokenId = resolved.tokenId;
+      res.locals.gameAccessTokenGameId = resolved.gameId;
       return resolved.user.slug;
     }
 

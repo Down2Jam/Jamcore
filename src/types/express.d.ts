@@ -39,6 +39,7 @@ declare global {
       authMethod?: "session" | "gameToken";
       gameTokenAllowed?: boolean;
       gameAccessTokenId?: string;
+      gameAccessTokenGameId?: number;
       userSlug?: string;
       user?: RequestUserLocals;
       targetUser?: TargetUserContext;

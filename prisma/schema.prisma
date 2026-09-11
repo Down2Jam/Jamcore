@@ -417,6 +417,8 @@ model Game {
   gameEmotes         Reaction[]         @relation(name: "ReactionToGameOwner")
   recommendedByUsers User[]             @relation(name: "UserRecommendedGames")
   pages              GamePage[]         @relation(name: "GameToPages")
+  gameAccessTokens   GameAccessToken[]
+  deviceAuthRequests DeviceAuthRequest[]
 
   @@index([tenantId, jamId])
   @@index([published, publishedAt])
@@ -1661,6 +1663,7 @@ model RemoteComment {
 model GameAccessToken {
   id         String    @id
   userId     Int
+  gameId     Int
   name       String
   keyPrefix  String    @map("key_prefix")
   keyHash    String    @map("key_hash")
@@ -1669,8 +1672,10 @@ model GameAccessToken {
   revokedAt  DateTime? @map("revoked_at")
 
   user User @relation(fields: [userId], references: [id])
+  game Game @relation(fields: [gameId], references: [id])
 
   @@index([userId])
+  @@index([gameId])
 }
 
 model DeviceAuthRequest {
@@ -1678,6 +1683,7 @@ model DeviceAuthRequest {
   deviceCode   String    @unique @map("device_code")
   userCode     String    @unique @map("user_code")
   clientName   String    @map("client_name")
+  gameId       Int
   status       String
   userId       Int?
   tokenId      String?   @map("token_id")
@@ -1685,4 +1691,8 @@ model DeviceAuthRequest {
   expiresAt    DateTime  @map("expires_at")
   lastPolledAt DateTime? @map("last_polled_at")
   createdAt    DateTime  @default(now()) @map("created_at")
+
+  game Game @relation(fields: [gameId], references: [id])
+
+  @@index([gameId])
 }

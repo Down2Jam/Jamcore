@@ -21,7 +21,11 @@ function generateUserCode() {
   return `${segment()}-${segment()}`;
 }
 
-export async function createGameAccessTokenInDb(input: { userId: number; name: string }) {
+export async function createGameAccessTokenInDb(input: {
+  userId: number;
+  gameId: number;
+  name: string;
+}) {
   const key = `${GAME_TOKEN_PREFIX}${randomBytes(24).toString("hex")}`;
   const keyPrefix = key.slice(0, 12);
   const keyHash = hashKey(key);
@@ -30,6 +34,7 @@ export async function createGameAccessTokenInDb(input: { userId: number; name: s
     data: {
       id: randomUUID(),
       userId: input.userId,
+      gameId: input.gameId,
       name: input.name,
       keyPrefix,
       keyHash,
@@ -71,6 +76,7 @@ export async function revokeGameAccessTokenInDb(id: string, userId: number) {
 
 export async function createDeviceAuthRequestInDb(input: {
   clientName: string;
+  gameId: number;
   expiresInMs: number;
 }) {
   const deviceCode = `${DEVICE_CODE_PREFIX}${randomBytes(24).toString("hex")}`;
@@ -83,12 +89,18 @@ export async function createDeviceAuthRequestInDb(input: {
       deviceCode: hashKey(deviceCode),
       userCode,
       clientName: input.clientName,
+      gameId: input.gameId,
       status: "PENDING" satisfies DeviceAuthStatus,
       expiresAt,
     },
   });
 
   return { deviceCode, userCode, expiresAt, request };
+}
+
+export async function findGameIdBySlugInDb(slug: string) {
+  const game = await db.game.findUnique({ where: { slug }, select: { id: true } });
+  return game?.id ?? null;
 }
 
 export async function findDeviceAuthRequestByUserCodeInDb(userCode: string) {

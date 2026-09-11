@@ -10,6 +10,7 @@ const DEVICE_POLL_INTERVAL_SECONDS = 5;
 // Used to auto-validate schema's
 export const startDeviceAuthRequestSchema = z.object({
   clientName: z.string().trim().min(1).max(200),
+  gameSlug: z.string().trim().min(1),
 });
 
 export const deviceUserCodeSchema = z.object({
@@ -48,7 +49,11 @@ function toSummary(token: {
   };
 }
 
-export async function createGameAccessToken(input: { userId: number; name: string }) {
+export async function createGameAccessToken(input: {
+  userId: number;
+  gameId: number;
+  name: string;
+}) {
   const { rawKey, token } = await GameTokenStore.createGameAccessTokenInDb(input);
   return { key: rawKey, token: toSummary(token) };
 }
@@ -69,19 +74,25 @@ export async function resolveUserByGameAccessToken(rawKey: string) {
   }
 
   await GameTokenStore.touchGameAccessTokenLastUsedInDb(token.id);
-  return { user: token.user, tokenId: token.id };
+  return { user: token.user, tokenId: token.id, gameId: token.gameId };
 }
 
-export async function startDeviceAuthRequest(input: { clientName: string }) {
+export async function startDeviceAuthRequest(input: { clientName: string; gameSlug: string }) {
+  const gameId = await GameTokenStore.findGameIdBySlugInDb(input.gameSlug);
+  if (!gameId) {
+    throw new NotFoundError("Game not found");
+  }
+
   const { deviceCode, userCode, expiresAt } = await GameTokenStore.createDeviceAuthRequestInDb({
     clientName: input.clientName,
+    gameId,
     expiresInMs: DEVICE_CODE_EXPIRES_IN_MS,
   });
 
   return {
     deviceCode,
     userCode,
-    verificationUri: `${env.clientOrigin}/link-device?code=${userCode}`,
+    verificationUri: `${env.clientOrigin}/link-device?code=${userCode}&game=${encodeURIComponent(input.gameSlug)}`,
     expiresIn: Math.floor((expiresAt.getTime() - Date.now()) / 1000),
     interval: DEVICE_POLL_INTERVAL_SECONDS,
   };
@@ -95,6 +106,7 @@ export async function approveDeviceAuthRequest(input: { userCode: string; userId
 
   const { rawKey, token } = await GameTokenStore.createGameAccessTokenInDb({
     userId: input.userId,
+    gameId: request.gameId,
     name: request.clientName,
   });
 

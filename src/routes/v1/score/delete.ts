@@ -10,6 +10,7 @@ import getLeaderboardGame from "@loaders/getLeaderboardGame";
 import getGameTeam from "@loaders/getGameTeam";
 import { asyncHandler } from "../../../middleware/asyncHandler.js";
 import { deleteScore } from "@features/scores";
+import { assertGameTokenMatchesGame } from "../../../guards/assertGameTokenMatchesGame.js";
 
 const router = express.Router();
 
@@ -24,6 +25,7 @@ router.delete(
   getScore,
   getScoreLeaderboard,
   getLeaderboardGame,
+  assertGameTokenMatchesGame((res) => res.locals.game?.id),
   getGameTeam,
   assertUserModOrUserTeamMemberOrUserScoreOwner,
   asyncHandler(async (_req, res) => {

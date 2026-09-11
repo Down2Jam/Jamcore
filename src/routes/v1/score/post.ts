@@ -9,6 +9,7 @@ import { asyncHandler } from "../../../middleware/asyncHandler.js";
 import { createScore, createScoreSchema } from "@features/scores";
 import { requireLoadedLeaderboard, requireRequestUser } from "@lib/locals";
 import { parseBody } from "../../../lib/request.js";
+import { assertGameTokenMatchesGame } from "../../../guards/assertGameTokenMatchesGame.js";
 
 const router = express.Router();
 
@@ -20,6 +21,12 @@ router.post(
   authUser,
   getUser,
   getLeaderboard,
+  assertGameTokenMatchesGame((res) => {
+    const leaderboard = res.locals.leaderboard as
+      | { gamePage?: { game?: { id?: number } } }
+      | undefined;
+    return leaderboard?.gamePage?.game?.id;
+  }),
   asyncHandler(async (req, res) => {
     const input = parseBody(req, createScoreSchema);
     const actor = requireRequestUser(res);
