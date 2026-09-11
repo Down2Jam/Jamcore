@@ -16,6 +16,8 @@ const publicMutationRoutes = new Set([
   "POST /session",
   "DELETE /session",
   "POST /users",
+  "POST /device/code",
+  "POST /device/token",
 ]);
 
 const requiredUserGetRoutes = new Set([
@@ -27,6 +29,7 @@ const requiredUserGetRoutes = new Set([
   "GET /posts/autosave",
   "GET /self",
   "GET /self/current-game",
+  "GET /self/game-tokens",
   "GET /themes/suggestion",
   "GET /themes/votes",
 ]);

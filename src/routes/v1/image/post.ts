@@ -1,6 +1,7 @@
 import { Router } from "express";
 import rateLimit from "@middleware/rateLimit";
 import authUser from "@middleware/authUser";
+import { allowGameToken } from "@middleware/allowGameToken";
 import getUser from "@loaders/getUser";
 import { asyncHandler } from "@middleware/asyncHandler";
 import {
@@ -9,6 +10,8 @@ import {
 } from "@features/uploads";
 
 const router = Router();
+
+router.use(allowGameToken);
 
 /**
  * Route to upload an image to the server

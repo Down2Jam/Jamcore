@@ -82,5 +82,11 @@
     "deepmerge-ts": "8.0.2",
     "ip-address": "10.5.0",
     "mysql2": "3.24.4"
+  },
+  "allowScripts": {
+    "@prisma/engines@7.10.0": true,
+    "bcrypt@6.0.0": true,
+    "esbuild@0.28.1": true,
+    "prisma@7.10.0": true
   }
 }

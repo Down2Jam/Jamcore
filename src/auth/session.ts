@@ -5,6 +5,8 @@ import {
   REFRESH_TOKEN_EXPIRES_IN,
   SESSION_DURATION_MS,
 } from "./constants.js";
+import { resolveUserByGameAccessToken } from "./gameToken.js";
+import { GAME_TOKEN_PREFIX } from "./gameTokenStore.js";
 import { env } from "../config/env.js";
 import {
   ConfigurationError,
@@ -91,8 +93,25 @@ export function clearSession(res: Response) {
   });
 }
 
-export function authenticateRequest(req: Request, res: Response, optional = false) {
+export async function authenticateRequest(req: Request, res: Response, optional = false) {
   const accessToken = getAuthorizationToken(req);
+
+  if (accessToken?.startsWith(GAME_TOKEN_PREFIX)) {
+    const resolved = await resolveUserByGameAccessToken(accessToken);
+    if (resolved) {
+      res.locals.authMethod = "gameToken";
+      res.locals.gameAccessTokenId = resolved.tokenId;
+      res.locals.gameAccessTokenGameId = resolved.gameId;
+      return resolved.user.slug;
+    }
+
+    if (optional) {
+      return null;
+    }
+
+    throw new UnauthorizedError("Unauthorized: Invalid game token.");
+  }
+
   const refreshToken = getRefreshToken(req);
 
   if (!accessToken || !refreshToken || accessToken === "null") {
@@ -104,12 +123,14 @@ export function authenticateRequest(req: Request, res: Response, optional = fals
   }
 
   try {
+    res.locals.authMethod = "session";
     return verifySessionToken(accessToken).user;
   } catch (accessError) {
     try {
       const payload = verifySessionToken(refreshToken);
       const newAccessToken = signAccessToken(payload.user);
       writeSession(res, refreshToken, newAccessToken);
+      res.locals.authMethod = "session";
       return payload.user;
     } catch (_refreshError) {
       if (optional) {
