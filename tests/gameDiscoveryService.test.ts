@@ -148,5 +148,15 @@ describe("game discovery service", () => {
       },
     ]);
   });
+
+  it("scopes featured game trailers to a requested jam", async () => {
+    dbMock.$queryRaw.mockResolvedValueOnce([]);
+
+    await listFeaturedGameVideos({ limit: 10, jamId: 42 });
+
+    const query = dbMock.$queryRaw.mock.calls[0];
+    expect(query[0].join(" ")).toContain('g."jamId" =');
+    expect(query).toContain(42);
+  });
 });
 

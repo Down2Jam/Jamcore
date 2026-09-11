@@ -72,11 +72,19 @@ export async function deleteScore(scoreId: number) {
 export async function listRecentTopScores(
   tenantId?: string | null,
   limit = RECENT_SCORE_LIMIT,
+  jamId?: number,
 ) {
   const recentScores = await db.score.findMany({
     where: {
       user: userTenantWhere(tenantId),
-      leaderboard: { gamePage: { game: { published: true } } },
+      leaderboard: {
+        gamePage: {
+          game: {
+            published: true,
+            ...(jamId === undefined ? {} : { jamId }),
+          },
+        },
+      },
     },
     orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
     take: Math.max(RECENT_SCORE_CANDIDATE_LIMIT, limit * 30),

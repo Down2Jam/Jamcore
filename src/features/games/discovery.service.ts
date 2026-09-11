@@ -10,6 +10,7 @@ const YOUTUBE_ID_PATTERN = /^[A-Za-z0-9_-]{11}$/;
 
 export const featuredGameVideosQuerySchema = z.object({
   limit: z.unknown().optional(),
+  jamId: z.coerce.number().int().positive().optional(),
 });
 
 function normalizeFeaturedVideoLimit(value: unknown) {
@@ -53,9 +54,11 @@ function extractYouTubeId(value: string) {
 export async function listFeaturedGameVideos({
   limit,
   tenantId,
+  jamId,
 }: {
   limit?: unknown;
   tenantId?: string | null;
+  jamId?: number;
 }) {
   const normalizedLimit = normalizeFeaturedVideoLimit(limit);
   const candidateLimit = normalizedLimit * 10;
@@ -70,6 +73,7 @@ export async function listFeaturedGameVideos({
       FROM "Game" g
       INNER JOIN "GamePage" gp ON gp."gameId" = g.id
       WHERE g.published = TRUE
+        AND (${jamId ?? null}::integer IS NULL OR g."jamId" = ${jamId ?? null})
         AND gp."trailerUrl" IS NOT NULL
         AND BTRIM(gp."trailerUrl") <> ''
         AND (

@@ -46,6 +46,23 @@ describe("achievement service", () => {
     });
   });
 
+  it("scopes recent achievement unlocks to a jam when requested", async () => {
+    dbMock.achievementUnlock.findMany.mockResolvedValue([]);
+
+    await listRecentAchievementUnlocks(null, 10, 42);
+
+    expect(dbMock.achievementUnlock.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          user: {},
+          achievement: {
+            gamePage: { game: { published: true, jamId: 42 } },
+          },
+        },
+      }),
+    );
+  });
+
   it("connects and disconnects achievements for a user", async () => {
     await connectAchievementToUser({ achievementId: 7, userId: 2 });
     expect(dbMock.gamePageAchievement.update).toHaveBeenCalledWith({

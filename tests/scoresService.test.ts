@@ -28,6 +28,23 @@ describe("scores service", () => {
     vi.clearAllMocks();
   });
 
+  it("scopes recent top scores to a jam when requested", async () => {
+    dbMock.score.findMany.mockResolvedValue([]);
+
+    await listRecentTopScores(null, 10, 42);
+
+    expect(dbMock.score.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          user: {},
+          leaderboard: {
+            gamePage: { game: { published: true, jamId: 42 } },
+          },
+        },
+      }),
+    );
+  });
+
   it("normalizes evidence and applies decimal scaling for score leaderboards", async () => {
     dbMock.score.create.mockResolvedValueOnce({ id: 3 });
 

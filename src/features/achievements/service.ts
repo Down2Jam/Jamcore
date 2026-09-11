@@ -153,13 +153,17 @@ export async function disconnectAchievementFromUser({
 export async function listRecentAchievementUnlocks(
   tenantId?: string | null,
   limit = RECENT_ACHIEVEMENT_LIMIT,
+  jamId?: number,
 ) {
   const unlocks = await db.achievementUnlock.findMany({
     where: {
       user: userTenantWhere(tenantId),
       achievement: {
         gamePage: {
-          game: { published: true },
+          game: {
+            published: true,
+            ...(jamId === undefined ? {} : { jamId }),
+          },
         },
       },
     },

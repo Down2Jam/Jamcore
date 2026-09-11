@@ -212,6 +212,15 @@
             "maximum": 50,
             "default": 10
           }
+        },
+        {
+          "name": "jamId",
+          "in": "query",
+          "description": "Only return trailers for games belonging to this jam.",
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
         }
       ],
       "auth": {

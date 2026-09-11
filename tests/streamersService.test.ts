@@ -51,8 +51,26 @@ describe("streamers service", () => {
 
     const result = await listFeaturedStreamers();
 
-    expect(dbMock.featuredStreamer.findMany).toHaveBeenCalledWith();
+    expect(dbMock.featuredStreamer.findMany).toHaveBeenCalledWith({
+      orderBy: { id: "asc" },
+    });
     expect(result).toEqual([{ id: 1 }]);
+  });
+
+  it("returns D2Jam-tagged streams before other featured streams", async () => {
+    dbMock.featuredStreamer.findMany.mockResolvedValueOnce([
+      { id: 1, streamTags: ["gamedev"], userName: "other" },
+      { id: 2, streamTags: ["D2Jam"], userName: "priority" },
+      { id: 3, streamTags: ["gamejam"], userName: "other-two" },
+    ]);
+
+    const result = await listFeaturedStreamers(true);
+
+    expect(result.map((stream) => stream.userName)).toEqual([
+      "priority",
+      "other",
+      "other-two",
+    ]);
   });
 
   it.each(["vibe code", "VIBE CODING", "Codex", "CLAUDE", "grok"])(

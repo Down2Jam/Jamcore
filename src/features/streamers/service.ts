@@ -33,8 +33,28 @@ const fallbackExcludedTitlePattern =
   /\b(?:vibe\s+(?:code|coding)|codex|claude|grok)\b/i;
 const FEATURED_STREAMERS_CACHE_KEY = "featured-streamers";
 
-function loadFeaturedStreamers() {
-  return db.featuredStreamer.findMany();
+function normalizeFeaturedStreamerTag(tag: string) {
+  const normalized = tag.trim().toLowerCase();
+  return appConfig.featuredStreamers.tagSynonyms[normalized] ?? normalized;
+}
+
+function hasConfiguredPriorityTag(tags: string[] = []) {
+  const priorityTags = new Set(
+    appConfig.featuredStreamers.priorityTags.map(normalizeFeaturedStreamerTag),
+  );
+  return tags.some((tag) => priorityTags.has(normalizeFeaturedStreamerTag(tag)));
+}
+
+async function loadFeaturedStreamers() {
+  const streamers = await db.featuredStreamer.findMany({
+    orderBy: { id: "asc" },
+  });
+
+  return streamers.sort(
+    (a, b) =>
+      Number(hasConfiguredPriorityTag(b.streamTags)) -
+      Number(hasConfiguredPriorityTag(a.streamTags)),
+  );
 }
 
 const featuredStreamersCache = new TTLCache<
@@ -135,7 +155,6 @@ export async function updateFeaturedStreamers() {
     );
 
     const tagSynonyms = appConfig.featuredStreamers.tagSynonyms;
-    const priorityTags = appConfig.featuredStreamers.priorityTags;
     const desiredTags = appConfig.featuredStreamers.desiredTags;
     const streamers = await db.user.findMany({
       where: {
@@ -176,9 +195,7 @@ export async function updateFeaturedStreamers() {
       );
 
     const hasPriorityTag = (stream: TwitchStream) =>
-      (stream.tags ?? []).some((t) =>
-        priorityTags.includes(t.toLowerCase()),
-      );
+      hasConfiguredPriorityTag(stream.tags);
 
     const isKnownStreamer = (stream: TwitchStream) =>
       streamerNames.includes(stream.user_name.toLowerCase());

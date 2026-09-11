@@ -249,6 +249,7 @@ export function createGamesRouter() {
       const videos = await listFeaturedGameVideos({
         limit: query.limit,
         tenantId: res.locals.tenantId,
+        jamId: query.jamId,
       });
 
       res.setHeader("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
