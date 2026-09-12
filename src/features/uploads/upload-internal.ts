@@ -33,6 +33,12 @@ const musicMimeToExt: Record<string, string> = {
 const allowedImageTypes = Object.keys(imageMimeToExt);
 const allowedMusicTypes = Object.keys(musicMimeToExt);
 
+const musicMimeAliases: Record<string, string> = {
+  "audio/x-wav": "audio/wav",
+  "audio/wave": "audio/wav",
+  "audio/vnd.wave": "audio/wav",
+};
+
 function hasMagicBytes(fileBuffer: Buffer, mimeType: string): boolean {
   if (!fileBuffer || fileBuffer.length < 4) return false;
 
@@ -114,6 +120,7 @@ const uploadHandler = (fileTypes: string[], fileSize: number) =>
     storage: storage,
     limits: { fileSize },
     fileFilter: (_req, file, cb) => {
+      file.mimetype = musicMimeAliases[file.mimetype] ?? file.mimetype;
       if (!fileTypes.includes(file.mimetype)) {
         const error = new Error("Invalid file type");
         return cb(error);
