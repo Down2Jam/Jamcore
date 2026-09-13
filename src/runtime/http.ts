@@ -17,6 +17,7 @@ import { createOperationalRouter } from "../routes/operational.js";
 import { createV1Router } from "../routes/v1/v1.js";
 import { resolveWebBuildAsset } from "../features/games/web-build.service.js";
 import { GetS3FileStream, HeadS3File, IsUsingS3 } from "../infra/s3.js";
+import { webBuildSandbox } from "../lib/webBuildSandbox.js";
 import { parseByteRange } from "../lib/byteRange.js";
 
 export function createHttpApp() {
@@ -84,7 +85,13 @@ export async function mountHttpRoutes(app: Express) {
       res.setHeader("Content-Type", asset.contentType);
       if (asset.contentEncoding) res.setHeader("Content-Encoding", asset.contentEncoding);
       res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
-      res.setHeader("Content-Security-Policy", `sandbox allow-scripts allow-pointer-lock; default-src 'self' data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' data: blob:; connect-src 'self' https: wss:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'self' ${env.clientOrigin}`);
+      const sandbox = webBuildSandbox(
+        `${req.protocol}://${req.get("host")}`,
+        env.gameBuildsOrigin,
+        env.clientOrigin,
+        env.federationOrigin,
+      );
+      res.setHeader("Content-Security-Policy", `sandbox ${sandbox}; default-src 'self' data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' data: blob:; connect-src 'self' https: wss:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'self' ${env.clientOrigin}`);
       res.removeHeader("X-Frame-Options");
       res.setHeader("Referrer-Policy", "no-referrer");
       res.setHeader(

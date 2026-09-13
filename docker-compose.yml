@@ -47,6 +47,7 @@ services:
       NODE_ENV: ${NODE_ENV:-development}
       PORT: ${PORT:-3005}
       CLIENT_ORIGIN: ${CLIENT_ORIGIN:-http://localhost:3000}
+      GAME_BUILDS_ORIGIN: ${GAME_BUILDS_ORIGIN:-}
       FEDERATION_ORIGIN: ${FEDERATION_ORIGIN:-http://localhost:3005}
       FRONT_DEV_PORT: ${FRONT_DEV_PORT:-3000}
       RUNTIME_ROLE: ${RUNTIME_ROLE:-all}

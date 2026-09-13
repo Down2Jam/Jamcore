@@ -52,6 +52,7 @@ const envSchema = z.object({
   PORT: z.coerce.number().int().positive().default(3005),
   FRONT_DEV_PORT: z.coerce.number().int().positive().default(3000),
   CLIENT_ORIGIN: optionalString(z.string().url()),
+  GAME_BUILDS_ORIGIN: optionalString(z.string().url()),
   FEDERATION_ORIGIN: optionalString(z.string().url()),
   APP_CONFIG_PATH: optionalString(z.string()),
   FEATURED_STREAMERS_CRON: z.string().default("*/5 * * * *"),
@@ -108,6 +109,7 @@ if (parsed.NODE_ENV === "production") {
 }
 
 export const env = {
+  gameBuildsOrigin: parsed.GAME_BUILDS_ORIGIN,
   nodeEnv: parsed.NODE_ENV,
   port: parsed.PORT,
   frontDevPort: parsed.FRONT_DEV_PORT,
