@@ -1,7 +1,7 @@
 import { PageVersion } from "@prisma/client";
 
 import type { GamePageRecord, GameWithPages } from "../../types/game.js";
-import { getJamPage, getPostJamPage } from "./page.helpers.js";
+import { getJamPage, getPostJamPage, pageItemOrder } from "./page.helpers.js";
 
 export const postJamPageInclude = {
   ratingCategories: true,
@@ -16,6 +16,7 @@ export const postJamPageInclude = {
     },
   },
   leaderboards: {
+    orderBy: pageItemOrder,
     include: {
       scores: {
         include: {
@@ -64,6 +65,7 @@ export const postJamPageInclude = {
     },
   },
   tracks: {
+    orderBy: pageItemOrder,
     include: {
       composer: true,
       tags: {

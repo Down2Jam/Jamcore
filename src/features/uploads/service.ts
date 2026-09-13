@@ -8,6 +8,7 @@ import { z } from "zod";
 import { UploadFile, images, music } from "./upload-internal.js";
 import { GetS3File } from "../../infra/s3.js";
 import { BadRequestError, NotFoundError } from "../../lib/errors.js";
+import { appConfig } from "../../config/app.js";
 
 const SAFE_FILENAME = /^[A-Za-z0-9._-]+\.(png|jpe?g|gif|webp)$/i;
 
@@ -43,8 +44,18 @@ export function createUploadMiddleware(kind: UploadKind): RequestHandler {
         return;
       }
 
-      if (err.code === "LIMIT_FILE_SIZE" || err.message === "Invalid file type") {
-        next(new BadRequestError("Invalid upload"));
+      if (err.code === "LIMIT_FILE_SIZE") {
+        const limit = kind === "music"
+          ? appConfig.api.limits.uploadMusicBytes
+          : appConfig.api.limits.uploadImageBytes;
+        next(new BadRequestError(`File is too large. Maximum upload size is ${limit / (1024 * 1024)} MiB.`));
+        return;
+      }
+
+      if (err.message === "Invalid file type") {
+        next(new BadRequestError(kind === "music"
+          ? "Unsupported audio format. Please upload an MP3, WAV, or OGG file."
+          : "Unsupported image format. Please upload a JPEG, PNG, GIF, or WebP file."));
         return;
       }
 

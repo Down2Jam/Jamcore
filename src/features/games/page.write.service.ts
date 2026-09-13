@@ -35,10 +35,11 @@ function requireComposerId(song: SongInput): TrackWriteDataWithComposer {
   };
 }
 
-function buildTrackCreateData(song: SongInput): GamePageTrackCreateData {
+function buildTrackCreateData(song: SongInput, sortOrder: number): GamePageTrackCreateData {
   const trackData = requireComposerId(song);
 
   return {
+    sortOrder,
     name: trackData.name,
     slug: trackData.slug,
     url: trackData.url,
@@ -96,7 +97,7 @@ async function syncGamePageTracks(
   );
   const incomingSlugs = new Set<string>();
 
-  for (const song of songs ?? []) {
+  for (const [sortOrder, song] of (songs ?? []).entries()) {
     const trackData = requireComposerId(song);
     const slug = String(trackData.slug ?? "").trim();
     if (!slug) continue;
@@ -125,6 +126,7 @@ async function syncGamePageTracks(
       await db.gamePageTrack.update({
         where: { id: existingTrack.id },
         data: {
+          sortOrder,
           name: trackData.name,
           slug: trackData.slug,
           url: trackData.url,
@@ -155,6 +157,7 @@ async function syncGamePageTracks(
 
     await db.gamePageTrack.create({
       data: {
+        sortOrder,
         gamePageId: pageId,
         name: trackData.name,
         slug: trackData.slug,
@@ -218,7 +221,7 @@ async function syncGamePageLeaderboards(
     },
   });
 
-  for (const leaderboard of leaderboards ?? []) {
+  for (const [sortOrder, leaderboard] of (leaderboards ?? []).entries()) {
     const existingLeaderboard = existingLeaderboards.find(
       (entry) => entry.id === leaderboard.id,
     );
@@ -227,6 +230,7 @@ async function syncGamePageLeaderboards(
       await db.gamePageLeaderboard.update({
         where: { id: existingLeaderboard.id },
         data: {
+          sortOrder,
           type: leaderboard.type,
           name: leaderboard.name,
           onlyBest: leaderboard.onlyBest,
@@ -239,6 +243,7 @@ async function syncGamePageLeaderboards(
 
     await db.gamePageLeaderboard.create({
       data: {
+        sortOrder,
         gamePageId: pageId,
         type: leaderboard.type,
         name: leaderboard.name,
@@ -402,8 +407,8 @@ export async function upsertGamePage(
       })),
     },
     tracks: {
-      create: (body.songs ?? []).map((song: SongInput) =>
-        buildTrackCreateData(song),
+      create: (body.songs ?? []).map((song: SongInput, sortOrder) =>
+        buildTrackCreateData(song, sortOrder),
       ),
     },
   };

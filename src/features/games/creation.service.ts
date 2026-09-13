@@ -18,7 +18,7 @@ import {
   webBuildIdFromUrl,
 } from "./web-build.service.js";
 
-function createTrackCreateData(song: z.infer<typeof trackInputSchema>) {
+function createTrackCreateData(song: z.infer<typeof trackInputSchema>, sortOrder: number) {
   const trackData = buildTrackWriteData(song);
 
   if (trackData.composerId == null) {
@@ -26,6 +26,7 @@ function createTrackCreateData(song: z.infer<typeof trackInputSchema>) {
   }
 
   return {
+    sortOrder,
     name: trackData.name,
     slug: trackData.slug,
     url: trackData.url,
@@ -178,7 +179,8 @@ export async function createGame({
         })),
       },
       leaderboards: {
-        create: input.leaderboards.map((leaderboard) => ({
+        create: input.leaderboards.map((leaderboard, sortOrder) => ({
+          sortOrder,
           type: leaderboard.type,
           name: leaderboard.name,
           onlyBest: leaderboard.onlyBest,

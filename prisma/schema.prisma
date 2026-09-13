@@ -616,6 +616,7 @@ model TrackTimestampComment {
 }
 
 model GamePageTrack {
+  sortOrder                     Int      @default(0)
   id                            Int      @id @default(autoincrement())
   slug                          String
   url                           String
@@ -682,6 +683,7 @@ enum LeaderboardType {
 }
 
 model GamePageLeaderboard {
+  sortOrder     Int             @default(0)
   id            Int             @id @default(autoincrement())
   type          LeaderboardType
   name          String

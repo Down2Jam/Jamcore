@@ -1,6 +1,8 @@
 import { PageVersion } from "@prisma/client";
 import type { GamePageWriteBody, GameWithPages } from "../../types/game.js";
 
+export const pageItemOrder = [{ sortOrder: "asc" as const }, { id: "asc" as const }];
+
 export const gamePageInclude = {
   ratingCategories: true,
   majRatingCategories: true,
@@ -8,7 +10,7 @@ export const gamePageInclude = {
   flags: true,
   downloadLinks: true,
   achievements: true,
-  leaderboards: true,
+  leaderboards: { orderBy: pageItemOrder },
   comments: {
     include: {
       author: true,
@@ -49,6 +51,7 @@ export const gamePageInclude = {
     },
   },
   tracks: {
+    orderBy: pageItemOrder,
     include: {
       composer: true,
       tags: {

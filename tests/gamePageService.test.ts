@@ -45,10 +45,10 @@ describe("gamePageService", () => {
           flags: [{ id: 3, name: "Flag", icon: "icon", description: null, createdAt: new Date(), updatedAt: new Date() }],
           tags: [{ id: 4, name: "Tag", icon: null, description: null, createdAt: new Date(), updatedAt: new Date(), categoryId: null, autoRegex: null, alwaysAdded: false, priority: "LOW", modOnly: false, gameTag: true, postTag: false }],
           achievements: [{ id: 6, name: "Ach", description: "D", image: "img", createdAt: new Date(), updatedAt: new Date(), gamePageId: 10, users: [], unlocks: [] }],
-          leaderboards: [{ id: 5, name: "LB", type: LeaderboardType.SCORE, onlyBest: false, maxUsersShown: 10, decimalPlaces: 0, gamePageId: 10, createdAt: new Date(), updatedAt: new Date(), scores: [] }],
+          leaderboards: [{ sortOrder: 0, id: 5, name: "LB", type: LeaderboardType.SCORE, onlyBest: false, maxUsersShown: 10, decimalPlaces: 0, gamePageId: 10, createdAt: new Date(), updatedAt: new Date(), scores: [] }],
           downloadLinks: [{ id: 7, url: "u", platform: "WEB", gamePageId: 10 }],
           comments: [],
-          tracks: [{ id: 8, name: "Song", slug: "song", url: "song.mp3", commentary: null, bpm: null, musicalKey: null, integratedLufs: null, truePeakDb: null, loudnessGainDb: null, softwareUsed: [], license: null, allowDownload: false, allowBackgroundUse: false, allowBackgroundUseAttribution: false, composerId: 1, gamePageId: 10, createdAt: new Date(), updatedAt: new Date(), tags: [], flags: [], links: [], credits: [], composer: { id: 1 } as never }],
+          tracks: [{ sortOrder: 0, id: 8, name: "Song", slug: "song", url: "song.mp3", commentary: null, bpm: null, musicalKey: null, integratedLufs: null, truePeakDb: null, loudnessGainDb: null, softwareUsed: [], license: null, allowDownload: false, allowBackgroundUse: false, allowBackgroundUseAttribution: false, composerId: 1, gamePageId: 10, createdAt: new Date(), updatedAt: new Date(), tags: [], flags: [], links: [], credits: [], composer: { id: 1 } as never }],
         },
       ],
     });
