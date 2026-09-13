@@ -52,9 +52,17 @@ describe("events service", () => {
         where: expect.objectContaining({
           endTime: expect.any(Object),
         }),
+        orderBy: { endTime: "desc" },
       }),
     );
     expect(result).toEqual([{ id: 1 }]);
+  });
+
+  it.each(["current", "upcoming"] as const)("keeps %s events in start-time order", async (filter) => {
+    await listEvents({ filter });
+    expect(dbMock.event.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ orderBy: { startTime: "asc" } }),
+    );
   });
 });
 

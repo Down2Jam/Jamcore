@@ -84,6 +84,24 @@
   ],
   "routes": [
     {
+      "sdkName": "listCurrentJamGamesForInspection",
+      "method": "GET",
+      "path": "/admin/jam-games",
+      "tag": "Admin",
+      "summary": "List current-jam games for the designated inspection account",
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires ategon admin account"
+      },
+      "visibility": "internal",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
       "sdkName": "getOpenApi",
       "method": "GET",
       "path": "/openapi",
@@ -791,7 +809,9 @@
         {
           "name": "externalJams",
           "in": "query",
-          "schema": { "type": "boolean" }
+          "schema": {
+            "type": "boolean"
+          }
         },
         {
           "name": "jamSlug",
@@ -2835,7 +2855,10 @@
           "name": "commentId",
           "in": "query",
           "required": true,
-          "schema": { "type": "integer", "minimum": 1 }
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
         }
       ],
       "auth": {
@@ -2845,7 +2868,10 @@
         "label": "Uses login if present"
       },
       "visibility": "public",
-      "rateLimit": { "documented": true, "headers": true }
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
     },
     {
       "sdkName": "createComment",
@@ -3915,6 +3941,46 @@
       }
     },
     {
+      "sdkName": "listLanguageUsage",
+      "method": "GET",
+      "path": "/languages",
+      "tag": "Users",
+      "summary": "List supported languages and current account usage counts",
+      "auth": {
+        "required": false,
+        "optional": false,
+        "kind": "none",
+        "label": "Public"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "updateCurrentLanguage",
+      "method": "PUT",
+      "path": "/languages/current",
+      "tag": "Users",
+      "summary": "Save the authenticated user's site language",
+      "requestBody": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true
+      }
+    },
+    {
       "sdkName": "listSiteThemes",
       "method": "GET",
       "path": "/site-themes",
@@ -4501,7 +4567,7 @@
       "method": "POST",
       "path": "/reports",
       "tag": "Moderation",
-      "summary": "Create a user report",
+      "summary": "Create a content report or site bug report (targetType: bug, reason, details)",
       "requestBody": true,
       "requestExample": {
         "targetType": "collection_comment",
@@ -5817,7 +5883,7 @@
       "method": "GET",
       "path": "/platform/reports",
       "tag": "Moderation",
-      "summary": "Return the full moderation report queue",
+      "summary": "Return the moderation or bug report queue",
       "headers": true,
       "parameters": [
         {
@@ -5834,6 +5900,25 @@
             "type": "integer",
             "minimum": 1,
             "maximum": 100
+          }
+        },
+        {
+          "name": "kind",
+          "in": "query",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "all",
+              "bug"
+            ]
+          }
+        },
+        {
+          "name": "beforeId",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "minimum": 1
           }
         }
       ],
@@ -6017,6 +6102,50 @@
       "idempotency": {
         "supported": true,
         "header": "Idempotency-Key"
+      }
+    },
+    {
+      "path": "/connections/twitch",
+      "tag": "Users",
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "sdkName": "getTwitchConnectionAvailability",
+      "method": "GET",
+      "summary": "Check whether username-only Twitch account linking is configured",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "path": "/connections/twitch",
+      "tag": "Users",
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "sdkName": "manageTwitchConnection",
+      "method": "POST",
+      "summary": "Start, complete, or disconnect a username-only Twitch connection; requests no Twitch scopes",
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      },
+      "requestBody": true,
+      "requestExample": {
+        "action": "start"
+      },
+      "rateLimit": {
+        "documented": true,
+        "headers": true
       }
     }
   ]

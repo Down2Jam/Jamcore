@@ -89,6 +89,7 @@ export type GameMutationBody = GamePageWriteBody & {
 };
 
 export type GameViewer = {
+  slug?: string;
   id?: number;
   admin?: boolean | null;
   mod?: boolean | null;

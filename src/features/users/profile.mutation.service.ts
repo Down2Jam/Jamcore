@@ -35,6 +35,7 @@ const updatedUserSelect = {
   autoHideRatingsWhileStreaming: true,
   messageRequestPolicy: true,
   siteTheme: true,
+  locale: true,
   primaryRoles: { select: { slug: true } },
   secondaryRoles: { select: { slug: true } },
   recommendedGames: {

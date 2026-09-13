@@ -1,4 +1,5 @@
 import express from "express";
+import rateLimit from "../../../middleware/rateLimit.js";
 
 import authUser from "../../../middleware/authUser";
 import getUser from "../../../loaders/getUser.js";
@@ -13,6 +14,7 @@ router.post(
   "/",
   authUser,
   getUser,
+  rateLimit(5, 60_000),
   asyncHandler(async (req, res) => {
     const input = parseBody(req, createReportSchema);
     const report = await createReport({

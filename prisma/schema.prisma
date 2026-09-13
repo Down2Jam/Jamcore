@@ -83,6 +83,7 @@ model User {
   autoHideRatingsWhileStreaming Boolean                 @default(false)
   messageRequestPolicy           MessageRequestPolicy   @default(EVERYONE)
   siteTheme                      String?
+  locale                         String?
   quiltSubmissions              QuiltSubmission[]       @relation(name: "QuiltSubmissionToAuthor")
   quiltRemovals                 QuiltSubmission[]       @relation(name: "QuiltSubmissionToRemover")
   quiltVotes                    QuiltVote[]             @relation(name: "QuiltVoteToUser")
@@ -808,6 +809,7 @@ model FeaturedStreamer {
 
 model Report {
   id         Int       @id @default(autoincrement())
+  kind       String    @default("content")
   resolved   Boolean   @default(false)
   status     String    @default("open")
   priority   String    @default("normal")
@@ -836,6 +838,7 @@ model Report {
   directMessageId      Int?     @map("direct_message_id")
 
   @@index([directMessageId])
+  @@index([kind, status, id])
 }
 
 enum ConversationType {

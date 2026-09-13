@@ -1,5 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { PageVersion } from "@prisma/client";
+import { canReadGame, canInspectUnpublishedGames } from "./inspection.policy.js";
 import { z } from "zod";
 
 import { appConfig } from "../../config/app.js";
@@ -243,6 +244,7 @@ export async function loadGameDetailResponse({
     if (!belongsToTenant) {
       return null;
     }
+    if (!canReadGame(game, viewer)) return null;
 
     const viewerUserId = viewer?.id ?? null;
     const privilegedViewer = isPrivilegedViewer(viewer);
@@ -318,6 +320,7 @@ export async function loadGameDetailResponse({
 
     return {
       ...game,
+      canViewUnpublished: canInspectUnpublishedGames(viewer),
       achievements: jamPage?.achievements ?? [],
       leaderboards: jamPage?.leaderboards ?? [],
       gameEmotes: (game.gameEmotes ?? []).map((emoji) => ({

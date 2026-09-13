@@ -91,7 +91,7 @@ export async function listEvents({
 
   return db.event.findMany({
     where,
-    orderBy: { startTime: "asc" },
+    orderBy: filter === "past" ? { endTime: "desc" } : { startTime: "asc" },
     include: {
       host: true,
     },

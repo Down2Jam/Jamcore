@@ -148,6 +148,7 @@ export const requestUserBaseSelect = {
 export const requestUserDetailSelect = {
   ...requestUserBaseSelect,
   siteTheme: true,
+  locale: true,
   profileBackground: true,
   emotePrefix: true,
   hideRatings: true,

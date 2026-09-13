@@ -12,7 +12,7 @@ type ReportActor = {
   admin?: boolean | null;
 };
 
-export const createReportSchema = z
+const contentReportSchema = z
   .object({
     targetType: z.enum(["user", "post", "comment", "game", "collection_comment", "direct_message"]),
     targetId: z.union([z.coerce.number().int().positive(), z.string().trim().min(1)]),
@@ -21,7 +21,20 @@ export const createReportSchema = z
     priority: z.enum(["low", "normal", "high", "urgent"]).optional().default("normal"),
   });
 
+export const createReportSchema = z.union([
+  contentReportSchema,
+  z.object({
+    targetType: z.literal("bug"),
+    targetId: z.literal("site").default("site"),
+    reason: z.string().trim().min(3).max(200),
+    details: z.string().trim().min(10).max(2000),
+    priority: z.literal("normal").default("normal"),
+  }),
+]);
+
 export const listReportsQuerySchema = z.object({
+  kind: z.enum(["all", "bug"]).optional().default("all"),
+  beforeId: z.coerce.number().int().positive().optional(),
   status: z.enum(["open", "triaged", "resolved", "dismissed", "all"]).optional().default("open"),
   limit: z.coerce.number().int().min(1).max(100).optional().default(50),
   cursor: z.string().datetime().optional(),
@@ -49,6 +62,7 @@ function numericTargetId(targetId: number | string) {
 }
 
 async function assertTargetBelongsToTenant(targetType: string, targetId: number | string, tenantId?: string | null) {
+  if (targetType === "bug") return;
   if (targetType === "direct_message") {
     const messageId = numericTargetId(targetId);
     const message = await db.conversationMessage.findUnique({
@@ -92,7 +106,7 @@ async function assertTargetBelongsToTenant(targetType: string, targetId: number 
 }
 
 function reportTargetData(targetType: string, targetId: number | string) {
-  const numericId = targetType === "collection_comment" ? null : numericTargetId(targetId);
+  const numericId = ["collection_comment", "bug"].includes(targetType) ? null : numericTargetId(targetId);
   return {
     userId: targetType === "user" ? numericId : null,
     postId: targetType === "post" ? numericId : null,
@@ -124,25 +138,16 @@ export async function createReport({
     if (!membership) throw new NotFoundError("Report target not found");
   }
   const target = reportTargetData(input.targetType, input.targetId);
-  const rows = (await db.$queryRawUnsafe(
-    `
-      INSERT INTO "Report"
-        ("reporterId", "userId", "postId", "commentId", "gameId", collection_comment_id, direct_message_id, reason, details, priority)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-      RETURNING id
-    `,
-    actor.id,
-    target.userId,
-    target.postId,
-    target.commentId,
-    target.gameId,
-    target.collectionCommentId,
-    target.directMessageId,
-    input.reason ?? null,
-    input.details ?? null,
-    input.priority,
-  )) as Array<{ id: number }>;
-  return db.report.findUnique({ where: { id: rows[0].id } });
+  return db.report.create({
+    data: {
+      reporterId: actor.id,
+      kind: input.targetType === "bug" ? "bug" : "content",
+      ...target,
+      reason: input.reason ?? null,
+      details: input.details ?? null,
+      priority: input.priority,
+    },
+  });
 }
 
 export async function listReports({
@@ -168,7 +173,11 @@ export async function listReports({
       LEFT JOIN "Game" g ON g.id = r."gameId"
       WHERE ($1::text = 'all' OR r.status = $1)
         AND ($3::timestamptz IS NULL OR r."createdAt" < $3::timestamptz)
+        AND ($4::text = 'all' OR r.kind = $4)
+        AND ($5::int IS NULL OR r.id < $5)
+
       ORDER BY
+        CASE WHEN $4::text = 'bug' THEN r.id END DESC,
         CASE r.priority
           WHEN 'urgent' THEN 4
           WHEN 'high' THEN 3
@@ -181,6 +190,8 @@ export async function listReports({
     input.status,
     input.limit,
     input.cursor ?? null,
+    input.kind,
+    input.beforeId ?? null,
   );
 }
 
@@ -205,8 +216,9 @@ export async function updateReport({
         priority = COALESCE($3, priority),
         assigned_to_id = CASE WHEN $4::boolean THEN $5::int ELSE assigned_to_id END,
         resolution = CASE WHEN $6::boolean THEN $7 ELSE resolution END,
-        resolved = CASE WHEN $8::boolean THEN TRUE ELSE resolved END,
-        resolved_at = CASE WHEN $8::boolean THEN NOW() ELSE resolved_at END
+        resolved = CASE WHEN $2::text IS NOT NULL THEN $8::boolean ELSE resolved END,
+        resolved_at = CASE WHEN $2::text IS NULL THEN resolved_at WHEN $8::boolean THEN NOW() ELSE NULL END,
+        "updatedAt" = NOW()
       WHERE id = $1
     `,
     reportId,
