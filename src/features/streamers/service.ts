@@ -251,7 +251,7 @@ export async function updateFeaturedStreamers() {
       );
 
     addUniqueStreams(priorityStreams);
-    addUniqueStreams(streamerStreams);
+    addUniqueStreams(streamerStreams, MIN_FEATURED_STREAMERS);
     addUniqueStreams(fallbackStreams, MIN_FEATURED_STREAMERS);
 
     for (const stream of finalStreams) {

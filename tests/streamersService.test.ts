@@ -73,6 +73,51 @@ describe("streamers service", () => {
     ]);
   });
 
+  it.each([
+    { tier1: 4, tier2: 3, tier3: 3, expected: [4, 0, 0] },
+    { tier1: 3, tier2: 3, tier3: 3, expected: [3, 0, 0] },
+    { tier1: 2, tier2: 3, tier3: 3, expected: [2, 1, 0] },
+    { tier1: 1, tier2: 1, tier3: 3, expected: [1, 1, 1] },
+    { tier1: 0, tier2: 4, tier3: 3, expected: [0, 3, 0] },
+    { tier1: 0, tier2: 0, tier3: 4, expected: [0, 0, 3] },
+    { tier1: 1, tier2: 0, tier3: 1, expected: [1, 0, 1] },
+  ])(
+    "fills three spots in tier order, allowing only tier 1 to exceed three: $tier1/$tier2/$tier3",
+    async ({ tier1, tier2, tier3, expected }) => {
+      const streams = [tier1, tier2, tier3].flatMap((count, tier) =>
+        Array.from({ length: count }, (_, index) => ({
+          user_name: `tier${tier + 1}-${index}`,
+          thumbnail_url: "https://example.com/{width}x{height}.jpg",
+          title: "Making a jam game",
+          viewer_count: 10,
+          language: "en",
+          game_id: "1469308723",
+          tags: tier === 0 ? ["D2Jam"] : ["gamedev"],
+        })),
+      );
+      dbMock.user.findMany.mockResolvedValue(
+        streams
+          .filter((stream) => stream.user_name.startsWith("tier2-"))
+          .map((stream) => ({ twitch: stream.user_name })),
+      );
+      axiosMock.post.mockResolvedValue({
+        data: { access_token: "access-token" },
+      });
+      axiosMock.get.mockResolvedValue({ data: { data: streams } });
+
+      await updateFeaturedStreamers();
+
+      const selectedNames = dbMock.featuredStreamer.create.mock.calls.map(
+        ([args]) => args.data.userName as string,
+      );
+      expect(
+        [1, 2, 3].map(
+          (tier) => selectedNames.filter((name) => name.startsWith(`tier${tier}-`)).length,
+        ),
+      ).toEqual(expected);
+    },
+  );
+
   it.each(["vibe code", "VIBE CODING", "Codex", "CLAUDE", "grok"])(
     "excludes titles containing %s from the fallback tier",
     async (excludedPhrase) => {
