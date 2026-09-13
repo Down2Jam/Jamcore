@@ -85,6 +85,14 @@ describe("achievement service", () => {
     });
   });
 
+  it("returns the persisted unlock timestamp without replacing it on repeat unlocks", async () => {
+    const earnedAt = new Date("2026-09-13T12:30:00Z");
+    dbMock.achievementUnlock.upsert.mockResolvedValueOnce({ achievementId: 7, userId: 2, earnedAt });
+    const result = await connectAchievementToUser({ achievementId: 7, userId: 2 });
+    expect(result).toEqual({ achievementId: 7, userId: 2, earnedAt });
+    expect(dbMock.achievementUnlock.upsert).toHaveBeenCalledWith(expect.objectContaining({ update: {} }));
+  });
+
   it("throws when the achievement does not exist", async () => {
     dbMock.gamePageAchievement.findFirst.mockResolvedValueOnce(null);
     await expect(

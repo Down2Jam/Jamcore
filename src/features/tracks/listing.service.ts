@@ -56,6 +56,7 @@ export async function listTracks(
   refresh = false,
 ) {
   const jamSlugParam = input.jamSlug?.trim();
+  const externalJamsOnly = input.externalJams === "true";
   const jamIdParam = input.jamId?.trim();
   const sort = input.sort?.trim() ?? "random";
   const listingPageVersion = parseListingPageVersion(input.pageVersion);
@@ -71,7 +72,7 @@ export async function listTracks(
 
   const wantsAllTracks = jamIdParam === "all";
   const resolvedJam =
-    !wantsAllTracks && (jamSlugParam || jamIdParam)
+    !externalJamsOnly && !wantsAllTracks && (jamSlugParam || jamIdParam)
       ? await resolveJamReference({
           jamId: jamIdParam ?? null,
           jamSlug: jamSlugParam ?? null,
@@ -79,6 +80,7 @@ export async function listTracks(
       : null;
 
   const cacheKey = JSON.stringify({
+    externalJams: externalJamsOnly,
     sort,
     jamId: resolvedJam?.id ?? (wantsAllTracks ? "all" : null),
     pageVersion: listingPageVersion,
@@ -88,6 +90,7 @@ export async function listTracks(
 
   const loadListing = async () => {
     let tracks = await loadTrackListingRecords({
+      externalJams: externalJamsOnly,
       jamId: resolvedJam?.id,
       listingPageVersion,
       sort,

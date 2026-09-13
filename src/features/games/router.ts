@@ -328,7 +328,8 @@ export function createGamesRouter() {
         tenantId: res.locals.tenantId,
       });
 
-      res.setHeader("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
+      // Listing freshness is managed by the server cache, which publishing invalidates.
+      res.setHeader("Cache-Control", "no-store");
       const isPaginated =
         typeof req.query.cursor !== "undefined" || typeof req.query.limit !== "undefined";
       res.json(isPaginated ? games : games.items);

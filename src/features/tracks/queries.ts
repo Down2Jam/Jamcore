@@ -34,10 +34,12 @@ export function getTrackOrderBy(sort: string) {
 }
 
 export async function loadTrackListingRecords({
+  externalJams = false,
   jamId,
   listingPageVersion,
   sort,
 }: {
+  externalJams?: boolean;
   jamId?: number;
   listingPageVersion: ListingPageVersion;
   sort: string;
@@ -52,6 +54,7 @@ export async function loadTrackListingRecords({
           : listingPageVersion,
       game: {
         published: true,
+        ...(externalJams ? { jam: { sourcePlatform: { not: null } } } : {}),
         ...(typeof jamId === "number" ? { jamId } : {}),
       },
     },

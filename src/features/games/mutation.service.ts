@@ -1,3 +1,4 @@
+import { clearGameListingCache } from "./listing.service.js";
 import { PageVersion } from "@prisma/client";
 
 import { JAM_PHASES } from "../../domain/jamTimeline.js";
@@ -194,6 +195,7 @@ export async function updateGameBySlug({
 
   if (targetPageVersion === PageVersion.POST_JAM) {
     await upsertGamePage(existingGame.id, PageVersion.POST_JAM, body);
+    await clearGameListingCache();
     await enqueueSearchEntityIndex({
       entityType: "game",
       entityId: existingGame.id,
@@ -364,6 +366,7 @@ export async function updateGameBySlug({
   }
 
   await upsertGamePage(updatedGame.id, PageVersion.JAM, body);
+  await clearGameListingCache();
 
   if (updatedGame.published) {
     if (updatedGame.slug === gameSlug && existingGame.published) {
@@ -409,6 +412,7 @@ export async function createPostJamPage(
         existingGame as unknown as Parameters<typeof buildPostJamBodyFromGame>[0],
       ),
     );
+    await clearGameListingCache();
     await enqueueSearchEntityIndex({
       entityType: "game",
       entityId: existingGame.id,

@@ -40,6 +40,11 @@ vi.mock("../src/features/federation/outbox/mutation-publication.service.js", () 
   publishGameUpdated: vi.fn(async () => ["delivery-2"]),
 }));
 
+vi.mock("../src/features/games/listing.service.js", () => ({
+  clearGameListingCache: vi.fn(async () => undefined),
+}));
+
+import { clearGameListingCache } from "../src/features/games/listing.service.js";
 import { ForbiddenError } from "../src/lib/errors.js";
 import { updateGameBySlug } from "../src/features/games/mutation.service.js";
 import {
@@ -112,6 +117,17 @@ describe("game mutation service", () => {
         },
       }),
     ).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
+  it("invalidates game listings when publishing a draft", async () => {
+    dbMock.game.findUnique.mockResolvedValue({ ...baseExistingGame, published: false });
+    await updateGameBySlug({
+      gameSlug: "old-slug",
+      body: baseUpdateBody,
+      actor: { id: 2, name: "Owner", slug: "owner", mod: false },
+    });
+    expect(clearGameListingCache).toHaveBeenCalledOnce();
+    expect(publishGameCreated).toHaveBeenCalledWith("old-slug");
   });
 
   it("publishes an update when a published game keeps the same slug", async () => {

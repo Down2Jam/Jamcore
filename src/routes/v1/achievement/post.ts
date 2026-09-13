@@ -27,13 +27,13 @@ router.post(
     const { achievementId } = parseBody(req, achievementConnectionSchema);
     const user = requireRequestUser(res);
 
-    await connectAchievementToUser({
+    const unlock = await connectAchievementToUser({
       achievementId,
       userId: user.id,
       tenantId: res.locals.tenantId,
     });
 
-    res.send({ message: "Achievement connection created" });
+    res.send({ message: "Achievement connection created", earnedAt: unlock.earnedAt });
   }),
 );
 

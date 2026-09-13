@@ -789,6 +789,11 @@
       "summary": "List published tracks",
       "parameters": [
         {
+          "name": "externalJams",
+          "in": "query",
+          "schema": { "type": "boolean" }
+        },
+        {
           "name": "jamSlug",
           "in": "query",
           "schema": {
@@ -2818,6 +2823,29 @@
         "documented": true,
         "headers": true
       }
+    },
+    {
+      "sdkName": "getCommentReplies",
+      "method": "GET",
+      "path": "/comment/replies",
+      "tag": "Comments",
+      "summary": "Load direct replies to a comment",
+      "parameters": [
+        {
+          "name": "commentId",
+          "in": "query",
+          "required": true,
+          "schema": { "type": "integer", "minimum": 1 }
+        }
+      ],
+      "auth": {
+        "required": false,
+        "optional": true,
+        "kind": "user",
+        "label": "Uses login if present"
+      },
+      "visibility": "public",
+      "rateLimit": { "documented": true, "headers": true }
     },
     {
       "sdkName": "createComment",

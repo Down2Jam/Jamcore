@@ -69,7 +69,7 @@ type RecommendationRating = {
 const gameListingCache = new TTLCache<GameListingResult>(10 * 60_000, "game-listings");
 
 export function clearGameListingCache() {
-  gameListingCache.clear();
+  return gameListingCache.clear();
 }
 
 export const gameListingQuerySchema = z.object({

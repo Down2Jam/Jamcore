@@ -59,6 +59,19 @@ import {
 } from "../src/features/tracks/index.js";
 
 describe("tracks read service", () => {
+  it("filters external jams separately from the cached all-jams listing", async () => {
+    dbMock.gamePageTrack.findMany.mockResolvedValue([]);
+    dbMock.trackRatingCategory.findMany.mockResolvedValue([]);
+    await listTracks({ sort: "newest", externalJams: "true" }, "external-filter-test");
+    expect(dbMock.gamePageTrack.findMany).toHaveBeenLastCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ gamePage: expect.objectContaining({
+        game: expect.objectContaining({ jam: { sourcePlatform: { not: null } } }),
+      }) }),
+    }));
+    await listTracks({ sort: "newest" }, "external-filter-test");
+    expect(dbMock.gamePageTrack.findMany).toHaveBeenCalledTimes(2);
+    expect(dbMock.gamePageTrack.findMany.mock.calls[1][0].where.gamePage.game).not.toHaveProperty("jam");
+  });
   beforeEach(() => {
     vi.clearAllMocks();
     moderationMock.isPrivilegedViewer.mockReturnValue(false);

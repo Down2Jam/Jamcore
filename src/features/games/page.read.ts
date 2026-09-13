@@ -12,6 +12,7 @@ export const postJamPageInclude = {
   achievements: {
     include: {
       users: true,
+      unlocks: { select: { userId: true, earnedAt: true } },
     },
   },
   leaderboards: {

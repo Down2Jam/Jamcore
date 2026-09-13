@@ -44,12 +44,13 @@ export class TTLCache<T> {
     void getCacheBackend().delete(`cache:${this.name}:${key}`);
   }
 
-  clear() {
+  async clear() {
     this.entries.clear();
-    for (const key of this.knownKeys) {
-      void getCacheBackend().delete(`cache:${this.name}:${key}`);
-    }
+    const keys = [...this.knownKeys];
     this.knownKeys.clear();
+    await Promise.all(keys.map((key) =>
+      getCacheBackend().delete(`cache:${this.name}:${key}`),
+    ));
   }
 
   async getOrSet(key: string, load: () => Promise<T>): Promise<T> {

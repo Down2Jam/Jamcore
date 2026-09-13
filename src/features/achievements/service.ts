@@ -101,7 +101,7 @@ export async function connectAchievementToUser({
 }) {
   await assertAchievementExists(achievementId, tenantId);
 
-  await db.$transaction([
+  const [, unlock] = await db.$transaction([
     db.gamePageAchievement.update({
       where: {
         id: achievementId,
@@ -120,6 +120,7 @@ export async function connectAchievementToUser({
       update: {},
     }),
   ]);
+  return unlock;
 }
 
 export async function disconnectAchievementFromUser({

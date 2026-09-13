@@ -1,3 +1,4 @@
+import { clearGameListingCache } from "./listing.service.js";
 import { PageVersion } from "@prisma/client";
 import { z } from "zod";
 
@@ -193,6 +194,8 @@ export async function createGame({
   if (playableBuildId) {
     await attachWebBuildToPage(gamePage.id, input.playableBuildUrl);
   }
+
+  await clearGameListingCache();
 
   await notifyNewMentions({
     type: "game",

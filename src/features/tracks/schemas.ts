@@ -5,6 +5,7 @@ const firstQueryValue = (value: unknown) =>
   Array.isArray(value) ? value[0] : value;
 
 export const listTracksQuerySchema = z.object({
+  externalJams: z.preprocess(firstQueryValue, z.enum(["true", "false"]).optional()),
   jamId: z.preprocess(firstQueryValue, z.string().trim().optional()),
   jamSlug: z.preprocess(firstQueryValue, z.string().trim().optional()),
   sort: z.preprocess(firstQueryValue, z.string().trim().optional()),
