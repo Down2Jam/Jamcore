@@ -1,5 +1,4 @@
 import cookieParser from "cookie-parser";
-import cors from "cors";
 import express from "express";
 import helmet from "helmet";
 import type { Express, Request, Response } from "express";
@@ -19,6 +18,7 @@ import { resolveWebBuildAsset } from "../features/games/web-build.service.js";
 import { GetS3FileStream, HeadS3File, IsUsingS3 } from "../infra/s3.js";
 import { webBuildSandbox } from "../lib/webBuildSandbox.js";
 import { parseByteRange } from "../lib/byteRange.js";
+import { createApiCors } from "../middleware/apiCors.js";
 
 export function createHttpApp() {
   const app = express();
@@ -44,20 +44,7 @@ export function configureHttpMiddleware(app: Express) {
       },
     }),
   );
-  app.use(
-    cors({
-      origin: env.clientOrigin,
-      credentials: true,
-      allowedHeaders: ["Content-Type", "Authorization", "Idempotency-Key"],
-      exposedHeaders: [
-        "Authorization",
-        "Content-Disposition",
-        "Content-Type",
-        "X-Idempotent-Replay",
-        "X-Request-Id",
-      ],
-    }),
-  );
+  app.use(createApiCors(env.clientOrigin));
   app.use(cookieParser());
   app.use(
     express.json({

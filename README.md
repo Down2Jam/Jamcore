@@ -47,6 +47,16 @@ TOKEN_SECRET=RANDOMSTRINGHERE
 
 ## Configuration
 
+### Browser game authentication
+
+The device code/token endpoints and game-token-enabled mutation routes accept
+cross-origin requests without cookies, including requests from sandboxed web
+builds with an opaque origin. Browser games should use `credentials: "omit"`
+and send their game token in the `Authorization` header. Device approval/denial
+and account management retain credentialed CORS restricted to `CLIENT_ORIGIN`.
+The iframe sandbox remains enabled. When adding a route with `allowGameToken`,
+also update the method/path allowlist in `src/middleware/apiCors.ts`.
+
 Optional app overrides can be placed in `app.config.json` or pointed to with `APP_CONFIG_PATH`.
 Use `app.config.example.json` as the starting point.
 
