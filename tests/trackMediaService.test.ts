@@ -1,10 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PageVersion } from "@prisma/client";
+import { doesCoreEntityBelongToTenant } from "../src/infra/coreTenantStore.js";
 
 const { dbMock, audioMock } = vi.hoisted(() => ({
   dbMock: {
     gamePageTrack: {
       findFirst: vi.fn(),
+      findMany: vi.fn(),
     },
   },
   audioMock: {
@@ -55,17 +57,19 @@ import {
 describe("track media service", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    audioMock.getMusicFileBuffer.mockReset();
   });
 
   it("loads a named music file and returns its content type", async () => {
     audioMock.getMusicFileBuffer.mockResolvedValueOnce(Buffer.from("music"));
-    dbMock.gamePageTrack.findFirst.mockResolvedValueOnce({
+    dbMock.gamePageTrack.findMany.mockResolvedValueOnce([{
       gamePage: {
         game: {
           id: 1,
+          published: true,
         },
       },
-    });
+    }]);
 
     const file = await getMusicFileByName("theme-song.mp3");
 
@@ -79,6 +83,43 @@ describe("track media service", () => {
     await expect(getMusicFileByName("../bad.mp3")).rejects.toBeInstanceOf(
       BadRequestError,
     );
+  });
+
+  it.each([
+    { viewer: { id: 7 }, allowed: true, label: "team member" },
+    { viewer: { id: 8, slug: "ategon", admin: true }, allowed: true, label: "inspection admin" },
+    { viewer: undefined, allowed: false, label: "anonymous visitor" },
+    { viewer: { id: 9 }, allowed: false, label: "unrelated user" },
+    { viewer: { id: 9, slug: "other", admin: true }, allowed: false, label: "other admin" },
+  ])("checks unpublished audio access for $label", async ({ viewer, allowed }) => {
+    dbMock.gamePageTrack.findMany.mockResolvedValueOnce([{
+      gamePage: { game: { id: 1, published: false, team: { users: [{ id: 7 }] } } },
+    }]);
+    audioMock.getMusicFileBuffer.mockResolvedValueOnce(Buffer.from("music"));
+    const result = getMusicFileByName("draft.mp3", "tenant-a", viewer);
+    if (allowed) {
+      await expect(result).resolves.toMatchObject({ contentType: "audio/mpeg" });
+    } else {
+      await expect(result).rejects.toBeInstanceOf(NotFoundError);
+      expect(audioMock.getMusicFileBuffer).not.toHaveBeenCalled();
+    }
+  });
+
+  it("rejects audio from another tenant even for a team member", async () => {
+    dbMock.gamePageTrack.findMany.mockResolvedValueOnce([{
+      gamePage: { game: { id: 1, published: false, team: { users: [{ id: 7 }] } } },
+    }]);
+    vi.mocked(doesCoreEntityBelongToTenant).mockResolvedValueOnce(false);
+    await expect(getMusicFileByName("draft.mp3", "tenant-b", { id: 7 }))
+      .rejects.toBeInstanceOf(NotFoundError);
+    expect(audioMock.getMusicFileBuffer).not.toHaveBeenCalled();
+  });
+
+  it("rejects uploads that have not been attached to a game", async () => {
+    dbMock.gamePageTrack.findMany.mockResolvedValueOnce([]);
+    await expect(getMusicFileByName("unsaved.mp3", "tenant-a", { id: 7 }))
+      .rejects.toBeInstanceOf(NotFoundError);
+    expect(audioMock.getMusicFileBuffer).not.toHaveBeenCalled();
   });
 
   it("builds a downloadable track file with metadata", async () => {

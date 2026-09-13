@@ -1,6 +1,8 @@
 import { Router } from "express";
 
 import rateLimit from "@middleware/rateLimit";
+import authMediaUserOptional from "../../../middleware/authMediaUserOptional.js";
+import getUserOptional from "../../../loaders/getUserOptional.js";
 import { asyncHandler } from "../../../middleware/asyncHandler.js";
 import {
   buildTrackDownloadBySlug,
@@ -17,13 +19,17 @@ const router = Router();
 router.get(
   "/:filename",
   rateLimit(9999),
+  authMediaUserOptional,
+  getUserOptional,
   asyncHandler(async (req, res) => {
     const { filename } = parseParams(req, musicFileParamsSchema);
-    const file = await getMusicFileByName(filename, res.locals.tenantId);
+    const file = await getMusicFileByName(filename, res.locals.tenantId, res.locals.user);
     const rangeHeader = req.headers.range;
 
     res.setHeader("Content-Type", file.contentType);
     res.setHeader("Accept-Ranges", "bytes");
+    // Access can depend on the viewer and can change when a game is unpublished.
+    res.setHeader("Cache-Control", "private, no-store");
 
     if (rangeHeader) {
       const range = parseByteRange(rangeHeader, file.buffer.length);

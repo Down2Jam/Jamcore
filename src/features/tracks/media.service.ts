@@ -16,6 +16,8 @@ import {
 } from "./audio-download.js";
 import { BadRequestError, NotFoundError } from "../../lib/errors.js";
 import { parseTrackPageVersion } from "./page.js";
+import { canReadGame } from "../games/inspection.policy.js";
+import type { GameViewer } from "../../types/game.js";
 
 const SAFE_MUSIC_FILE = /^[A-Za-z0-9._-]+\.(wav|ogg|mp3)$/i;
 
@@ -34,20 +36,16 @@ export const trackDownloadQuerySchema = z.object({
 export async function getMusicFileByName(
   filename: string,
   tenantId?: string | null,
+  viewer?: GameViewer | null,
 ) {
   if (!SAFE_MUSIC_FILE.test(filename)) {
     throw new BadRequestError("Invalid filename");
   }
 
-  const track = await db.gamePageTrack.findFirst({
+  const tracks = await db.gamePageTrack.findMany({
     where: {
       url: {
         contains: filename,
-      },
-      gamePage: {
-        game: {
-          published: true,
-        },
       },
     },
     select: {
@@ -56,23 +54,29 @@ export async function getMusicFileByName(
           game: {
             select: {
               id: true,
+              published: true,
+              team: { select: { users: { select: { id: true } } } },
             },
           },
         },
       },
     },
   });
-  if (!track) {
-    throw new NotFoundError("Music not found");
+  let accessible = false;
+  for (const track of tracks) {
+    const game = track.gamePage.game;
+    if (!canReadGame(game, viewer)) continue;
+    if (await doesCoreEntityBelongToTenant({
+      entityType: "Game",
+      entityId: game.id,
+      tenantId,
+      strictIsolation: appConfig.platform.multiTenant.strictIsolation,
+    })) {
+      accessible = true;
+      break;
+    }
   }
-
-  const belongsToTenant = await doesCoreEntityBelongToTenant({
-    entityType: "Game",
-    entityId: track.gamePage.game.id,
-    tenantId,
-    strictIsolation: appConfig.platform.multiTenant.strictIsolation,
-  });
-  if (!belongsToTenant) {
+  if (!accessible) {
     throw new NotFoundError("Music not found");
   }
 
