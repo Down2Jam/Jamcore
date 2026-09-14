@@ -6,6 +6,15 @@ const api = "https://api.d2jam.com";
 const play = "https://play.d2jam.com";
 
 describe("web build sandbox", () => {
+  it.each([play, client])("allows authorization tabs from %s without allowing parent navigation", (origin) => {
+    const permissions = webBuildSandbox(origin, play, client, api).split(" ");
+    expect(permissions).toContain("allow-popups");
+    expect(permissions).toContain("allow-popups-to-escape-sandbox");
+    expect(permissions).not.toContain("allow-top-navigation");
+    expect(permissions).not.toContain("allow-top-navigation-by-user-activation");
+    expect(permissions).not.toContain("allow-forms");
+  });
+
   it("preserves the origin for workers on the configured isolated host", () => {
     expect(webBuildSandbox(play, play, client, api)).toContain("allow-same-origin");
   });

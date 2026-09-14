@@ -4,7 +4,9 @@ export function webBuildSandbox(
   clientOrigin: string,
   apiOrigin: string,
 ) {
-  const restricted = "allow-scripts allow-pointer-lock";
+  // Device authorization opens the main site in a new tab. That tab must not
+  // inherit the game's opaque origin or restrictions on forms and cookies.
+  const restricted = "allow-scripts allow-pointer-lock allow-popups allow-popups-to-escape-sandbox";
   if (!buildOrigin) return restricted;
   try {
     const build = new URL(buildOrigin);
