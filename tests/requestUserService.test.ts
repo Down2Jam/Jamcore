@@ -5,12 +5,14 @@ import {
   loadRequestUserBySlug,
 } from "../src/features/users/request.service.js";
 
-const { findUnique } = vi.hoisted(() => ({
+const { findUnique, findComment } = vi.hoisted(() => ({
   findUnique: vi.fn(),
+  findComment: vi.fn(),
 }));
 
 vi.mock("../src/infra/db.js", () => ({
   default: {
+    comment: { findUnique: findComment },
     user: {
       findUnique,
     },
@@ -28,6 +30,14 @@ vi.mock("../src/features/tracks/page.js", () => ({
 describe("requestUserService", () => {
   beforeEach(() => {
     findUnique.mockReset();
+    findComment.mockReset();
+  });
+
+  it("repairs stored comment links in the inbox user response", async () => {
+    findUnique.mockResolvedValue({ id: 7, receivedNotifications: [{ link: "/comments/8" }] });
+    findComment.mockResolvedValue({ post: { id: 1, slug: "post" } });
+    const user = await loadRequestUserBySlug("tester");
+    expect(user?.receivedNotifications[0].link).toBe("/p/post?comment=8#comment-8");
   });
 
   it("normalizes request-user ratings with page version metadata", async () => {

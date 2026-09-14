@@ -220,7 +220,7 @@ export async function createGame({
       type: "GENERAL",
       title: `${actorUser.name} published a game`,
       body: input.name,
-      link: `/games/${game.slug}`,
+      link: `/g/${game.slug}`,
       data: { kind: "game", gameId: game.id },
     });
   }

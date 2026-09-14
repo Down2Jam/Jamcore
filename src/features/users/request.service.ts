@@ -1,4 +1,5 @@
 import db from "../../infra/db.js";
+import { repairCommentNotificationLinks } from "../notifications/links.js";
 import { appConfig } from "../../config/app.js";
 import { doesCoreEntityBelongToTenant } from "../../infra/coreTenantStore.js";
 import { NotFoundError } from "../../lib/errors.js";
@@ -28,6 +29,7 @@ export async function loadRequestUserBySlug(
     await assertUserTenant(user.id, tenantId);
   }
 
+  if (user) await repairCommentNotificationLinks(user.receivedNotifications);
   return user ? presentRequestUser(user) : null;
 }
 

@@ -270,8 +270,10 @@ async function findCommentMentionReference(commentId: number) {
 
 export async function resolveCommentMentionContext(commentId: number) {
   let currentCommentId: number | null = commentId;
+  const visited = new Set<number>();
 
-  while (currentCommentId) {
+  while (currentCommentId && !visited.has(currentCommentId)) {
+    visited.add(currentCommentId);
     const comment = await findCommentMentionReference(currentCommentId);
 
     if (!comment) break;

@@ -57,9 +57,31 @@ import {
   getInboxTargetForUser,
   handleInboxActivity,
 } from "../src/features/federation/inbox/service.js";
-import { getJamActorId, getPostObjectId, getUserActorId } from "../src/features/federation/protocol/urls.js";
+import { getJamActorId, getPostObjectId, getUserActorId, getGameObjectId, getTrackObjectId, getCommentObjectId } from "../src/features/federation/protocol/urls.js";
 
 describe("federation inbox service", () => {
+  it.each([
+    ["post", getPostObjectId(12), { id: 12, authorId: 7, slug: "my-post" }, "/p/my-post"],
+    ["game", getGameObjectId("my-game"), { id: 12, slug: "my-game", published: true, team: { ownerId: 7 } }, "/g/my-game"],
+    ["track", getTrackObjectId("my-track"), { slug: "my-track", composerId: 7, gamePage: { game: { id: 12 } } }, "/m/my-track"],
+    ["comment", getCommentObjectId(42), { id: 42, authorId: 7, post: { id: 12, slug: "my-post" } }, "/p/my-post?comment=42#comment-42"],
+  ])("links remote likes on a %s to its current page", async (_kind, object, entity, link) => {
+    mocks.findUnique.mockResolvedValue(entity);
+    mocks.findFirst.mockResolvedValue(entity);
+    await handleInboxActivity({
+      target: getInboxTargetForJam(),
+      body: {
+        id: "https://remote.example/likes/1",
+        type: "Like",
+        actor: "https://remote.example/users/alice",
+        object,
+      },
+    });
+    expect(mocks.createMany).toHaveBeenCalledWith({
+      data: [expect.objectContaining({ recipientId: 7, link })],
+    });
+  });
+
   beforeEach(async () => {
     mocks.createMany.mockReset();
     mocks.findMany.mockReset();

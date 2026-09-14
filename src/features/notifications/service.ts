@@ -1,4 +1,6 @@
 import { z } from "zod";
+import type { Notification } from "@prisma/client";
+import { repairCommentNotificationLinks } from "./links.js";
 
 import db from "../../infra/db.js";
 import { ForbiddenError, NotFoundError } from "../../lib/errors.js";
@@ -77,7 +79,7 @@ export async function listNotifications({
   actor: NotificationActor;
   input: z.infer<typeof listNotificationsQuerySchema>;
 }) {
-  const notifications = await db.$queryRawUnsafe(
+  const notifications = await db.$queryRawUnsafe<Notification[]>(
     `
       SELECT *
       FROM "Notification"
@@ -102,6 +104,7 @@ export async function listNotifications({
     `,
     actor.id,
   )) as Array<{ count: number }>;
+  await repairCommentNotificationLinks(notifications);
   return {
     items: notifications,
     unreadCount: Number(unreadRows[0]?.count ?? 0),

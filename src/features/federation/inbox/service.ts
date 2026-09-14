@@ -1,6 +1,7 @@
 import { appConfig } from "../../../config/app.js";
 import { filterCoreEntityIdsByTenant } from "../../../infra/coreTenantStore.js";
 import db from "../../../infra/db.js";
+import { resolveCommentMentionContext } from "../../mentions/notifications.service.js";
 import {
   assertCommentTargetBelongsToTenant,
   assertGameBelongsToTenant,
@@ -106,7 +107,7 @@ async function resolveObjectRecipient(
       }
       const post = await db.post.findUnique({
         where: { id: reference.id },
-        select: { authorId: true, id: true, deletedAt: true, removedAt: true },
+        select: { authorId: true, id: true, slug: true, deletedAt: true, removedAt: true },
       });
       if (!post || post.deletedAt || post.removedAt) {
         throw new NotFoundError("Referenced post not found");
@@ -115,7 +116,7 @@ async function resolveObjectRecipient(
       return {
         recipientId: post.authorId,
         type: "POST_COMMENT" as const,
-        link: `/forum/posts/${post.id}`,
+        link: `/p/${post.slug ?? post.id}`,
       };
     }
     case "comment": {
@@ -155,10 +156,18 @@ async function resolveObjectRecipient(
         throw new NotFoundError("Referenced comment not found");
       }
       await assertCommentTargetBelongsToTenant(comment, tenantId);
+      const context = await resolveCommentMentionContext(comment.id);
+      const pageLink = context.postSlug
+        ? `/p/${context.postSlug}`
+        : context.trackSlug
+          ? `/m/${context.trackSlug}`
+          : context.gameSlug
+            ? `/g/${context.gameSlug}`
+            : undefined;
       return {
         recipientId: comment.authorId,
         type: "COMMENT_REPLY" as const,
-        link: `/comments/${comment.id}`,
+        link: pageLink ? `${pageLink}?comment=${comment.id}#comment-${comment.id}` : undefined,
       };
     }
     case "game": {
@@ -181,7 +190,7 @@ async function resolveObjectRecipient(
       return {
         recipientId: game.team.ownerId,
         type: "GAME_COMMENT" as const,
-        link: `/games/${game.slug}`,
+        link: `/g/${game.slug}`,
       };
     }
     case "track": {
@@ -214,7 +223,7 @@ async function resolveObjectRecipient(
       return {
         recipientId: track.composerId,
         type: "TRACK_COMMENT" as const,
-        link: `/tracks/${track.slug}`,
+        link: `/m/${track.slug}`,
       };
     }
   }
