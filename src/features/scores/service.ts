@@ -6,7 +6,7 @@ import { appConfig } from "../../config/app.js";
 import db from "../../infra/db.js";
 
 const RECENT_SCORE_LIMIT = 10;
-const RECENT_SCORE_CANDIDATE_LIMIT = 500;
+const RECENT_SCORE_CANDIDATE_LIMIT = 100;
 
 type ScoreLeaderboardType = "SCORE" | "GOLF" | "SPEEDRUN" | "ENDURANCE";
 
@@ -87,7 +87,7 @@ export async function listRecentTopScores(
       },
     },
     orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
-    take: Math.max(RECENT_SCORE_CANDIDATE_LIMIT, limit * 30),
+    take: RECENT_SCORE_CANDIDATE_LIMIT,
     select: {
       id: true,
       data: true,

@@ -8,7 +8,7 @@ import { assertGameBelongsToTenant } from "../../lib/contentTenant.js";
 import { NotFoundError } from "../../lib/errors.js";
 
 const RECENT_ACHIEVEMENT_LIMIT = 10;
-const RECENT_ACHIEVEMENT_CANDIDATE_LIMIT = 200;
+const RECENT_ACHIEVEMENT_CANDIDATE_LIMIT = 100;
 
 export type AchievementRarityTier =
   | "Abyssal"
@@ -169,7 +169,7 @@ export async function listRecentAchievementUnlocks(
       },
     },
     orderBy: [{ earnedAt: "desc" }, { achievementId: "desc" }],
-    take: Math.max(RECENT_ACHIEVEMENT_CANDIDATE_LIMIT, limit * 20),
+    take: RECENT_ACHIEVEMENT_CANDIDATE_LIMIT,
     select: {
       earnedAt: true,
       user: {
