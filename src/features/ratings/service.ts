@@ -168,7 +168,7 @@ export async function saveTrackRating({
   const isOwnTeam = track.gamePage.game.team.users.some(
     (member) => member.id === userId,
   );
-  if (isOwnTeam) {
+  if (isOwnTeam || track.gamePage.game.team.ownerId === userId || track.composerId === userId) {
     throw new ForbiddenError("You can't rate your own track.");
   }
 
