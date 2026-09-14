@@ -24,16 +24,25 @@ describe("opaque authentication", () => {
     await expect(authenticateRequest(req("Bearer expired"), res() as never, true)).rejects.toMatchObject({ statusCode: 401 });
     expect(await authenticateRequest(req(), res() as never, true)).toBeNull();
   });
-  it("preserves legacy game tokens", async () => {
+  it.each([false, true])("preserves game tokens on allowed routes (optional=%s)", async optional => {
     resolveGame.mockResolvedValue({ user: { slug: "alice" }, tokenId: "g", gameId: 7 });
     const response = res();
     response.locals.gameTokenAllowed = true;
-    expect(await authenticateRequest(req("Bearer d2j_old"), response as never)).toBe("alice");
+    expect(await authenticateRequest(req("Bearer d2j_old"), response as never, optional)).toBe("alice");
+    expect(response.locals.authMethod).toBe("gameToken");
+    expect(response.locals.gameAccessTokenId).toBe("g");
     expect(response.locals.gameAccessTokenGameId).toBe(7);
   });
-  it.each([false, true])("rejects game tokens outside the allowlist (optional=%s)", async optional => {
+  it("rejects game tokens on protected routes outside the allowlist", async () => {
     resolveGame.mockResolvedValue({ user: { slug: "alice" }, tokenId: "g", gameId: 7 });
-    await expect(authenticateRequest(req("Bearer d2j_token"), res() as never, optional)).rejects.toMatchObject({ statusCode: 403 });
+    await expect(authenticateRequest(req("Bearer d2j_token"), res() as never)).rejects.toMatchObject({ statusCode: 403 });
+  });
+  it("treats valid game tokens as anonymous on optional routes outside the allowlist", async () => {
+    resolveGame.mockResolvedValue({ user: { slug: "alice" }, tokenId: "g", gameId: 7 });
+    const response = res();
+    expect(await authenticateRequest(req("Bearer d2j_token"), response as never, true)).toBeNull();
+    expect(response.locals).toEqual({});
+    expect(resolveAccess).not.toHaveBeenCalled();
   });
   it("rejects revoked game tokens even on optional reads", async () => {
     resolveGame.mockResolvedValue(null);

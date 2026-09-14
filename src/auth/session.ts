@@ -34,7 +34,11 @@ export async function authenticateRequest(req: Request, res: Response, optional 
   if (raw?.startsWith(GAME_TOKEN_PREFIX)) {
     const resolved = await resolveUserByGameAccessToken(raw);
     if (resolved) {
-      if (res.locals.gameTokenAllowed !== true) throw new ForbiddenError("Game tokens are not allowed on this route.");
+      if (res.locals.gameTokenAllowed !== true) {
+        // Public routes can serve anonymous data without granting the token's user identity.
+        if (optional) return null;
+        throw new ForbiddenError("Game tokens are not allowed on this route.");
+      }
       res.locals.authMethod = "gameToken";
       res.locals.gameAccessTokenId = resolved.tokenId;
       res.locals.gameAccessTokenGameId = resolved.gameId;
