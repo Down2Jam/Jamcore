@@ -49,7 +49,7 @@ describe("game page item ordering", () => {
   });
 
   it("assigns positions to new items on an existing page", async () => {
-    await upsertGamePage(1, "JAM", { songs, leaderboards });
+    await upsertGamePage(1, "JAM", { songs, leaderboards: leaderboards.map(({ id: _id, ...board }) => board) });
     expect(db.gamePageTrack.create.mock.calls.map(([arg]) => [arg.data.slug, arg.data.sortOrder])).toEqual([["second", 0], ["first", 1]]);
     expect(db.gamePageLeaderboard.create.mock.calls.map(([arg]) => [arg.data.name, arg.data.sortOrder])).toEqual([["Board 2", 0], ["Board 1", 1]]);
   });

@@ -95,6 +95,8 @@ model User {
   usersBlocked                  UserBlock[]              @relation(name: "UserBlockBlocker")
   blockedByUsers                UserBlock[]              @relation(name: "UserBlockBlocked")
   gameAccessTokens              GameAccessToken[]
+  authSessions                  AuthSession[]
+  oauthApps                     OAuthApp[]
 
   @@index([tenantId])
 }
@@ -1664,6 +1666,71 @@ model RemoteComment {
   @@unique([tenantId, objectId])
   @@index([tenantId, status, targetKind, targetId], map: "remote_comments_target_id_idx")
   @@index([tenantId, status, targetKind, targetSlug], map: "remote_comments_target_slug_idx")
+}
+
+model OAuthApp {
+  id           String @id
+  ownerId      Int
+  name         String
+  redirectUris String[]
+  disabledAt   DateTime?
+  createdAt    DateTime @default(now())
+  owner        User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  sessions     AuthSession[]
+  codes        OAuthCode[]
+  @@index([ownerId])
+}
+
+model OAuthCode {
+  hash          String @id
+  appId         String
+  userId        Int
+  tenantId      String?
+  redirectUri   String
+  challenge     String
+  sessionId     String?
+  scopes        String[]
+  expiresAt     DateTime
+  consumedAt    DateTime?
+  app           OAuthApp @relation(fields: [appId], references: [id], onDelete: Cascade)
+  @@index([expiresAt])
+}
+
+model AuthSession {
+  id        String    @id
+  userId    Int
+  tenantId  String?
+  appId     String?
+  scopes    String[]
+  createdAt DateTime  @default(now())
+  expiresAt DateTime
+  revokedAt DateTime?
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  app       OAuthApp? @relation(fields: [appId], references: [id], onDelete: Cascade)
+  accessTokens  AccessToken[]
+  refreshTokens RefreshToken[]
+  @@index([userId])
+  @@index([appId])
+  @@index([expiresAt])
+}
+
+model AccessToken {
+  hash      String    @id
+  sessionId String
+  expiresAt DateTime
+  session   AuthSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  @@index([sessionId])
+  @@index([expiresAt])
+}
+
+model RefreshToken {
+  hash       String    @id
+  sessionId  String
+  expiresAt  DateTime
+  consumedAt DateTime?
+  session    AuthSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  @@index([sessionId])
+  @@index([expiresAt])
 }
 
 model GameAccessToken {

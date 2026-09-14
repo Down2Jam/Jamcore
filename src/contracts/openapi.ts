@@ -160,11 +160,11 @@ function buildOperation(route: ApiRegistryRoute) {
     security: auth.required
       ? auth.kind === "platform"
         ? [
-            { bearerAuth: [], refreshCookie: [] },
+            { bearerAuth: [] },
             { serviceApiKey: [] },
             { serviceAuthorization: [] },
           ]
-        : [{ bearerAuth: [], refreshCookie: [] }]
+        : [{ bearerAuth: [] }]
       : undefined,
     "x-jamcore-auth": auth,
     "x-jamcore-pagination": route.pagination,
@@ -279,9 +279,9 @@ export function buildOpenApiDocument(input: {
         bearerAuth: {
           type: "http",
           scheme: "bearer",
-          bearerFormat: "JWT",
+          bearerFormat: "opaque",
           description:
-            "Access token returned by POST /api/v1/session in the Authorization response header.",
+            "Opaque access token from website login or OAuth authorization. Send only this token on API requests; refresh tokens are accepted only at refresh endpoints.",
         },
         refreshCookie: {
           type: "apiKey",

@@ -11,6 +11,7 @@ function getAuthorizationContextKey(res: Response) {
 }
 
 export async function loadAuthorizationGrants(res: Response) {
+  if (["appToken", "gameToken"].includes(res.locals.authMethod ?? "")) return [];
   const contextKey = getAuthorizationContextKey(res);
   if (res.locals.authorizationGrantsContextKey === contextKey) {
     return res.locals.authorizationGrants ?? [];

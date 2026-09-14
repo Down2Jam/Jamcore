@@ -500,6 +500,15 @@
             "type": "string",
             "format": "date-time"
           }
+        },
+        {
+          "name": "cursorId",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "description": "ID of the last post, used with cursor to paginate posts sharing a timestamp"
         }
       ],
       "auth": {
@@ -1211,6 +1220,25 @@
       "pagination": {
         "style": "cursor",
         "response": "itemsPageInfo"
+      }
+    },
+    {
+      "sdkName": "listLinkablePostGames",
+      "method": "GET",
+      "path": "/posts/linkable-games",
+      "tag": "Posts",
+      "summary": "List the current user's published games available to link to posts",
+      "parameters": [],
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
       }
     },
     {
@@ -3395,6 +3423,9 @@
       "rateLimit": {
         "documented": true,
         "headers": true
+      },
+      "idempotency": {
+        "supported": false
       }
     },
     {
@@ -3414,10 +3445,10 @@
         }
       ],
       "auth": {
+        "kind": "user",
         "required": false,
-        "optional": false,
-        "kind": "none",
-        "label": "Public"
+        "optional": true,
+        "label": "Public profile; uses login for viewer follow status"
       },
       "visibility": "public",
       "rateLimit": {
@@ -3444,8 +3475,7 @@
         "headers": true
       },
       "idempotency": {
-        "supported": true,
-        "header": "Idempotency-Key"
+        "supported": false
       }
     },
     {
@@ -3607,10 +3637,10 @@
         }
       ],
       "auth": {
-        "required": false,
+        "kind": "user",
+        "required": true,
         "optional": false,
-        "kind": "none",
-        "label": "Public"
+        "label": "Requires user login; includes team invitations and applications"
       },
       "visibility": "public",
       "rateLimit": {
@@ -4177,8 +4207,7 @@
         "headers": true
       },
       "idempotency": {
-        "supported": true,
-        "header": "Idempotency-Key"
+        "supported": false
       }
     },
     {
@@ -4199,8 +4228,7 @@
         "headers": true
       },
       "idempotency": {
-        "supported": true,
-        "header": "Idempotency-Key"
+        "supported": false
       }
     },
     {
@@ -4321,8 +4349,7 @@
         "headers": true
       },
       "idempotency": {
-        "supported": true,
-        "header": "Idempotency-Key"
+        "supported": false
       }
     },
     {
@@ -4344,8 +4371,7 @@
         "headers": true
       },
       "idempotency": {
-        "supported": true,
-        "header": "Idempotency-Key"
+        "supported": false
       }
     },
     {
@@ -4367,8 +4393,7 @@
         "headers": true
       },
       "idempotency": {
-        "supported": true,
-        "header": "Idempotency-Key"
+        "supported": false
       }
     },
     {
@@ -4390,8 +4415,7 @@
         "headers": true
       },
       "idempotency": {
-        "supported": true,
-        "header": "Idempotency-Key"
+        "supported": false
       }
     },
     {
@@ -6147,6 +6171,886 @@
         "documented": true,
         "headers": true
       }
+    },
+    {
+      "method": "POST",
+      "path": "/session/refresh",
+      "sdkName": "refreshSession",
+      "summary": "Rotate the website refresh cookie and issue a new access token",
+      "tag": "Session",
+      "requestBody": false,
+      "auth": {
+        "kind": "none",
+        "required": false,
+        "optional": false,
+        "label": "Public protocol endpoint"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": false
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/oauth/authorize",
+      "sdkName": "authorizeApp",
+      "summary": "Validate an OAuth authorization request and redirect to website consent",
+      "tag": "Session",
+      "parameters": [
+        {
+          "name": "response_type",
+          "in": "query",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "enum": [
+              "code"
+            ]
+          }
+        },
+        {
+          "name": "client_id",
+          "in": "query",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        {
+          "name": "redirect_uri",
+          "in": "query",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uri"
+          }
+        },
+        {
+          "name": "scope",
+          "in": "query",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "state",
+          "in": "query",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 16,
+            "maxLength": 1024
+          }
+        },
+        {
+          "name": "code_challenge",
+          "in": "query",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 43,
+            "maxLength": 43
+          }
+        },
+        {
+          "name": "code_challenge_method",
+          "in": "query",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "enum": [
+              "S256"
+            ]
+          }
+        }
+      ],
+      "auth": {
+        "kind": "none",
+        "required": false,
+        "optional": false,
+        "label": "Public protocol endpoint"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": false
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/oauth/request",
+      "sdkName": "previewAppAuthorization",
+      "summary": "Read the app name and requested permissions for the consent screen",
+      "tag": "Session",
+      "parameters": [
+        {
+          "name": "response_type",
+          "in": "query",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "enum": [
+              "code"
+            ]
+          }
+        },
+        {
+          "name": "client_id",
+          "in": "query",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        {
+          "name": "redirect_uri",
+          "in": "query",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uri"
+          }
+        },
+        {
+          "name": "scope",
+          "in": "query",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "state",
+          "in": "query",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 16,
+            "maxLength": 1024
+          }
+        },
+        {
+          "name": "code_challenge",
+          "in": "query",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 43,
+            "maxLength": 43
+          }
+        },
+        {
+          "name": "code_challenge_method",
+          "in": "query",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "enum": [
+              "S256"
+            ]
+          }
+        }
+      ],
+      "auth": {
+        "kind": "none",
+        "required": false,
+        "optional": false,
+        "label": "Public protocol endpoint"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": false
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/oauth/authorize",
+      "sdkName": "approveAppAuthorization",
+      "summary": "Approve or deny app access using the website session",
+      "tag": "Session",
+      "requestBody": true,
+      "auth": {
+        "kind": "user",
+        "required": true,
+        "optional": false,
+        "label": "Requires website login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": false
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/oauth/token",
+      "sdkName": "exchangeOAuthToken",
+      "summary": "Exchange a PKCE authorization code or rotate an app refresh token",
+      "tag": "Session",
+      "requestBody": true,
+      "auth": {
+        "kind": "none",
+        "required": false,
+        "optional": false,
+        "label": "Public protocol endpoint"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": false
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/oauth/revoke",
+      "sdkName": "revokeOAuthToken",
+      "summary": "Revoke the authorization associated with an access or refresh token",
+      "tag": "Session",
+      "requestBody": true,
+      "auth": {
+        "kind": "none",
+        "required": false,
+        "optional": false,
+        "label": "Public protocol endpoint"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": false
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/oauth/apps",
+      "sdkName": "listOAuthApps",
+      "summary": "List apps registered by the authenticated user",
+      "tag": "Session",
+      "auth": {
+        "kind": "user",
+        "required": true,
+        "optional": false,
+        "label": "Requires website login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": false
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/oauth/apps",
+      "sdkName": "registerOAuthApp",
+      "summary": "Register an app with exact HTTPS or localhost redirect URIs",
+      "tag": "Session",
+      "requestBody": true,
+      "auth": {
+        "kind": "user",
+        "required": true,
+        "optional": false,
+        "label": "Requires website login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": false
+      }
+    },
+    {
+      "method": "DELETE",
+      "path": "/oauth/apps",
+      "sdkName": "disableOAuthApp",
+      "summary": "Disable an owned app and invalidate its tokens",
+      "tag": "Session",
+      "requestBody": true,
+      "auth": {
+        "kind": "user",
+        "required": true,
+        "optional": false,
+        "label": "Requires website login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": false
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/oauth/connections",
+      "sdkName": "listAppConnections",
+      "summary": "List active app authorizations for the authenticated user",
+      "tag": "Session",
+      "auth": {
+        "kind": "user",
+        "required": true,
+        "optional": false,
+        "label": "Requires website login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": false
+      }
+    },
+    {
+      "method": "DELETE",
+      "path": "/oauth/connections",
+      "sdkName": "revokeAppConnection",
+      "summary": "Revoke an app authorization and all its tokens",
+      "tag": "Session",
+      "requestBody": true,
+      "auth": {
+        "kind": "user",
+        "required": true,
+        "optional": false,
+        "label": "Requires website login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": false
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/messages/counts",
+      "sdkName": "getMessageCounts",
+      "summary": "Read your conversation counts",
+      "tag": "Users",
+      "auth": {
+        "kind": "user",
+        "required": true,
+        "optional": false,
+        "label": "Requires user login or appropriate messages scope"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": false
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/messages/conversations",
+      "sdkName": "listConversations",
+      "summary": "List your conversations",
+      "tag": "Users",
+      "auth": {
+        "kind": "user",
+        "required": true,
+        "optional": false,
+        "label": "Requires user login or appropriate messages scope"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": false
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/messages/conversations",
+      "sdkName": "createConversation",
+      "summary": "Create a conversation",
+      "tag": "Users",
+      "requestBody": true,
+      "auth": {
+        "kind": "user",
+        "required": true,
+        "optional": false,
+        "label": "Requires user login or appropriate messages scope"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/messages/conversations/{id}/messages",
+      "sdkName": "getConversationMessages",
+      "summary": "Read messages in a conversation you belong to",
+      "tag": "Users",
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "auth": {
+        "kind": "user",
+        "required": true,
+        "optional": false,
+        "label": "Requires user login or appropriate messages scope"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": false
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/messages/conversations/{id}/messages",
+      "sdkName": "sendConversationMessage",
+      "summary": "Send a message to a conversation you belong to",
+      "tag": "Users",
+      "requestBody": true,
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "auth": {
+        "kind": "user",
+        "required": true,
+        "optional": false,
+        "label": "Requires user login or appropriate messages scope"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "method": "PUT",
+      "path": "/messages/conversations/{id}",
+      "sdkName": "updateConversation",
+      "summary": "Update your conversation membership state",
+      "tag": "Users",
+      "requestBody": true,
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      ],
+      "auth": {
+        "kind": "user",
+        "required": true,
+        "optional": false,
+        "label": "Requires user login or appropriate messages scope"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "blockUser",
+      "method": "PUT",
+      "path": "/users/{userSlug}/block",
+      "tag": "Users",
+      "summary": "Block a user",
+      "requestBody": false,
+      "auth": {
+        "kind": "user",
+        "required": true,
+        "optional": false,
+        "label": "Requires user login or messages:write scope"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "unblockUser",
+      "method": "DELETE",
+      "path": "/users/{userSlug}/block",
+      "tag": "Users",
+      "summary": "Unblock a user",
+      "requestBody": false,
+      "auth": {
+        "kind": "user",
+        "required": true,
+        "optional": false,
+        "label": "Requires user login or messages:write scope"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "getGameLeaderboards",
+      "method": "GET",
+      "path": "/games/{gameSlug}/leaderboards",
+      "tag": "Games",
+      "summary": "List game leaderboard definitions",
+      "requestBody": false,
+      "auth": {
+        "kind": "user",
+        "required": false,
+        "optional": true,
+        "label": "Public data; optional scoped authentication"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": false
+      },
+      "parameters": [
+        {
+          "name": "gameSlug",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "pageVersion",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string",
+            "enum": [
+              "JAM",
+              "POST_JAM"
+            ],
+            "default": "JAM"
+          }
+        }
+      ]
+    },
+    {
+      "sdkName": "getGameAchievements",
+      "method": "GET",
+      "path": "/games/{gameSlug}/achievements",
+      "tag": "Games",
+      "summary": "List game achievement definitions",
+      "requestBody": false,
+      "auth": {
+        "kind": "user",
+        "required": false,
+        "optional": true,
+        "label": "Public data; optional scoped authentication"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": false
+      },
+      "parameters": [
+        {
+          "name": "gameSlug",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "pageVersion",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string",
+            "enum": [
+              "JAM",
+              "POST_JAM"
+            ],
+            "default": "JAM"
+          }
+        }
+      ]
+    },
+    {
+      "sdkName": "getLeaderboardScores",
+      "method": "GET",
+      "path": "/leaderboards/{leaderboardId}/scores",
+      "tag": "Games",
+      "summary": "List public leaderboard scores",
+      "requestBody": false,
+      "auth": {
+        "kind": "user",
+        "required": false,
+        "optional": true,
+        "label": "Public data; optional scoped authentication"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": false
+      },
+      "parameters": [
+        {
+          "name": "leaderboardId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "limit",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 25
+          }
+        },
+        {
+          "name": "offset",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100000,
+            "default": 0
+          }
+        }
+      ]
+    },
+    {
+      "sdkName": "getPlayerGameContext",
+      "method": "GET",
+      "path": "/self/game-context",
+      "tag": "Games",
+      "summary": "Get player summary and game context",
+      "requestBody": false,
+      "auth": {
+        "kind": "user",
+        "required": true,
+        "optional": false,
+        "label": "Requires user, app or game token"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": false
+      },
+      "parameters": [
+        {
+          "name": "gameId",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        {
+          "name": "pageVersion",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string",
+            "enum": [
+              "JAM",
+              "POST_JAM"
+            ],
+            "default": "JAM"
+          }
+        }
+      ]
+    },
+    {
+      "sdkName": "getPlayerAchievements",
+      "method": "GET",
+      "path": "/self/achievements",
+      "tag": "Games",
+      "summary": "List the player’s owned achievements",
+      "requestBody": false,
+      "auth": {
+        "kind": "user",
+        "required": true,
+        "optional": false,
+        "label": "Requires user, app or game token"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": false
+      },
+      "parameters": [
+        {
+          "name": "gameId",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        {
+          "name": "pageVersion",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string",
+            "enum": [
+              "JAM",
+              "POST_JAM"
+            ],
+            "default": "JAM"
+          }
+        }
+      ]
+    },
+    {
+      "sdkName": "getPlayerScores",
+      "method": "GET",
+      "path": "/self/scores",
+      "tag": "Games",
+      "summary": "List the player’s scores on a leaderboard",
+      "requestBody": false,
+      "auth": {
+        "kind": "user",
+        "required": true,
+        "optional": false,
+        "label": "Requires user, app or game token"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": false
+      },
+      "parameters": [
+        {
+          "name": "leaderboardId",
+          "in": "query",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        {
+          "name": "limit",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 25
+          }
+        },
+        {
+          "name": "offset",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100000,
+            "default": 0
+          }
+        }
+      ]
     }
   ]
 }

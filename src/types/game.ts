@@ -18,6 +18,7 @@ export type GameWithPages<TPage = GamePageRecord> = {
 };
 
 export type GamePageWriteSong = {
+  id?: number;
   name: string;
   slug: string;
   url: string;
@@ -65,6 +66,7 @@ export type GamePageWriteBody = {
   flags?: number[];
   tags?: number[];
   achievements?: Array<{
+    id?: number;
     name: string;
     description?: string;
     image?: string;

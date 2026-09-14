@@ -1,6 +1,7 @@
 ﻿import { z } from "zod";
 
 import db from "../../infra/db.js";
+import { reconcileMetadata } from "../../lib/reconcileChildren.js";
 import {
   ForbiddenError,
   NotFoundError,
@@ -65,6 +66,8 @@ export async function updateTrackBySlug({
       },
     },
     include: {
+      links: true,
+      credits: true,
       gamePage: {
         include: {
           game: {
@@ -170,18 +173,12 @@ export async function updateTrackBySlug({
         : {}),
       ...(Array.isArray(input.links)
         ? {
-            links: {
-              deleteMany: {},
-              create: trackData.links,
-            },
+            links: reconcileMetadata(track.links, trackData.links, link => link.url),
           }
         : {}),
       ...(Array.isArray(input.credits)
         ? {
-            credits: {
-              deleteMany: {},
-              create: trackData.credits,
-            },
+            credits: reconcileMetadata(track.credits, trackData.credits, credit => String(credit.userId)),
           }
         : {}),
     },

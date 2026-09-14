@@ -3,6 +3,7 @@ import { PageVersion } from "@prisma/client";
 
 import db from "../../infra/db.js";
 import { BadRequestError } from "../../lib/errors.js";
+import { assertChildIds, reconcileMetadata } from "../../lib/reconcileChildren.js";
 import type { GamePageWriteBody } from "../../types/game.js";
 import { buildTrackWriteData } from "../tracks/write.js";
 import { buildGamePagePayload } from "./page.helpers.js";
@@ -78,6 +79,7 @@ async function syncGamePageTracks(
   pageId: number,
   songs: GamePageWriteBody["songs"],
 ) {
+  if (songs === undefined) return;
   const existingTracks = await db.gamePageTrack.findMany({
     where: { gamePageId: pageId },
     select: {
@@ -87,40 +89,38 @@ async function syncGamePageTracks(
       integratedLufs: true,
       truePeakDb: true,
       loudnessGainDb: true,
+      links: true,
+      credits: true,
       ratings: { select: { id: true } },
       timestampComments: { select: { id: true } },
     },
   });
 
+  assertChildIds(existingTracks, songs, "track");
+
   const existingTrackBySlug = new Map(
     existingTracks.map((track) => [track.slug, track]),
   );
-  const incomingSlugs = new Set<string>();
+  const retainedTrackIds = new Set<number>();
 
   for (const [sortOrder, song] of (songs ?? []).entries()) {
     const trackData = requireComposerId(song);
     const slug = String(trackData.slug ?? "").trim();
     if (!slug) continue;
-    incomingSlugs.add(slug);
+    const existingTrack = song.id ? existingTracks.find(track => track.id === song.id) : existingTrackBySlug.get(slug);
+    if (existingTrack) retainedTrackIds.add(existingTrack.id);
 
     const relationData = {
-      tags: {
+      tags: song.tagIds === undefined ? undefined : {
         set: trackData.tagIds.map((id) => ({ id })),
       },
-      flags: {
+      flags: song.flagIds === undefined ? undefined : {
         set: trackData.flagIds.map((id) => ({ id })),
       },
-      links: {
-        deleteMany: {},
-        create: trackData.links,
-      },
-      credits: {
-        deleteMany: {},
-        create: trackData.credits,
-      },
+      ...(song.links !== undefined ? { links: reconcileMetadata(existingTrack?.links ?? [], trackData.links, link => link.url) } : {}),
+      ...(song.credits !== undefined ? { credits: reconcileMetadata(existingTrack?.credits ?? [], trackData.credits, credit => String(credit.userId)) } : {}),
     };
 
-    const existingTrack = existingTrackBySlug.get(slug);
     if (existingTrack) {
       const preservesExistingAudio = existingTrack.url === trackData.url;
       await db.gamePageTrack.update({
@@ -192,7 +192,7 @@ async function syncGamePageTracks(
   }
 
   for (const existingTrack of existingTracks) {
-    if (incomingSlugs.has(existingTrack.slug)) continue;
+    if (retainedTrackIds.has(existingTrack.id)) continue;
     if (
       existingTrack.ratings.length > 0 ||
       existingTrack.timestampComments.length > 0
@@ -210,6 +210,7 @@ async function syncGamePageLeaderboards(
   pageId: number,
   leaderboards: LeaderboardInput[] | undefined,
 ) {
+  if (leaderboards === undefined) return;
   const existingLeaderboards = await db.gamePageLeaderboard.findMany({
     where: { gamePageId: pageId },
     include: {
@@ -220,6 +221,7 @@ async function syncGamePageLeaderboards(
       },
     },
   });
+  assertChildIds(existingLeaderboards, leaderboards, "leaderboard");
 
   for (const [sortOrder, leaderboard] of (leaderboards ?? []).entries()) {
     const existingLeaderboard = existingLeaderboards.find(
@@ -290,6 +292,8 @@ export async function upsertGamePage(
       playableBuildId: true,
       pageBackground: true,
       playableBuildShowFullscreenButton: true,
+      achievements: true,
+      downloadLinks: true,
     },
   });
 
@@ -321,39 +325,31 @@ export async function upsertGamePage(
   };
 
   if (existingPage) {
+    if (body.achievements !== undefined) assertChildIds(existingPage.achievements, body.achievements, "achievement");
     const updateData: Prisma.GamePageUpdateInput = {
       ...sharedData,
-      ratingCategories: {
+      ratingCategories: body.ratingCategories === undefined ? undefined : {
         set: [],
         connect: relationData.ratingCategories,
       },
-      majRatingCategories: {
+      majRatingCategories: body.majRatingCategories === undefined ? undefined : {
         set: [],
         connect: relationData.majRatingCategories,
       },
-      flags: {
+      flags: body.flags === undefined ? undefined : {
         set: [],
         connect: relationData.flags,
       },
-      tags: {
+      tags: body.tags === undefined ? undefined : {
         set: [],
         connect: relationData.tags,
       },
-      downloadLinks: {
-        deleteMany: {},
-        create: (body.downloadLinks ?? []).map((link: DownloadLinkInput) => ({
-          url: link.url,
-          platform: link.platform,
-        })),
-      },
-      achievements: {
-        deleteMany: {},
-        create: (body.achievements ?? []).map((achievement: AchievementInput) => ({
-          name: achievement.name,
-          description: achievement.description || "",
-          image: achievement.image || "",
-        })),
-      },
+      ...(body.downloadLinks !== undefined ? { downloadLinks: reconcileMetadata(existingPage.downloadLinks, body.downloadLinks.map(link => ({ url: link.url, platform: link.platform })), link => link.platform) } : {}),
+      ...(body.achievements !== undefined ? { achievements: {
+        deleteMany: { id: { in: existingPage.achievements.filter(item => !body.achievements!.some(incoming => incoming.id === item.id)).map(item => item.id) } },
+        update: body.achievements.filter(item => item.id != null && item.id > 0).map(item => ({ where: { id: item.id! }, data: { name: item.name, description: item.description ?? "", image: item.image ?? "" } })),
+        create: body.achievements.filter(item => item.id == null || item.id <= 0).map(item => ({ name: item.name, description: item.description ?? "", image: item.image ?? "" })),
+      } } : {}),
       ...(!nextPlayableBuildId
         ? { playableBuild: { disconnect: true } }
         : {}),
@@ -366,7 +362,7 @@ export async function upsertGamePage(
     });
 
     await syncGamePageLeaderboards(existingPage.id, body.leaderboards);
-    await syncGamePageTracks(existingPage.id, body.songs ?? []);
+    await syncGamePageTracks(existingPage.id, body.songs);
     if (nextPlayableBuildId) {
       await attachWebBuildToPage(existingPage.id, body.playableBuildUrl);
     }
@@ -426,7 +422,7 @@ export async function upsertGamePage(
     await attachWebBuildToPage(createdPage.id, body.playableBuildUrl);
   }
 
-  await syncGamePageLeaderboards(createdPage.id, body.leaderboards);
+  await syncGamePageLeaderboards(createdPage.id, body.leaderboards?.map(({ id: _id, ...leaderboard }) => leaderboard));
 
   return db.gamePage.findUnique({
     where: { id: createdPage.id },

@@ -26,6 +26,7 @@ export const gameLinkSchema = z.object({
 });
 
 export const gameAchievementSchema = z.object({
+  id: z.coerce.number().int().min(-1).max(2147483647).optional(),
   name: z.string().trim().min(1),
   description: z.string().optional(),
   image: z.string().optional(),
@@ -41,6 +42,7 @@ export const gameLeaderboardSchema = z.object({
 });
 
 export const trackInputSchema = z.object({
+  id: z.coerce.number().int().positive().max(2147483647).optional(),
   name: z.string().trim().min(1),
   slug: z.string().trim().min(1),
   url: z.string().trim().min(1),

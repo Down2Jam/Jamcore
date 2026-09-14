@@ -1,4 +1,5 @@
 import express from "express";
+import { createPlayerReadsRouter } from "../../features/games/player.router.js";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -64,6 +65,7 @@ export async function createV1Router() {
   router.use(mutationBodyGuard);
   router.use(mutationCacheInvalidation);
   router.use(authorizationContext);
+  router.use(createPlayerReadsRouter());
 
   for (const route of getStaticV1Routes()) {
     router.use(route.path, route.router as express.Router);

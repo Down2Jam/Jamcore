@@ -25,12 +25,12 @@ export async function createGameAccessTokenInDb(input: {
   userId: number;
   gameId: number;
   name: string;
-}) {
+}, client: Pick<typeof db, "gameAccessToken"> = db) {
   const key = `${GAME_TOKEN_PREFIX}${randomBytes(24).toString("hex")}`;
   const keyPrefix = key.slice(0, 12);
   const keyHash = hashKey(key);
 
-  const token = await db.gameAccessToken.create({
+  const token = await client.gameAccessToken.create({
     data: {
       id: randomUUID(),
       userId: input.userId,
@@ -116,22 +116,21 @@ export async function findDeviceAuthRequestByRawDeviceCodeInDb(rawDeviceCode: st
 }
 
 export async function approveDeviceAuthRequestInDb(input: {
-  id: string;
+  userCode: string;
   userId: number;
-  tokenId: string;
-  pendingToken: string;
 }) {
-  const result = await db.deviceAuthRequest.updateMany({
-    where: { id: input.id, status: "PENDING" satisfies DeviceAuthStatus },
-    data: {
-      status: "APPROVED" satisfies DeviceAuthStatus,
-      userId: input.userId,
-      tokenId: input.tokenId,
-      pendingToken: input.pendingToken,
-    },
+  return db.$transaction(async tx => {
+    // Claim first; token creation and publication roll back together on failure.
+    const claimed = await tx.deviceAuthRequest.updateMany({
+      where: { userCode: input.userCode.toUpperCase(), status: "PENDING", expiresAt: { gt: new Date() } },
+      data: { status: "APPROVED", userId: input.userId },
+    });
+    if (claimed.count !== 1) return null;
+    const request = await tx.deviceAuthRequest.findUniqueOrThrow({ where: { userCode: input.userCode.toUpperCase() } });
+    const { rawKey, token } = await createGameAccessTokenInDb({ userId: input.userId, gameId: request.gameId, name: request.clientName }, tx);
+    await tx.deviceAuthRequest.update({ where: { id: request.id }, data: { tokenId: token.id, pendingToken: rawKey } });
+    return request.clientName;
   });
-
-  return result.count > 0;
 }
 
 export async function denyDeviceAuthRequestInDb(id: string) {
@@ -151,13 +150,12 @@ export async function touchDeviceAuthRequestPolledInDb(id: string) {
 }
 
 export async function consumeDeviceAuthRequestPendingTokenInDb(id: string) {
-  const request = await db.deviceAuthRequest.findUnique({ where: { id } });
-  if (!request?.pendingToken || !request.userId) {
-    return null;
-  }
-
-  await db.deviceAuthRequest.delete({ where: { id } });
-  return { pendingToken: request.pendingToken, userId: request.userId };
+  return db.$transaction(async tx => {
+    const request = await tx.deviceAuthRequest.findUnique({ where: { id } });
+    if (!request?.pendingToken || !request.userId) return null;
+    const consumed = await tx.deviceAuthRequest.deleteMany({ where: { id, status: "APPROVED", expiresAt: { gt: new Date() } } });
+    return consumed.count === 1 ? { pendingToken: request.pendingToken, userId: request.userId } : null;
+  });
 }
 
 export async function findUserProfileByIdInDb(userId: number) {

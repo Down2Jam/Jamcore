@@ -1,3 +1,4 @@
+import { listLinkableGames } from "./linked-games.service.js";
 import express from "express";
 import { z } from "zod";
 
@@ -92,6 +93,10 @@ const postSeriesPostParamsSchema = postSeriesParamsSchema.extend({
 
 export function createPostsRouter() {
   const router = express.Router();
+
+  router.get("/linkable-games", authUser, getUser, asyncHandler(async (_req, res) => {
+    res.json(await listLinkableGames(requireRequestUser(res).id, res.locals.tenantId));
+  }));
 
   router.get(
     "/autosave",

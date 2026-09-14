@@ -3,7 +3,7 @@ import path from "path";
 import process from "process";
 import { z } from "zod";
 
-import { signAccessToken, signRefreshToken, writeSession } from "../../auth/session.js";
+import { createSessionTokens, writeSession } from "../../auth/session.js";
 import { env } from "../../config/env.js";
 import { assignCoreEntityTenant } from "../../infra/coreTenantStore.js";
 import db from "../../infra/db.js";
@@ -95,9 +95,8 @@ export async function createUserAccount({
     tenantId,
   });
 
-  const accessToken = signAccessToken(user.slug);
-  const refreshToken = signRefreshToken(user.slug);
-  writeSession(res, refreshToken, accessToken);
+  const { accessToken, refreshToken, expiresAt } = await createSessionTokens(user.id, tenantId);
+  writeSession(res, refreshToken, accessToken, expiresAt);
 
   return {
     user,

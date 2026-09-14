@@ -18,6 +18,11 @@ function assertUserModOrUserTeamMemberOrUserScoreOwner(
     return;
   }
 
+  if (res.locals.authMethod === "gameToken") {
+    next(res.locals.score.userId === res.locals.user.id ? undefined : new ForbiddenError("Game tokens can only delete the player's own scores."));
+    return;
+  }
+
   if (!res.locals.team) {
     next(new UnauthorizedError("Team not loaded."));
     return;

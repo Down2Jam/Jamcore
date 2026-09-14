@@ -1,124 +1,53 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
-vi.mock("../src/config/env.js", () => ({
-  env: {
-    nodeEnv: "production",
-    tokenSecret: "test-secret",
-  },
-}));
-
-const { resolveUserByGameAccessTokenMock } = vi.hoisted(() => ({
-  resolveUserByGameAccessTokenMock: vi.fn(),
-}));
-
-vi.mock("../src/auth/gameToken.js", () => ({
-  resolveUserByGameAccessToken: resolveUserByGameAccessTokenMock,
-}));
-
-import {
-  authenticateRequest,
-  signAccessToken,
-  signRefreshToken,
-  verifySessionToken,
-  writeSession,
-} from "../src/auth/session.js";
-import { UnauthorizedError } from "../src/lib/errors.js";
-
-function makeReq(overrides: { authorization?: string; refreshToken?: string } = {}) {
-  return {
-    headers: { authorization: overrides.authorization },
-    cookies: { refreshToken: overrides.refreshToken },
-  } as never;
-}
-
-function makeRes() {
-  return {
-    locals: {} as Record<string, unknown>,
-    cookie: vi.fn().mockReturnThis(),
-    header: vi.fn().mockReturnThis(),
-  };
-}
-
-describe("session tokens", () => {
-  it("signs and verifies access tokens", () => {
-    const token = signAccessToken("alice");
-    expect(verifySessionToken(token)).toMatchObject({ user: "alice" });
+vi.mock("../src/config/env.js", () => ({ env: { nodeEnv: "production", clientOrigin: "https://d2jam.com" } }));
+const { resolveGame, resolveAccess } = vi.hoisted(() => ({ resolveGame: vi.fn(), resolveAccess: vi.fn() }));
+vi.mock("../src/auth/gameToken.js", () => ({ resolveUserByGameAccessToken: resolveGame }));
+vi.mock("../src/auth/tokenStore.js", () => ({ resolveAccessToken: resolveAccess, ACCESS_TOKEN_TTL_MS: 900000, SESSION_TTL_MS: 2592000000, createSessionTokens: vi.fn() }));
+import { authenticateRequest, writeSession, assertSessionOrigin } from "../src/auth/session.js";
+const req = (authorization?: string) => ({ headers: { authorization }, cookies: { refreshToken: "ignored" }, originalUrl: "/api/v1/self", method: "GET" }) as never;
+const res = () => ({ locals: {} as Record<string, unknown>, cookie: vi.fn().mockReturnThis(), header: vi.fn().mockReturnThis() });
+beforeEach(() => vi.resetAllMocks());
+describe("opaque authentication", () => {
+  it("authenticates with an access token alone", async () => {
+    resolveAccess.mockResolvedValue({ user: { slug: "alice" }, sessionId: "s", appId: null });
+    const response = res();
+    expect(await authenticateRequest(req("Bearer token"), response as never)).toBe("alice");
+    expect(response.locals.authSessionId).toBe("s");
+    expect(response.cookie).not.toHaveBeenCalled();
   });
-
-  it("signs and verifies refresh tokens", () => {
-    const token = signRefreshToken("bob");
-    expect(verifySessionToken(token)).toMatchObject({ user: "bob" });
+  it("never refreshes an invalid access token from a cookie", async () => {
+    resolveAccess.mockResolvedValue(null);
+    await expect(authenticateRequest(req("Bearer expired"), res() as never)).rejects.toMatchObject({ statusCode: 401 });
   });
-
-  it("marks refresh cookies secure in production", () => {
-    const response = {
-      cookie: vi.fn().mockReturnThis(),
-      header: vi.fn().mockReturnThis(),
-    };
-
-    writeSession(response as never, "refresh-token", "access-token");
-
-    expect(response.cookie).toHaveBeenCalledWith(
-      "refreshToken",
-      "refresh-token",
-      expect.objectContaining({
-        httpOnly: true,
-        sameSite: "strict",
-        secure: true,
-      }),
-    );
+  it("returns 401 for expired optional auth so clients can refresh", async () => {
+    resolveAccess.mockResolvedValue(null);
+    await expect(authenticateRequest(req("Bearer expired"), res() as never, true)).rejects.toMatchObject({ statusCode: 401 });
+    expect(await authenticateRequest(req(), res() as never, true)).toBeNull();
   });
-});
-
-describe("authenticateRequest", () => {
-  beforeEach(() => vi.clearAllMocks());
-
-  it("resolves a request bearing a valid game token, without needing a refresh cookie", async () => {
-    resolveUserByGameAccessTokenMock.mockResolvedValue({
-      user: { id: 1, slug: "ategon" },
-      tokenId: "token-1",
-    });
-    const req = makeReq({ authorization: "Bearer d2j_abc123" });
-    const res = makeRes();
-
-    const userSlug = await authenticateRequest(req, res as never);
-
-    expect(userSlug).toBe("ategon");
-    expect(res.locals.authMethod).toBe("gameToken");
-    expect(res.locals.gameAccessTokenId).toBe("token-1");
-    expect(resolveUserByGameAccessTokenMock).toHaveBeenCalledWith("d2j_abc123");
+  it("preserves legacy game tokens", async () => {
+    resolveGame.mockResolvedValue({ user: { slug: "alice" }, tokenId: "g", gameId: 7 });
+    const response = res();
+    response.locals.gameTokenAllowed = true;
+    expect(await authenticateRequest(req("Bearer d2j_old"), response as never)).toBe("alice");
+    expect(response.locals.gameAccessTokenGameId).toBe(7);
   });
-
-  it("rejects an invalid game token", async () => {
-    resolveUserByGameAccessTokenMock.mockResolvedValue(null);
-    const req = makeReq({ authorization: "Bearer d2j_bad" });
-    const res = makeRes();
-
-    await expect(authenticateRequest(req, res as never)).rejects.toBeInstanceOf(
-      UnauthorizedError,
-    );
+  it.each([false, true])("rejects game tokens outside the allowlist (optional=%s)", async optional => {
+    resolveGame.mockResolvedValue({ user: { slug: "alice" }, tokenId: "g", gameId: 7 });
+    await expect(authenticateRequest(req("Bearer d2j_token"), res() as never, optional)).rejects.toMatchObject({ statusCode: 403 });
   });
-
-  it("returns null for an invalid game token when auth is optional", async () => {
-    resolveUserByGameAccessTokenMock.mockResolvedValue(null);
-    const req = makeReq({ authorization: "Bearer d2j_bad" });
-    const res = makeRes();
-
-    const userSlug = await authenticateRequest(req, res as never, true);
-
-    expect(userSlug).toBeNull();
+  it("rejects revoked game tokens even on optional reads", async () => {
+    resolveGame.mockResolvedValue(null);
+    await expect(authenticateRequest(req("Bearer d2j_revoked"), res() as never, true)).rejects.toMatchObject({ statusCode: 401 });
   });
-
-  it("falls through to session verification for a non-game-token bearer value", async () => {
-    const access = signAccessToken("carol");
-    const refresh = signRefreshToken("carol");
-    const req = makeReq({ authorization: `Bearer ${access}`, refreshToken: refresh });
-    const res = makeRes();
-
-    const userSlug = await authenticateRequest(req, res as never);
-
-    expect(userSlug).toBe("carol");
-    expect(res.locals.authMethod).toBe("session");
-    expect(resolveUserByGameAccessTokenMock).not.toHaveBeenCalled();
+  it("enforces app scope during authentication", async () => {
+    resolveAccess.mockResolvedValue({ user: { slug: "alice" }, sessionId: "s", appId: "a", scopes: ["games:read"] });
+    await expect(authenticateRequest(req("Bearer app"), res() as never)).rejects.toMatchObject({ statusCode: 403 });
+  });
+  it("uses separate secure cookies and rejects foreign or missing cookie origins", () => {
+    const response = res(); writeSession(response as never, "refresh", "access");
+    expect(response.cookie).toHaveBeenCalledWith("refreshToken", "refresh", expect.objectContaining({ httpOnly: true, secure: true, sameSite: "strict" }));
+    expect(response.cookie).toHaveBeenCalledWith("mediaAccessToken", "access", expect.objectContaining({ maxAge: 900000 }));
+    for (const origin of [undefined, "null", "https://evil.example"]) expect(() => assertSessionOrigin({ get: () => origin } as never)).toThrow();
+    expect(() => assertSessionOrigin({ get: () => "https://d2jam.com" } as never)).not.toThrow();
   });
 });

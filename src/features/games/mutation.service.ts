@@ -1,4 +1,5 @@
 import { clearGameListingCache } from "./listing.service.js";
+import { reconcileMetadata } from "../../lib/reconcileChildren.js";
 import { PageVersion } from "@prisma/client";
 
 import { JAM_PHASES } from "../../domain/jamTimeline.js";
@@ -298,26 +299,20 @@ export async function updateGameBySlug({
     where: { slug: gameSlug },
     data: {
       slug,
-      downloadLinks: {
-        deleteMany: {},
-        create: normalizedDownloadLinks.map((link: { url: string; platform: string }) => ({
-          url: link.url,
-          platform: link.platform,
-        })),
-      },
-      ratingCategories: {
+      ...(downloadLinks !== undefined ? { downloadLinks: reconcileMetadata(existingGame.downloadLinks, normalizedDownloadLinks.map(link => ({ url: link.url, platform: link.platform })), link => link.platform) } : {}),
+      ratingCategories: ratingCategories === undefined ? undefined : {
         disconnect: disconnectRatingCategories.map((entry) => ({ id: entry.id })),
         connect: newRatingCategories.map((entry: number) => ({ id: entry })),
       },
-      majRatingCategories: {
+      majRatingCategories: majRatingCategories === undefined ? undefined : {
         disconnect: disconnectMajRatingCategories.map((entry) => ({ id: entry.id })),
         connect: newMajRatingCategories.map((entry: number) => ({ id: entry })),
       },
-      tags: {
+      tags: tags === undefined ? undefined : {
         disconnect: disconnectTags.map((entry) => ({ id: entry.id })),
         connect: newTags.map((entry: number) => ({ id: entry })),
       },
-      flags: {
+      flags: flags === undefined ? undefined : {
         disconnect: disconnectFlags.map((entry) => ({ id: entry.id })),
         connect: newFlags.map((entry: number) => ({ id: entry })),
       },

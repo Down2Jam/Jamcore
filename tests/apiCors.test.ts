@@ -3,8 +3,19 @@ import type { Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createApiCors } from "../src/middleware/apiCors.js";
+import registry from "../src/contracts/api-registry.json";
 
 const site = "https://d2jam.com";
+it("allows anonymous GET and HEAD from external origins on every public read", async () => {
+  for (const route of registry.routes.filter(route => route.method === "GET" && route.visibility === "public" && !route.auth.required)) {
+    const path = route.path.replace(/\{[^}]+\}/g, "example");
+    for (const method of ["GET", "HEAD"]) {
+      const response = await fetch(`${base}/api/v1${path}`, { method, headers: { Origin: "https://example.com" } });
+      expect(response.headers.get("Access-Control-Allow-Origin"), `${method} ${path}`).toBe("*");
+      expect(response.headers.get("Access-Control-Allow-Credentials")).toBeNull();
+    }
+  }
+});
 let server: Server;
 let base: string;
 
@@ -51,6 +62,12 @@ describe("browser game CORS", () => {
   );
 
   it.each([
+    ["/api/v1/self/game-context", "GET"],
+    ["/api/v1/self", "GET"],
+    ["/api/v1/oauth/token", "POST"],
+    ["/api/v1/games/a-game", "GET"],
+    ["/api/v1/self/achievements", "GET"],
+    ["/api/v1/leaderboards/9/scores", "GET"],
     ["/api/v1/achievement", "POST"],
     ["/api/v1/achievement", "DELETE"],
     ["/api/v1/score", "POST"],
@@ -69,9 +86,12 @@ describe("browser game CORS", () => {
 
   it.each([
     ["/api/v1/device/approve", "POST"],
+    ["/api/v1/leaderboards/9/scores/extra", "GET"],
+    ["/api/v1/leaderboards/9/scores", "POST"],
     ["/api/v1/device/deny", "POST"],
     ["/api/v1/self/game-tokens", "DELETE"],
-    ["/api/v1/self", "GET"],
+    ["/api/v1/oauth/apps", "POST"],
+    ["/api/v1/session/refresh", "POST"],
     ["/api/v1/device/code/extra", "POST"],
     ["/api/v1/device/code", "DELETE"],
     ["/api/v1/image", "DELETE"],

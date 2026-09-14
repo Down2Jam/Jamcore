@@ -1,3 +1,4 @@
+import { loadLinkedGames, validatePostGames } from "./linked-games.service.js";
 import { randomBytes, randomUUID } from "node:crypto";
 
 import { z } from "zod";
@@ -679,19 +680,9 @@ async function getFollowingUserIds(userId: number, tenantId?: string | null) {
   return rows.map((row) => row.followingId);
 }
 
-async function getPostExtras(postId: number) {
-  const [games, collaborators] = await Promise.all([
-    db.$queryRawUnsafe(
-      `
-        SELECT pg.game_id AS "gameId", pg.relation_type AS "relationType", g.slug, gp.name
-        FROM "PostGameLink" pg
-        JOIN "Game" g ON g.id = pg.game_id
-        LEFT JOIN "GamePage" gp ON gp."gameId" = g.id AND gp.version = 'POST_JAM'
-        WHERE pg.post_id = $1
-        ORDER BY pg.created_at ASC
-      `,
-      postId,
-    ).catch(() => []),
+async function getPostExtras(postId: number, tenantId?: string | null) {
+  const [gamesByPost, collaborators] = await Promise.all([
+    loadLinkedGames([postId], tenantId),
     db.$queryRawUnsafe(
       `
         SELECT pc.user_id AS "userId", pc.role, pc.status, u.slug, u.name
@@ -703,7 +694,7 @@ async function getPostExtras(postId: number) {
       postId,
     ).catch(() => []),
   ]);
-  return { games, collaborators };
+  return { games: gamesByPost.get(postId) ?? [], collaborators };
 }
 
 async function updatePostPublicationMeta({
@@ -785,6 +776,7 @@ export async function createPost({
   }
 
   await assertAllowedModeratorTags(input.tags, actor);
+  await validatePostGames(actor.id, input.gameLinks, tenantId);
   const slug = await buildUniquePostSlug(input.title);
 
   const newPost = await db.post.create({
@@ -942,6 +934,8 @@ export async function updatePost({
 
   await assertAllowedModeratorTags(input.tags, actor);
 
+  await validatePostGames(post.authorId, input.gameLinks, tenantId);
+
   const data: {
     title?: string;
     content?: string;
@@ -949,7 +943,7 @@ export async function updatePost({
     editedAt?: Date;
     tags?: { set: Array<{ id: number }> };
   } = {};
-  let shouldMarkEdited = false;
+  let shouldMarkEdited = input.gameLinks !== undefined;
 
   if (typeof input.title === "string") {
     data.title = input.title;
@@ -1181,7 +1175,7 @@ export async function loadPost(
         tenantId,
       })),
     ],
-    ...(await getPostExtras(post.id)),
+    ...(await getPostExtras(post.id, tenantId)),
   };
 }
 
@@ -1754,10 +1748,11 @@ export async function listPosts(
         })
       : [];
     const postsById = new Map(pagePosts.map((post) => [post.id, post]));
+    const linkedGames = await loadLinkedGames(pageIds, tenantId);
     const items = pageIds
       .map((id) => postsById.get(id))
       .filter((post): post is NonNullable<typeof post> => Boolean(post))
-      .map((post) => presentPost(post, viewer));
+      .map((post) => ({ ...presentPost(post, viewer), games: linkedGames.get(post.id) ?? [] }));
     const hasMore = pageCandidates.length > limit;
 
     return {
@@ -1793,7 +1788,8 @@ export async function listPosts(
   const publicIds = new Set(await filterPublishedPostIds(posts.map((post) => post.id)));
   const visiblePosts = posts.filter((post) => allowedIds.has(post.id) && publicIds.has(post.id));
   const boostedPosts = visiblePosts;
-  const localItems = boostedPosts.slice(0, limit + 1).map((post) => presentPost(post, viewer));
+  const linkedGames = await loadLinkedGames(boostedPosts.map(post => post.id), tenantId);
+  const localItems = boostedPosts.slice(0, limit + 1).map((post) => ({ ...presentPost(post, viewer), games: linkedGames.get(post.id) ?? [] }));
   const shouldIncludeRemoteFeed =
     (!input.cursor || Boolean(feedCursor)) &&
     input.sort !== "top" &&

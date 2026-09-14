@@ -16,7 +16,7 @@ async function getUserOptional(
 
   const user = await loadOptionalRequestUserBySlug(userSlug, res.locals.tenantId);
   if (user) {
-    res.locals.user = user;
+    res.locals.user = ["appToken", "gameToken"].includes(res.locals.authMethod ?? "") ? { ...user, admin: false, mod: false } : user;
   }
 
   next();

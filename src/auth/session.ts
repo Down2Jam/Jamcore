@@ -1,143 +1,54 @@
 import type { Request, Response } from "express";
-import jwt, { type JwtPayload } from "jsonwebtoken";
-
-import {
-  REFRESH_TOKEN_EXPIRES_IN,
-  SESSION_DURATION_MS,
-} from "./constants.js";
 import { resolveUserByGameAccessToken } from "./gameToken.js";
 import { GAME_TOKEN_PREFIX } from "./gameTokenStore.js";
 import { env } from "../config/env.js";
-import {
-  ConfigurationError,
-  UnauthorizedError,
-} from "../lib/errors.js";
+import { ForbiddenError, UnauthorizedError } from "../lib/errors.js";
+import { resolveAccessToken, ACCESS_TOKEN_TTL_MS, SESSION_TTL_MS } from "./tokenStore.js";
+import { assertAppScope } from "./appScopes.js";
+export { createSessionTokens } from "./tokenStore.js";
 
-const ACCESS_TOKEN_EXPIRES_IN = "1h";
-
-export type SessionPayload = {
-  user: string;
-};
-
-function getTokenSecret() {
-  if (!env.tokenSecret) {
-    throw new ConfigurationError("Token secret not set up");
+export function getAuthorizationToken(req: Request) {
+  const header = req.headers.authorization;
+  return header?.startsWith("Bearer ") ? header.slice(7) : undefined;
+}
+export function assertSessionOrigin(req: Request) {
+  if (req.get("Origin") !== new URL(env.clientOrigin).origin) {
+    throw new ForbiddenError("Session cookies can only be used by the website.");
   }
-
-  return env.tokenSecret;
 }
-
-function toSessionPayload(decoded: string | JwtPayload): SessionPayload {
-  if (typeof decoded === "string") {
-    throw new UnauthorizedError("Invalid token payload");
-  }
-
-  const user =
-    typeof decoded.user === "string"
-      ? decoded.user
-      : typeof decoded.name === "string"
-        ? decoded.name
-        : null;
-
-  if (!user) {
-    throw new UnauthorizedError("Token missing user identity");
-  }
-
-  return { user };
+export function writeSession(res: Response, refreshToken: string, accessToken: string, expiresAt?: Date) {
+  const options = { httpOnly: true, sameSite: "strict" as const, secure: env.nodeEnv === "production", path: "/" };
+  res.cookie("refreshToken", refreshToken, {
+    ...options, maxAge: expiresAt ? Math.max(0, expiresAt.getTime() - Date.now()) : SESSION_TTL_MS,
+  }).cookie("mediaAccessToken", accessToken, { ...options, maxAge: ACCESS_TOKEN_TTL_MS })
+    .header("Authorization", accessToken).header("Cache-Control", "no-store");
 }
-
-function getAuthorizationToken(req: Request) {
-  const authHeader = req.headers.authorization;
-  return authHeader?.startsWith("Bearer ")
-    ? authHeader.slice("Bearer ".length)
-    : undefined;
-}
-
-function getRefreshToken(req: Request) {
-  const headerToken = req.headers.refresh;
-  return typeof headerToken === "string" ? req.cookies.refreshToken || headerToken : req.cookies.refreshToken;
-}
-
-export function signAccessToken(userSlug: string) {
-  return jwt.sign({ user: userSlug }, getTokenSecret(), {
-    expiresIn: ACCESS_TOKEN_EXPIRES_IN,
-  });
-}
-
-export function signRefreshToken(userSlug: string) {
-  return jwt.sign({ user: userSlug }, getTokenSecret(), {
-    expiresIn: REFRESH_TOKEN_EXPIRES_IN,
-  });
-}
-
-export function verifySessionToken(token: string) {
-  return toSessionPayload(jwt.verify(token, getTokenSecret()));
-}
-
-export function writeSession(res: Response, refreshToken: string, accessToken: string) {
-  res
-    .cookie("refreshToken", refreshToken, {
-      httpOnly: true,
-      sameSite: "strict",
-      secure: env.nodeEnv === "production",
-      maxAge: SESSION_DURATION_MS,
-    })
-    .header("Authorization", accessToken);
-}
-
 export function clearSession(res: Response) {
-  res.clearCookie("refreshToken", {
-    httpOnly: true,
-    sameSite: "strict",
-    secure: env.nodeEnv === "production",
-  });
+  const options = { httpOnly: true, sameSite: "strict" as const, secure: env.nodeEnv === "production", path: "/" };
+  res.clearCookie("refreshToken", options);
+  res.clearCookie("mediaAccessToken", options);
+  res.header("Cache-Control", "no-store");
 }
-
 export async function authenticateRequest(req: Request, res: Response, optional = false) {
-  const accessToken = getAuthorizationToken(req);
-
-  if (accessToken?.startsWith(GAME_TOKEN_PREFIX)) {
-    const resolved = await resolveUserByGameAccessToken(accessToken);
+  const raw = getAuthorizationToken(req);
+  if (raw?.startsWith(GAME_TOKEN_PREFIX)) {
+    const resolved = await resolveUserByGameAccessToken(raw);
     if (resolved) {
+      if (res.locals.gameTokenAllowed !== true) throw new ForbiddenError("Game tokens are not allowed on this route.");
       res.locals.authMethod = "gameToken";
       res.locals.gameAccessTokenId = resolved.tokenId;
       res.locals.gameAccessTokenGameId = resolved.gameId;
       return resolved.user.slug;
     }
-
-    if (optional) {
-      return null;
-    }
-
-    throw new UnauthorizedError("Unauthorized: Invalid game token.");
-  }
-
-  const refreshToken = getRefreshToken(req);
-
-  if (!accessToken || !refreshToken || accessToken === "null") {
-    if (optional) {
-      return null;
-    }
-
-    throw new UnauthorizedError("Unauthorized: Missing tokens.");
-  }
-
-  try {
-    res.locals.authMethod = "session";
-    return verifySessionToken(accessToken).user;
-  } catch (accessError) {
-    try {
-      const payload = verifySessionToken(refreshToken);
-      const newAccessToken = signAccessToken(payload.user);
-      writeSession(res, refreshToken, newAccessToken);
-      res.locals.authMethod = "session";
-      return payload.user;
-    } catch (_refreshError) {
-      if (optional) {
-        throw new UnauthorizedError("Unauthorized: Invalid tokens.");
-      }
-
-      throw new UnauthorizedError("Unauthorized: Missing tokens.");
+  } else if (raw) {
+    const resolved = await resolveAccessToken(raw, res.locals.tenantId);
+    if (resolved) {
+      if (resolved.appId) assertAppScope(req, resolved.scopes);
+      res.locals.authMethod = resolved.appId ? "appToken" : "session";
+      res.locals.authSessionId = resolved.sessionId;
+      return resolved.user.slug;
     }
   }
+  if (optional && (!raw || raw === "null" || raw === "undefined")) return null;
+  throw new UnauthorizedError("Access token missing, expired, or revoked.");
 }

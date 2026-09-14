@@ -20,6 +20,13 @@ router.get(
           loginPath: `/api/${appConfig.api.currentVersion}/session`,
           accessTokenHeader: "Authorization",
           refreshCookie: "refreshToken",
+          refreshPath: `/api/${appConfig.api.currentVersion}/session/refresh`,
+          accessTokenLifetimeSeconds: 900,
+          sessionMaximumLifetimeSeconds: 2592000,
+        },
+        oauth: {
+          authorizePath: "/api/v1/oauth/authorize", tokenPath: "/api/v1/oauth/token",
+          revokePath: "/api/v1/oauth/revoke", pkce: "S256", tokenType: "Bearer",
         },
         serviceKeys: {
           supported: true,

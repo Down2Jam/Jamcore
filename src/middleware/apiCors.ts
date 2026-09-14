@@ -1,10 +1,18 @@
 import cors from "cors";
 import type { Request, RequestHandler } from "express";
+import { requiredAppScope } from "../auth/appScopes.js";
+import registry from "../contracts/api-registry.json";
+
+const publicReads = registry.routes.filter(route => route.method === "GET" && route.visibility === "public" &&
+  (route.auth.kind === "none" || route.auth.optional)).map(route => new RegExp("^/api/v1" +
+    route.path.split(/(\{[^}]+\})/).map(part => part.startsWith("{") ? "[^/]+" : part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("") + "/?$", "i"));
 
 // Device authorization and the routes that opt into allowGameToken are used by
 // games on arbitrary hosts, including opaque (Origin: null) iframe sandboxes.
 // Keep this list aligned with routes using allowGameToken.
 const gameClientRoutes = new Map<string, string[]>([
+  ["/api/v1/oauth/token", ["POST"]],
+  ["/api/v1/oauth/revoke", ["POST"]],
   ["/api/v1/device/code", ["POST"]],
   ["/api/v1/device/token", ["POST"]],
   ["/api/v1/achievement", ["POST", "DELETE"]],
@@ -19,7 +27,13 @@ export function createApiCors(clientOrigin: string): RequestHandler {
     const method = req.method === "OPTIONS"
       ? req.get("Access-Control-Request-Method")?.toUpperCase()
       : req.method;
-    const gameMethods = gameClientRoutes.get(req.path.replace(/\/$/, "").toLowerCase());
+    const path = req.path.replace(/\/$/, "").toLowerCase();
+    const appMethods = ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"].filter(value =>
+      path.startsWith("/api/v1/") && requiredAppScope(path.slice(7), value));
+    if (publicReads.some(pattern => pattern.test(path))) {
+      for (const readMethod of ["GET", "HEAD"]) if (!appMethods.includes(readMethod)) appMethods.push(readMethod);
+    }
+    const gameMethods = [...new Set([...(gameClientRoutes.get(path) ?? []), ...appMethods])];
     const gameRequest = req.get("Origin") !== siteOrigin
       && Boolean(method && gameMethods?.includes(method));
 

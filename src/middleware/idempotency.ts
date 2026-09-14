@@ -26,6 +26,11 @@ export async function idempotencyMiddleware(
   res: Response,
   next: NextFunction,
 ) {
+  // Never persist or replay bearer credentials or authorization codes in idempotency storage.
+  if (/^\/(?:oauth(?:\/|$)|session(?:\/|$)|users\/?$|device(?:\/|$))/i.test(req.path)) {
+    next();
+    return;
+  }
   if (!appConfig.platform.idempotency.enabled) {
     next();
     return;

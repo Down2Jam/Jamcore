@@ -23,7 +23,9 @@ export const errorHandler: ErrorRequestHandler = (error, _req, res, _next) => {
   if (shouldExposeRequestId) {
     logger.error("Unhandled request error", {
       requestId: res.locals.requestId,
-      error,
+      error: error instanceof Error
+        ? { ...error, name: error.name, message: error.message, stack: error.stack }
+        : error,
     });
   }
 
