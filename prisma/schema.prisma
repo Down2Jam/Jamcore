@@ -434,6 +434,7 @@ model GamePage {
   thumbnail            String?
   soundtrackThumbnail  String?
   banner               String?
+  pageBackground       String?
   screenshots          String[]    @default([])
   trailerUrl           String?
   itchEmbedUrl         String?

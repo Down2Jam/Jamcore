@@ -46,6 +46,7 @@ export type GamePageWriteBody = {
   thumbnail?: string | null;
   soundtrackThumbnail?: string | null;
   banner?: string | null;
+  pageBackground?: string | null;
   screenshots?: string[];
   trailerUrl?: string | null;
   itchEmbedUrl?: string | null;

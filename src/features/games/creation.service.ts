@@ -136,6 +136,7 @@ export async function createGame({
       thumbnail: input.thumbnail,
       soundtrackThumbnail: input.soundtrackThumbnail,
       banner: input.banner,
+      pageBackground: input.pageBackground,
       screenshots: input.screenshots,
       trailerUrl: input.trailerUrl,
       itchEmbedUrl: input.itchEmbedUrl,

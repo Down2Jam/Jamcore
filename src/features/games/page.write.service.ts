@@ -288,11 +288,15 @@ export async function upsertGamePage(
     select: {
       id: true,
       playableBuildId: true,
+      pageBackground: true,
       playableBuildShowFullscreenButton: true,
     },
   });
 
   const pagePayload = buildGamePagePayload(body);
+  if (existingPage && body.pageBackground === undefined) {
+    pagePayload.pageBackground = existingPage.pageBackground;
+  }
   if (
     existingPage &&
     body.playableBuildShowFullscreenButton === undefined

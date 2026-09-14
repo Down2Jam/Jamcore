@@ -23,6 +23,7 @@ describe("gamePageService", () => {
           thumbnail: null,
           soundtrackThumbnail: "album.png",
           banner: null,
+          pageBackground: "background.png",
           trailerUrl: null,
           itchEmbedUrl: null,
           itchEmbedAspectRatio: null,
@@ -56,6 +57,7 @@ describe("gamePageService", () => {
     expect(payload).toEqual(
       expect.objectContaining({
         name: "Jam Name",
+        pageBackground: "background.png",
         soundtrackThumbnail: "album.png",
         playableBuildShowFullscreenButton: true,
         ratingCategories: [1],
