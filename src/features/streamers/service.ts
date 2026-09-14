@@ -30,7 +30,7 @@ type TwitchStreamsResponse = {
 const MIN_FEATURED_STREAMERS = 3;
 const blockedStreamerNames = new Set(["morninchai", "lana_lux"]);
 const fallbackExcludedTitlePattern =
-  /\b(?:vibe\s+(?:code|coding)|codex|claude|grok)\b/i;
+  /\b(?:vibe\s+(?:code|coding)|codex|claude|grok|gpt|astra|ai)\b/i;
 const FEATURED_STREAMERS_CACHE_KEY = "featured-streamers";
 
 function normalizeFeaturedStreamerTag(tag: string) {
