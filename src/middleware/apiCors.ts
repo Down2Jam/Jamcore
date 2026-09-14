@@ -1,7 +1,10 @@
 import cors from "cors";
 import type { Request, RequestHandler } from "express";
 import { requiredAppScope } from "../auth/appScopes.js";
-import registry from "../contracts/api-registry.json";
+import { createRequire } from "node:module";
+
+const require = createRequire(import.meta.url);
+const registry = require("../contracts/api-registry.json") as typeof import("../contracts/api-registry.json");
 
 const publicReads = registry.routes.filter(route => route.method === "GET" && route.visibility === "public" &&
   (route.auth.kind === "none" || route.auth.optional)).map(route => new RegExp("^/api/v1" +

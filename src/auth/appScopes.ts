@@ -1,6 +1,9 @@
 import type { Request } from "express";
 import { ForbiddenError } from "../lib/errors.js";
-import registry from "../contracts/api-registry.json";
+import { createRequire } from "node:module";
+
+const require = createRequire(import.meta.url);
+const registry = require("../contracts/api-registry.json") as typeof import("../contracts/api-registry.json");
 
 const appRoutes = registry.routes.filter(route => route.visibility === "public" && route.auth.kind !== "platform")
   .map(route => ({ method: route.method, pattern: new RegExp("^" + route.path.split(/(\{[^}]+\})/)
