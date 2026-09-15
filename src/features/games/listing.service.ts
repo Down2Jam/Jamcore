@@ -10,6 +10,7 @@ import {
   gameListingSummaryInclude,
 } from "../../prisma/selects.js";
 import { materializeGameListingEntries } from "./presenters.js";
+import { toGameListingResponse } from "./listing.response.js";
 import {
   OVERALL_RATING_CATEGORY_NAME,
   isAllowedJamRater,
@@ -32,7 +33,7 @@ const MAX_LIMIT = 50;
 
 type ListedGame = ReturnType<typeof materializeGameListingEntries>[number];
 type GameListingResult = {
-  items: ListedGame[];
+  items: ReturnType<typeof toGameListingResponse>[];
   pageInfo: {
     hasMore: boolean;
     nextCursor: string | null;
@@ -105,7 +106,7 @@ function parseCursor(cursor: unknown) {
   return cursor;
 }
 
-function listingCursorFor(game: ListedGame) {
+function listingCursorFor(game: Pick<ListedGame, "id" | "pageVersion">) {
   return `${game.id}:${game.pageVersion ?? PageVersion.JAM}`;
 }
 
@@ -799,7 +800,7 @@ export async function listGames({
     }
 
     const hasMore = slicedGames.length > normalizedLimit;
-    const items = slicedGames.slice(0, normalizedLimit);
+    const items = slicedGames.slice(0, normalizedLimit).map(toGameListingResponse);
 
     return {
       items,
