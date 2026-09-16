@@ -1,3 +1,4 @@
+import { activeRatingSelect, activeRatingPageSelect } from "../features/ratings/active.js";
 import { PageVersion } from "@prisma/client";
 
 export const jamAndPostJamVersions: PageVersion[] = [
@@ -86,12 +87,14 @@ export const trackSummarySelect = {
 export const requestUserBaseSelect = {
   ratings: {
     select: {
+      ...activeRatingSelect,
       value: true,
       userId: true,
       gamePageId: true,
       categoryId: true,
       gamePage: {
         select: {
+          ...activeRatingPageSelect,
           version: true,
           gameId: true,
         },
@@ -290,6 +293,7 @@ export const gameListingInclude = {
   },
   ratings: {
     select: {
+      ...activeRatingSelect,
       id: true,
       value: true,
       userId: true,
@@ -297,12 +301,14 @@ export const gameListingInclude = {
       gameId: true,
       category: {
         select: {
+          always: true,
           id: true,
           name: true,
         },
       },
       gamePage: {
         select: {
+          ...activeRatingPageSelect,
           version: true,
         },
       },
@@ -400,9 +406,11 @@ export const gameListingInclude = {
           },
           ratings: {
             select: {
+              ...activeRatingSelect,
               gameId: true,
               gamePage: {
                 select: {
+                  ...activeRatingPageSelect,
                   version: true,
                 },
               },
@@ -446,6 +454,7 @@ export const targetUserBaseSelect = {
   recommendedTrackHiddenIds: true,
   ratings: {
     select: {
+      ...activeRatingSelect,
       gameId: true,
       categoryId: true,
       value: true,
@@ -453,6 +462,7 @@ export const targetUserBaseSelect = {
       updatedAt: true,
       gamePage: {
         select: {
+          ...activeRatingPageSelect,
           version: true,
         },
       },

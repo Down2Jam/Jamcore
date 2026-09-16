@@ -324,6 +324,18 @@ export async function upsertGamePage(
     ...pagePayload,
   };
 
+  const syncRatingCategories = async (tx: Prisma.TransactionClient) => {
+    if (version === PageVersion.JAM && (body.ratingCategories !== undefined || body.majRatingCategories !== undefined)) {
+      await tx.game.update({
+        where: { id: gameId },
+        data: {
+          ratingCategories: body.ratingCategories === undefined ? undefined : { set: relationData.ratingCategories },
+          majRatingCategories: body.majRatingCategories === undefined ? undefined : { set: relationData.majRatingCategories },
+        },
+      });
+    }
+  };
+
   if (existingPage) {
     if (body.achievements !== undefined) assertChildIds(existingPage.achievements, body.achievements, "achievement");
     const updateData: Prisma.GamePageUpdateInput = {
@@ -355,10 +367,12 @@ export async function upsertGamePage(
         : {}),
     };
 
-    await db.gamePage.update({
-      where: { id: existingPage.id },
-      data: updateData,
-      include: postJamPageInclude,
+    await db.$transaction(async (tx) => {
+      await tx.gamePage.update({
+        where: { id: existingPage.id },
+        data: updateData,
+      });
+      await syncRatingCategories(tx);
     });
 
     await syncGamePageLeaderboards(existingPage.id, body.leaderboards);
@@ -413,9 +427,13 @@ export async function upsertGamePage(
     },
   };
 
-  const createdPage = await db.gamePage.create({
-    data: createData,
-    include: postJamPageInclude,
+  const createdPage = await db.$transaction(async (tx) => {
+    const page = await tx.gamePage.create({
+      data: createData,
+      include: postJamPageInclude,
+    });
+    await syncRatingCategories(tx);
+    return page;
   });
 
   if (nextPlayableBuildId) {

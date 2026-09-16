@@ -1,3 +1,4 @@
+import { activeRatingSelect, activeRatingPageSelect, isActiveGameRating } from "../features/ratings/active.js";
 import { Request, Response, NextFunction } from "express";
 import { PageVersion } from "@prisma/client";
 
@@ -69,7 +70,7 @@ async function getJam(
           slug: true,
           category: true,
           published: true,
-          ratings: true,
+          ratings: { select: { ...activeRatingSelect, gamePage: { select: { ...activeRatingPageSelect, version: true } } } },
           ratingCategories: true,
           pages: {
             where: {
@@ -111,6 +112,7 @@ async function getJam(
     ...jam,
     games: (jam.games ?? []).map((game: any) => ({
       ...game,
+      ratings: (game.ratings ?? []).filter((rating: any) => isActiveGameRating(rating) && rating.gamePage?.version === PageVersion.JAM),
       tracks:
         game.pages?.find((page: any) => page.version === PageVersion.JAM)?.tracks ??
         [],

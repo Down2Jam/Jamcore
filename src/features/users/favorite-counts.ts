@@ -1,3 +1,4 @@
+import { isActiveGameRating } from "../ratings/active.js";
 import {
   applyRecommendationOverrides,
   rankRecommendationCandidates,
@@ -28,7 +29,8 @@ type RecommendationUser = {
     categoryId: number;
     value: number;
     updatedAt: Date;
-    gamePage?: { version?: any } | null;
+    category?: { always: boolean };
+    gamePage?: { version?: any; ratingCategories?: Array<{ id: number }> } | null;
   }>;
   trackRatings: TrackRatingLike[];
 };
@@ -73,7 +75,7 @@ export function buildFavoriteCounts({
 
   recommendationUsers.forEach((recommendationUser) => {
     if (overallGameCategoryId) {
-      const jamRatings = recommendationUser.ratings
+      const jamRatings = recommendationUser.ratings.filter(isActiveGameRating)
         .map((rating) => ({
           ...rating,
           pageVersion: getRatingPageVersion(rating),

@@ -1,3 +1,4 @@
+import { activeRatingSelect, activeRatingPageSelect, isActiveGameRating } from "../ratings/active.js";
 import { PageVersion } from "@prisma/client";
 import type { NextFunction, Request, Response } from "express";
 
@@ -84,6 +85,8 @@ const activeJamSummaryInclude = {
       },
       ratings: {
         select: {
+          ...activeRatingSelect,
+          gamePage: { select: { ...activeRatingPageSelect, version: true } },
           id: true,
         },
       },
@@ -117,8 +120,7 @@ export function userIsInJam(
 }
 
 export function clearJamServiceCaches() {
-  activeJamCache.clear();
-  jamListCache.clear();
+  return Promise.all([activeJamCache.clear(), jamListCache.clear()]);
 }
 
 function normalizeJamGames<T extends { games?: any[] }>(jam: T): T {
@@ -131,6 +133,7 @@ function normalizeJamGames<T extends { games?: any[] }>(jam: T): T {
 
       return {
         ...game,
+        ratings: (game.ratings ?? []).filter((rating: any) => isActiveGameRating(rating) && rating.gamePage?.version === PageVersion.JAM),
         tracks: jamPage?.tracks ?? [],
       };
     }),

@@ -1,3 +1,4 @@
+import { isActiveGameRating } from "../ratings/active.js";
 import { PageVersion } from "@prisma/client";
 
 import type {
@@ -44,7 +45,7 @@ export function buildUserRecommendationBase(
   user: Pick<TargetUserBaseRecord | TargetUserDetailRecord, "ratings" | "trackRatings">,
   activeJamId: number | null,
 ): RecommendationBase {
-  const ratings = (user.ratings ?? []).map((rating) => ({
+  const ratings = (user.ratings ?? []).filter(isActiveGameRating).map((rating) => ({
     ...rating,
     pageVersion: getRatingPageVersion(rating),
   }));

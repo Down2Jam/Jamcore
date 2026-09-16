@@ -1,3 +1,4 @@
+import { activeRatingSelect, activeRatingPageSelect, isActiveGameRating } from "../ratings/active.js";
 ﻿import { z } from "zod";
 
 import type { Prisma } from "@prisma/client";
@@ -199,7 +200,7 @@ export async function listRecentAchievementUnlocks(
               leaderboards: {
                 select: { scores: { select: { userId: true } } },
               },
-              ratings: { select: { userId: true } },
+              ratings: { select: { ...activeRatingSelect, userId: true, gamePage: { select: activeRatingPageSelect } } },
               game: {
                 select: {
                   id: true,
@@ -224,7 +225,7 @@ export async function listRecentAchievementUnlocks(
     for (const leaderboard of gamePage.leaderboards) {
       for (const score of leaderboard.scores) engagedUserIds.add(score.userId);
     }
-    for (const rating of gamePage.ratings) engagedUserIds.add(rating.userId);
+    for (const rating of gamePage.ratings.filter(isActiveGameRating)) engagedUserIds.add(rating.userId);
 
     const earnedCount = achievement._count.users;
     const engagedCount = engagedUserIds.size;

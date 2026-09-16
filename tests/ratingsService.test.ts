@@ -5,6 +5,7 @@ const { dbMock } = vi.hoisted(() => ({
     gamePage: {
       findFirst: vi.fn(),
     },
+    ratingCategory: { findUnique: vi.fn() },
     rating: {
       findUnique: vi.fn(),
       update: vi.fn(async () => ({})),
@@ -44,7 +45,8 @@ describe("ratings service", () => {
   });
 
   it("creates or updates a game rating", async () => {
-    dbMock.gamePage.findFirst.mockResolvedValue({ id: 3 });
+    dbMock.gamePage.findFirst.mockResolvedValue({ id: 3, ratingCategories: [{ id: 5 }] });
+    dbMock.ratingCategory.findUnique.mockResolvedValue({ id: 5, always: false });
     dbMock.rating.findUnique.mockResolvedValue(null);
 
     await saveGameRating({

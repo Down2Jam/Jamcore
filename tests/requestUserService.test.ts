@@ -75,9 +75,11 @@ describe("requestUserService", () => {
           userId: 7,
           gamePageId: 12,
           categoryId: 3,
+          category: { always: false },
           gamePage: {
             version: "POST_JAM",
             gameId: 55,
+            ratingCategories: [{ id: 3 }],
           },
         },
       ],

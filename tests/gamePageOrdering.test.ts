@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { db } = vi.hoisted(() => ({ db: {
+  $transaction: vi.fn(),
+  game: { update: vi.fn() },
   gamePage: { findFirst: vi.fn(), update: vi.fn(), create: vi.fn(), findUnique: vi.fn() },
   gamePageTrack: { findMany: vi.fn(), update: vi.fn(), create: vi.fn(), delete: vi.fn() },
   gamePageLeaderboard: { findMany: vi.fn(), update: vi.fn(), create: vi.fn(), delete: vi.fn() },
@@ -24,6 +26,7 @@ const leaderboards = [2, 1].map(id => ({ id, name: `Board ${id}`, type: "SCORE" 
 describe("game page item ordering", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    db.$transaction.mockImplementation(async (callback) => callback(db));
     db.gamePage.findFirst.mockResolvedValue({ id: 10, playableBuildId: null });
     db.gamePage.create.mockResolvedValue({ id: 10 });
     db.gamePageTrack.findMany.mockResolvedValue([]);

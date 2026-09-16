@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 const { db } = vi.hoisted(() => ({ db: {
+  $transaction: vi.fn(),
+  game: { update: vi.fn() },
   gamePage: { findFirst: vi.fn(), update: vi.fn(), create: vi.fn(), findUnique: vi.fn() },
   gamePageTrack: { findMany: vi.fn(), update: vi.fn(), create: vi.fn(), delete: vi.fn() },
   gamePageLeaderboard: { findMany: vi.fn(), update: vi.fn(), create: vi.fn(), delete: vi.fn() },
@@ -14,6 +16,7 @@ import { reconcileMetadata } from "../src/lib/reconcileChildren.js";
 const achievements = [{ id: 21, name: "Winner", description: "Win", image: "win.png" }, { id: 22, name: "Explorer", description: "Explore", image: "explore.png" }];
 beforeEach(() => {
   vi.resetAllMocks();
+  db.$transaction.mockImplementation(async (callback) => callback(db));
   db.gamePage.findFirst.mockResolvedValue({ id: 10, playableBuildId: null, achievements, downloadLinks: [{ id: 31, url: "https://example.com/game", platform: "Web" }] });
   db.gamePageTrack.findMany.mockResolvedValue([]);
   db.gamePageLeaderboard.findMany.mockResolvedValue([]);

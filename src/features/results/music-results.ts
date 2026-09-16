@@ -1,3 +1,4 @@
+import { activeRatingSelect, activeRatingPageSelect, isActiveGameRating } from "../ratings/active.js";
 import { GameCategory, PageVersion } from "@prisma/client";
 
 import db from "../../infra/db.js";
@@ -118,14 +119,17 @@ export async function loadMusicResults({
               },
               ratings: {
                 select: {
+                  ...activeRatingSelect,
                   value: true,
                   category: {
                     select: {
+                      always: true,
                       name: true,
                     },
                   },
                   gamePage: {
                     select: {
+                      ...activeRatingPageSelect,
                       version: true,
                     },
                   },
@@ -197,7 +201,7 @@ export async function loadMusicResults({
       const gameMusicRatings =
         (track.gamePage.game.ratings as any[] | undefined)?.filter(
           (rating: any) =>
-            scoreVersions.includes(rating.gamePage?.version ?? PageVersion.JAM) &&
+            isActiveGameRating(rating) && scoreVersions.includes(rating.gamePage?.version ?? PageVersion.JAM) &&
             rating.category?.name === GAME_AUDIO_CATEGORY_NAME &&
             rating.user.teams.some((team: any) => {
               const candidateGame = team.game;

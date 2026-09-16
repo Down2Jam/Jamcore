@@ -240,8 +240,9 @@ describe("results service", () => {
             category: "REGULAR",
             ratings: Array.from({ length: 5 }, () => ({
               value: 9,
-              category: { name: "RatingCategory.Audio.Title" },
-              gamePage: { version: PageVersion.JAM },
+              categoryId: 3,
+              category: { name: "RatingCategory.Audio.Title", always: false },
+              gamePage: { version: PageVersion.JAM, ratingCategories: [{ id: 3 }] },
               ...eligibleRater,
             })),
             team: {
@@ -419,6 +420,8 @@ describe("results service", () => {
           users: [
             {
               ratings: Array.from({ length: 10 }, () => ({
+                categoryId: 1,
+                category: { always: true },
                 gamePage: {
                   version: PageVersion.JAM,
                   ratingCategories: [{ id: 1 }],
@@ -433,6 +436,7 @@ describe("results service", () => {
         ratings: Array.from({ length: 5 }, (_, index) => ({
           value: 10 - index,
           categoryId: 1,
+          category: { always: true },
           gamePage: {
             version: PageVersion.JAM,
           },
@@ -515,6 +519,8 @@ describe("results service", () => {
             {
               ratings: [
                 ...Array.from({ length: 2 }, () => ({
+                  categoryId: 1,
+                  category: { always: true },
                   gamePage: {
                     version: PageVersion.JAM,
                     ratingCategories: [{ id: 1 }],
@@ -522,6 +528,8 @@ describe("results service", () => {
                   game: { ratingCategories: [] },
                 })),
                 ...Array.from({ length: 3 }, () => ({
+                  categoryId: 1,
+                  category: { always: true },
                   gamePage: {
                     version: PageVersion.POST_JAM,
                     ratingCategories: [{ id: 1 }],
@@ -536,12 +544,14 @@ describe("results service", () => {
           ...[10, 10].map((value) => ({
             value,
             categoryId: 1,
+            category: { always: true },
             gamePage: { version: PageVersion.JAM },
             user: { teams: [{ game: { published: true } }] },
           })),
           ...[8, 8, 8].map((value) => ({
             value,
             categoryId: 1,
+            category: { always: true },
             gamePage: { version: PageVersion.POST_JAM },
             user: { teams: [{ game: { published: true } }] },
           })),

@@ -1,3 +1,4 @@
+import { activeRatingSelect, activeRatingPageSelect, isActiveGameRating } from "../ratings/active.js";
 import type { Prisma } from "@prisma/client";
 import { PageVersion } from "@prisma/client";
 import { canReadGame, canInspectUnpublishedGames } from "./inspection.policy.js";
@@ -31,7 +32,7 @@ type GameDetailResponse = Record<string, unknown> | null;
 const publicGameDetailCache = new TTLCache<GameDetailResponse>(20_000);
 
 export function clearGameDetailCache() {
-  publicGameDetailCache.clear();
+  return publicGameDetailCache.clear();
 }
 
 const gameDetailInclude = {
@@ -73,6 +74,7 @@ const gameDetailInclude = {
         include: {
           ratings: {
             select: {
+              ...activeRatingSelect,
               gamePage: {
                 select: {
                   version: true,
@@ -105,6 +107,7 @@ const gameDetailInclude = {
       category: true,
       gamePage: {
         select: {
+          ...activeRatingPageSelect,
           id: true,
           version: true,
           gameId: true,
@@ -297,7 +300,7 @@ export async function loadGameDetailResponse({
       }
     }
 
-    const normalizedRatings = (game.ratings ?? []).map((rating) => ({
+    const normalizedRatings = (game.ratings ?? []).filter(isActiveGameRating).map((rating) => ({
       ...rating,
       gameId: rating.gamePage?.gameId ?? game.id,
       gamePageId: rating.gamePage?.id ?? null,
@@ -308,12 +311,12 @@ export async function loadGameDetailResponse({
       ...game.team,
       users: (game.team?.users ?? []).map((teamUser) => ({
         ...teamUser,
-        ratings: (teamUser.ratings ?? []).map((rating) => ({
+        ratings: (teamUser.ratings ?? []).filter(isActiveGameRating).map((rating) => ({
           ...rating,
           gameId: rating.gamePage?.gameId ?? null,
           gamePageId: null,
           pageVersion: getRatingPageVersion(rating),
-          game: rating.gamePage?.game ?? null,
+          game: rating.gamePage?.game ? { ...rating.gamePage.game, ratingCategories: rating.gamePage.ratingCategories } : null,
         })),
       })),
     };

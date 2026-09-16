@@ -34,8 +34,9 @@ function makeTrack({
       jamId: 7,
       ratings: gameAudioRatings.map((value) => ({
         value,
-        category: { name: "RatingCategory.Audio.Title" },
-        gamePage: { version: PageVersion.JAM },
+        categoryId: 3,
+        category: { name: "RatingCategory.Audio.Title", always: false },
+        gamePage: { version: PageVersion.JAM, ratingCategories: [{ id: 3 }] },
         ...eligibleRater,
       })),
     },

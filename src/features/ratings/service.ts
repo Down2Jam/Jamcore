@@ -1,4 +1,8 @@
-﻿import { PageVersion } from "@prisma/client";
+import { activeRatingPageSelect } from "./active.js";
+import { clearGameListingCache } from "../games/listing.service.js";
+import { clearGameDetailCache } from "../games/detail.service.js";
+import { clearJamServiceCaches } from "../jams/service.js";
+import { PageVersion } from "@prisma/client";
 import { z } from "zod";
 
 import { appConfig } from "../../config/app.js";
@@ -68,11 +72,17 @@ export async function saveGameRating({
     },
     select: {
       id: true,
+      ...activeRatingPageSelect,
     },
   });
 
   if (!targetGamePage) {
     throw new NotFoundError("Game page missing.");
+  }
+
+  const category = await db.ratingCategory.findUnique({ where: { id: categoryId } });
+  if (!category || (!category.always && !targetGamePage.ratingCategories.some((entry) => entry.id === categoryId))) {
+    throw new BadRequestError("This rating category is no longer active. Refresh the game page to see its current categories.");
   }
 
   targetGamePageId = targetGamePage.id;
@@ -107,6 +117,9 @@ export async function saveGameRating({
       },
     });
   }
+  await clearGameListingCache();
+  await clearGameDetailCache();
+  await clearJamServiceCaches();
 }
 
 export async function saveTrackRating({

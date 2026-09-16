@@ -1,3 +1,4 @@
+import { isActiveGameRating } from "../ratings/active.js";
 import { PageVersion } from "@prisma/client";
 
 import { appConfig } from "../../config/app.js";
@@ -196,6 +197,7 @@ export function sortTracksByScore(tracks: any[]) {
         return (
           rating.gamePage?.version === (track.pageVersion ?? PageVersion.JAM) &&
           rating.category?.name === GAME_AUDIO_CATEGORY_NAME &&
+          isActiveGameRating(rating) &&
           Number.isFinite(numericValue) &&
           isAllowedRaterInJam(rating, track.game.jamId)
         );

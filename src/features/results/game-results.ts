@@ -1,3 +1,4 @@
+import { activeRatingSelect, activeRatingPageSelect, isActiveGameRating } from "../ratings/active.js";
 import { GameCategory, PageVersion } from "@prisma/client";
 
 import db from "../../infra/db.js";
@@ -188,6 +189,7 @@ export async function loadGameResults({
             select: {
               ratings: {
                 select: {
+                  ...activeRatingSelect,
                   gamePage: {
                     select: {
                       version: true,
@@ -215,10 +217,12 @@ export async function loadGameResults({
       },
       ratings: {
         select: {
+          ...activeRatingSelect,
           value: true,
           categoryId: true,
           gamePage: {
             select: {
+              ...activeRatingPageSelect,
               version: true,
             },
           },
@@ -281,7 +285,7 @@ export async function loadGameResults({
 
       const filteredRatings = game.ratings.filter(
         (rating) =>
-          ratingBelongsToResultVersion(rating, resultPageVersion) &&
+          isActiveGameRating(rating) && ratingBelongsToResultVersion(rating, resultPageVersion) &&
           categoryIds.includes(rating.categoryId),
       );
 
@@ -321,7 +325,7 @@ export async function loadGameResults({
 
             return (
               count +
-              (ratingBelongsToResultVersion(rating, resultPageVersion)
+              (isActiveGameRating(rating) && ratingBelongsToResultVersion(rating, resultPageVersion)
                 ? 1 / (ratingCategoryCount + ratingCategories.length)
                 : 0)
             );

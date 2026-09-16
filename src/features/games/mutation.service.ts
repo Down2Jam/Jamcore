@@ -1,3 +1,7 @@
+import { writeAuditEntry } from "../../infra/audit.js";
+import { clearGameDetailCache } from "./detail.service.js";
+import { clearJamServiceCaches } from "../jams/service.js";
+import { buildJamTimeline } from "../../domain/jamTimeline.js";
 import { clearGameListingCache } from "./listing.service.js";
 import { reconcileMetadata } from "../../lib/reconcileChildren.js";
 import { PageVersion } from "@prisma/client";
@@ -45,6 +49,7 @@ async function findGameForMutation(gameSlug: string) {
   return db.game.findUnique({
     where: { slug: gameSlug },
     include: {
+      jam: true,
       ratingCategories: true,
       majRatingCategories: true,
       tags: true,
@@ -144,8 +149,6 @@ export async function updateGameBySlug({
     itchEmbedAspectRatio,
   } = body;
   const normalizedDownloadLinks = downloadLinks ?? [];
-  const normalizedRatingCategories = ratingCategories ?? [];
-  const normalizedMajRatingCategories = majRatingCategories ?? [];
   const normalizedFlags = flags ?? [];
   const normalizedTags = tags ?? [];
   const targetPageVersion =
@@ -176,6 +179,46 @@ export async function updateGameBySlug({
     existingGame.pages.map((page) => page.playableBuildUrl),
   );
 
+  const selectedPage = targetPageVersion === PageVersion.POST_JAM
+    ? getPostJamPage(existingGame) : getJamPage(existingGame);
+  const previousCategories = selectedPage?.ratingCategories ?? existingGame.ratingCategories;
+  const previousMajorityCategories = selectedPage?.majRatingCategories ?? existingGame.majRatingCategories;
+  const changed = (next: number[] | undefined, previous: Array<{ id: number }>) =>
+    next !== undefined && (new Set(next).size !== previous.length || previous.some((entry) => !next.includes(entry.id)));
+  const categoriesChanged = changed(ratingCategories, previousCategories) || changed(majRatingCategories, previousMajorityCategories);
+
+  if (categoriesChanged) {
+    const timeline = buildJamTimeline(existingGame.jam);
+    const deadline = targetPageVersion === PageVersion.JAM ? timeline.ratingEnd : timeline.postJamRatingEnd;
+    if (new Date() >= deadline) {
+      throw new BadRequestError("Rating categories cannot be changed after rating closes.");
+    }
+    const selectedIds = ratingCategories ?? previousCategories.map((entry) => entry.id);
+    const optionalCategories = await db.ratingCategory.findMany({ where: { id: { in: selectedIds }, always: false } });
+    if (optionalCategories.length !== new Set(selectedIds).size) {
+      throw new BadRequestError("Select valid optional rating categories.");
+    }
+    body.ratingCategories = [...new Set(selectedIds)];
+    body.majRatingCategories = (majRatingCategories ?? previousMajorityCategories.map((entry) => entry.id))
+      .filter((id) => optionalCategories.some((entry) => entry.id === id && entry.askMajorityContent));
+  }
+
+  const recordCategoryChange = async () => {
+    if (!categoriesChanged) return;
+    await writeAuditEntry({
+      action: "game.ratingCategories.updated",
+      actor: { type: "user", id: actor!.id, slug: actor!.slug },
+      resource: `game:${existingGame.id}`,
+      metadata: {
+        pageVersion: targetPageVersion,
+        previous: previousCategories.map((entry) => entry.id),
+        next: body.ratingCategories,
+        previousMajority: previousMajorityCategories.map((entry) => entry.id),
+        nextMajority: body.majRatingCategories,
+      },
+    });
+  };
+
   const currentVersionCategory = existingGame.category;
 
   if (
@@ -197,6 +240,9 @@ export async function updateGameBySlug({
   if (targetPageVersion === PageVersion.POST_JAM) {
     await upsertGamePage(existingGame.id, PageVersion.POST_JAM, body);
     await clearGameListingCache();
+    await clearGameDetailCache();
+    await clearJamServiceCaches();
+    await recordCategoryChange();
     await enqueueSearchEntityIndex({
       entityType: "game",
       entityId: existingGame.id,
@@ -216,22 +262,6 @@ export async function updateGameBySlug({
     });
   }
 
-  const disconnectRatingCategories = existingGame.ratingCategories.filter(
-    (entry) => !normalizedRatingCategories.includes(entry.id),
-  );
-  const newRatingCategories = normalizedRatingCategories.filter(
-    (entry: number) =>
-      existingGame.ratingCategories.filter((ratingCategory) => ratingCategory.id === entry)
-        .length === 0,
-  );
-  const disconnectMajRatingCategories = existingGame.majRatingCategories.filter(
-    (entry) => !normalizedMajRatingCategories.includes(entry.id),
-  );
-  const newMajRatingCategories = normalizedMajRatingCategories.filter(
-    (entry: number) =>
-      existingGame.majRatingCategories.filter((ratingCategory) => ratingCategory.id === entry)
-        .length === 0,
-  );
   const disconnectTags = existingGame.tags.filter(
     (entry) => !normalizedTags.includes(entry.id),
   );
@@ -300,14 +330,6 @@ export async function updateGameBySlug({
     data: {
       slug,
       ...(downloadLinks !== undefined ? { downloadLinks: reconcileMetadata(existingGame.downloadLinks, normalizedDownloadLinks.map(link => ({ url: link.url, platform: link.platform })), link => link.platform) } : {}),
-      ratingCategories: ratingCategories === undefined ? undefined : {
-        disconnect: disconnectRatingCategories.map((entry) => ({ id: entry.id })),
-        connect: newRatingCategories.map((entry: number) => ({ id: entry })),
-      },
-      majRatingCategories: majRatingCategories === undefined ? undefined : {
-        disconnect: disconnectMajRatingCategories.map((entry) => ({ id: entry.id })),
-        connect: newMajRatingCategories.map((entry: number) => ({ id: entry })),
-      },
       tags: tags === undefined ? undefined : {
         disconnect: disconnectTags.map((entry) => ({ id: entry.id })),
         connect: newTags.map((entry: number) => ({ id: entry })),
@@ -362,6 +384,9 @@ export async function updateGameBySlug({
 
   await upsertGamePage(updatedGame.id, PageVersion.JAM, body);
   await clearGameListingCache();
+  await clearGameDetailCache();
+  await clearJamServiceCaches();
+  await recordCategoryChange();
 
   if (updatedGame.published) {
     if (updatedGame.slug === gameSlug && existingGame.published) {
@@ -408,6 +433,8 @@ export async function createPostJamPage(
       ),
     );
     await clearGameListingCache();
+    await clearGameDetailCache();
+    await clearJamServiceCaches();
     await enqueueSearchEntityIndex({
       entityType: "game",
       entityId: existingGame.id,

@@ -1,3 +1,4 @@
+import { activeRatingSelect, activeRatingPageSelect } from "../ratings/active.js";
 import db from "../../infra/db.js";
 import { targetUserDetailSelect } from "../../prisma/selects.js";
 
@@ -45,12 +46,14 @@ export async function loadRecommendationUsers(
         where:
           activeJamId != null ? { game: { jamId: activeJamId } } : undefined,
         select: {
+          ...activeRatingSelect,
           gameId: true,
           categoryId: true,
           value: true,
           updatedAt: true,
           gamePage: {
             select: {
+              ...activeRatingPageSelect,
               version: true,
             },
           },

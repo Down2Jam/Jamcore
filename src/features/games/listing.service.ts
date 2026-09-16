@@ -1,3 +1,4 @@
+import { activeRatingSelect, activeRatingPageSelect, isActiveGameRating } from "../ratings/active.js";
 import { PageVersion, type Prisma } from "@prisma/client";
 import { z } from "zod";
 
@@ -42,6 +43,7 @@ type GameListingResult = {
   };
 };
 type RecommendationRating = {
+  category: { always: boolean };
   value: number;
   categoryId: number;
   userId: number;
@@ -49,6 +51,7 @@ type RecommendationRating = {
   updatedAt: Date;
   gamePage: {
     version: PageVersion;
+    ratingCategories: Array<{ id: number }>;
   } | null;
   game: {
     jamId: number;
@@ -273,7 +276,7 @@ function sortByRatingBalance(games: ListedGame[], ratingCategoryCount: number) {
           (ratingSum, rating) =>
             ratingSum +
             (rating.game.jamId === game.jamId
-              ? 1 / (rating.game.ratingCategories.length + ratingCategoryCount)
+              ? 1 / ((rating.gamePage?.ratingCategories ?? rating.game.ratingCategories).length + ratingCategoryCount)
               : 0),
           0,
         ),
@@ -326,6 +329,7 @@ async function getRecommendedPointsByGameKey(
       },
     },
     select: {
+      ...activeRatingSelect,
       gameId: true,
       userId: true,
       categoryId: true,
@@ -333,6 +337,7 @@ async function getRecommendedPointsByGameKey(
       updatedAt: true,
       gamePage: {
         select: {
+          ...activeRatingPageSelect,
           version: true,
         },
       },
@@ -376,7 +381,7 @@ async function getRecommendedPointsByGameKey(
   >();
 
   recommendationRatings.forEach((rating) => {
-    if (!isAllowedRaterInJam(rating, rating.game.jamId)) {
+    if (!isActiveGameRating(rating) || !isAllowedRaterInJam(rating, rating.game.jamId)) {
       return;
     }
 
@@ -389,7 +394,7 @@ async function getRecommendedPointsByGameKey(
   });
 
   recommendationRatings.forEach((rating) => {
-    if (!isAllowedRaterInJam(rating, rating.game.jamId)) {
+    if (!isActiveGameRating(rating) || !isAllowedRaterInJam(rating, rating.game.jamId)) {
       return;
     }
     if (rating.categoryId !== ratingCategoryId) {
@@ -495,7 +500,7 @@ async function sortByKarmaOrRecommended(
           (ratingSum, rating) =>
             ratingSum +
             (rating.game.jamId === game.jamId
-              ? 1 / (rating.game.ratingCategories.length + ratingCategories.length)
+              ? 1 / ((rating.gamePage?.ratingCategories ?? rating.game.ratingCategories).length + ratingCategories.length)
               : 0),
           0,
         ),
