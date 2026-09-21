@@ -79,7 +79,6 @@ export async function searchGames(input: SearchInput) {
         FROM "Game" g
         JOIN "GamePage" gp ON gp."gameId" = g.id
         WHERE g."published" = true
-          AND t."origin" = 'ORIGINAL'
           AND (
             to_tsvector('simple', concat_ws(' ', coalesce(gp."name", ''), coalesce(gp."short", ''))) @@ websearch_to_tsquery('simple', $1)
             OR similarity(coalesce(gp."name", ''), $1) > $3
@@ -275,6 +274,7 @@ export async function searchTracks(input: SearchInput) {
         JOIN "GamePage" gp ON gp.id = t."gamePageId"
         JOIN "Game" g ON g.id = gp."gameId"
         WHERE g."published" = true
+          AND t."origin" = 'ORIGINAL'
           AND gp."version" IN ('JAM', 'POST_JAM')
           AND (
             to_tsvector('simple', concat_ws(' ', coalesce(t."name", ''), coalesce(t."commentary", ''))) @@ websearch_to_tsquery('simple', $1)

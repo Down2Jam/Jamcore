@@ -243,7 +243,6 @@ async function hydrateUserResults(
       id: {
         in: dedupeDocuments(documents).map((document) => document.entityId),
       },
-      origin: "ORIGINAL",
     },
     select: {
       id: true,
@@ -300,6 +299,7 @@ async function hydrateTrackResults(
       id: {
         in: dedupeDocuments(documents).map((document) => document.entityId),
       },
+      origin: "ORIGINAL",
     },
     include: {
       composer: {
