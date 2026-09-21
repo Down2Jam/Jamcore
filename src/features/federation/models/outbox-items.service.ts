@@ -160,6 +160,7 @@ export async function getJamOutboxItems(limit = 20, tenantId?: string | null) {
       take: limit,
       orderBy: { createdAt: "desc" },
       where: {
+        origin: "ORIGINAL",
         gamePage: {
           game: {
             published: true,
@@ -336,6 +337,7 @@ export async function getUserOutboxItems(
       take: limit,
       orderBy: { createdAt: "desc" },
       where: {
+        origin: "ORIGINAL",
         composer: { slug },
         gamePage: {
           game: {

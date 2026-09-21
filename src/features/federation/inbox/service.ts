@@ -200,6 +200,7 @@ async function resolveObjectRecipient(
       const track = await db.gamePageTrack.findFirst({
         where: {
           slug: reference.slug,
+          origin: "ORIGINAL",
           gamePage: {
             game: {
               published: true,
@@ -218,7 +219,7 @@ async function resolveObjectRecipient(
           },
         },
       });
-      if (!track) throw new NotFoundError("Referenced track not found");
+      if (!track || track.composerId == null) throw new NotFoundError("Referenced track not found");
       await assertGameBelongsToTenant(track.gamePage.game.id, tenantId);
       return {
         recipientId: track.composerId,

@@ -56,6 +56,8 @@ export const trackSummarySelect = {
   name: true,
   slug: true,
   url: true,
+  origin: true,
+  externalAuthorName: true,
   allowBackgroundUse: true,
   allowBackgroundUseAttribution: true,
   allowDownload: true,

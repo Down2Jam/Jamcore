@@ -1,0 +1,62 @@
+CREATE TYPE "TrackOrigin" AS ENUM ('ORIGINAL', 'ASSET_PACK');
+CREATE TYPE "TrackLicense" AS ENUM (
+  'ALL_RIGHTS_RESERVED',
+  'CC0_1_0',
+  'CC_BY_3_0',
+  'CC_BY_4_0',
+  'CC_BY_SA_3_0',
+  'CC_BY_SA_4_0',
+  'CC_BY_ND_3_0',
+  'CC_BY_ND_4_0',
+  'CC_BY_NC_3_0',
+  'CC_BY_NC_4_0',
+  'CC_BY_NC_SA_3_0',
+  'CC_BY_NC_SA_4_0',
+  'CC_BY_NC_ND_3_0',
+  'CC_BY_NC_ND_4_0'
+);
+
+ALTER TABLE "GamePageTrack"
+ADD COLUMN "origin" "TrackOrigin" NOT NULL DEFAULT 'ORIGINAL',
+ADD COLUMN "externalAuthorName" TEXT;
+
+ALTER TABLE "GamePageTrack"
+ALTER COLUMN "composerId" DROP NOT NULL;
+
+ALTER TABLE "GamePageTrack"
+ALTER COLUMN "license" DROP DEFAULT;
+
+ALTER TABLE "GamePageTrack"
+ALTER COLUMN "license" TYPE "TrackLicense"
+USING (
+  CASE UPPER(REGEXP_REPLACE(TRIM(COALESCE("license", '')), '\s+', ' ', 'g'))
+    WHEN 'CC0' THEN 'CC0_1_0'
+    WHEN 'CC0 1.0' THEN 'CC0_1_0'
+    WHEN 'CC BY' THEN 'CC_BY_4_0'
+    WHEN 'CC BY 3.0' THEN 'CC_BY_3_0'
+    WHEN 'CC BY 4.0' THEN 'CC_BY_4_0'
+    WHEN 'CC BY-SA' THEN 'CC_BY_SA_4_0'
+    WHEN 'CC BY-SA 3.0' THEN 'CC_BY_SA_3_0'
+    WHEN 'CC BY-SA 4.0' THEN 'CC_BY_SA_4_0'
+    WHEN 'CC BY-ND' THEN 'CC_BY_ND_4_0'
+    WHEN 'CC BY-ND 3.0' THEN 'CC_BY_ND_3_0'
+    WHEN 'CC BY-ND 4.0' THEN 'CC_BY_ND_4_0'
+    WHEN 'CC BY-NC' THEN 'CC_BY_NC_4_0'
+    WHEN 'CC BY-NC 3.0' THEN 'CC_BY_NC_3_0'
+    WHEN 'CC BY-NC 4.0' THEN 'CC_BY_NC_4_0'
+    WHEN 'CC BY-NC-SA' THEN 'CC_BY_NC_SA_4_0'
+    WHEN 'CC BY-NC-SA 3.0' THEN 'CC_BY_NC_SA_3_0'
+    WHEN 'CC BY-NC-SA 4.0' THEN 'CC_BY_NC_SA_4_0'
+    WHEN 'CC BY-NC-ND' THEN 'CC_BY_NC_ND_4_0'
+    WHEN 'CC BY-NC-ND 3.0' THEN 'CC_BY_NC_ND_3_0'
+    WHEN 'CC BY-NC-ND 4.0' THEN 'CC_BY_NC_ND_4_0'
+    ELSE 'ALL_RIGHTS_RESERVED'
+  END::"TrackLicense"
+);
+
+ALTER TABLE "GamePageTrack"
+ALTER COLUMN "license" SET NOT NULL,
+ALTER COLUMN "license" SET DEFAULT 'ALL_RIGHTS_RESERVED';
+
+UPDATE "GamePageTrack"
+SET "allowDownload" = ("license" <> 'ALL_RIGHTS_RESERVED');

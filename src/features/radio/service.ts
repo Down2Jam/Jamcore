@@ -9,6 +9,7 @@ import { filterCoreEntityIdsByTenant } from "../../infra/coreTenantStore.js";
 import db from "../../infra/db.js";
 import { BadRequestError, ForbiddenError, NotFoundError } from "../../lib/errors.js";
 import { getRadioListenerCount, broadcastRadioEvent } from "./events.js";
+import { trackCanUseRadio } from "../tracks/licenses.js";
 
 const DEFAULT_TRACK_DURATION_SECONDS = 180;
 const VOTE_OPTION_COUNT = 3;
@@ -196,6 +197,8 @@ async function getEligibleTracks(
       slug: true,
       url: true,
       name: true,
+      origin: true,
+      externalAuthorName: true,
       license: true,
       allowBackgroundUse: true,
       allowDownload: true,
@@ -239,13 +242,10 @@ async function getEligibleTracks(
     (track) =>
       allowedGameIds.has(track.gamePage.game.id) &&
       !excluded.has(track.id) &&
-      !excludedEquivalentKeys.has(getRadioTrackEquivalentKey(track)),
+      !excludedEquivalentKeys.has(getRadioTrackEquivalentKey(track)) &&
+      trackCanUseRadio(track.license, station === "safe"),
   );
-  if (station === "safe") {
-    return preferPostJamRadioTracks(tenantTracks.filter((track) => track.allowBackgroundUse));
-  }
-  const licensed = tenantTracks.filter((track) => track.allowBackgroundUse || track.allowDownload);
-  return preferPostJamRadioTracks(licensed.length >= VOTE_OPTION_COUNT ? licensed : tenantTracks);
+  return preferPostJamRadioTracks(tenantTracks);
 }
 
 function pickRandomTracks<T extends { id: number }>(tracks: T[], count: number) {
@@ -286,6 +286,8 @@ async function getTrackSummaries(trackIds: number[]) {
       slug: true,
       url: true,
       name: true,
+      origin: true,
+      externalAuthorName: true,
       license: true,
       allowDownload: true,
       allowBackgroundUse: true,

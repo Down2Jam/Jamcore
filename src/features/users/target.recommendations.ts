@@ -81,13 +81,13 @@ export async function loadTargetUserRecommendations({
         : Promise.resolve([]),
       trackRecommendationBase.candidateIds.length > 0
         ? db.gamePageTrack.findMany({
-            where: { id: { in: trackRecommendationBase.candidateIds } },
+            where: { id: { in: trackRecommendationBase.candidateIds }, origin: "ORIGINAL" },
             select: trackSummarySelect,
           })
         : Promise.resolve([]),
       recommendedTrackIds.length > 0
         ? db.gamePageTrack.findMany({
-            where: { id: { in: recommendedTrackIds } },
+            where: { id: { in: recommendedTrackIds }, origin: "ORIGINAL" },
             select: trackSummarySelect,
           })
         : Promise.resolve([]),

@@ -66,15 +66,20 @@ function buildActivitiesFromOutboxItems(items: OutboxItems) {
         published: game.createdAt,
       }),
     ),
-    ...items.tracks.map((track) =>
-      buildCreateActivity({
-        kind: "tracks",
-        id: track.slug,
-        actorId: getUserActorId(track.composer.slug),
-        object: buildTrackObject(track),
-        published: track.createdAt,
-      }),
-    ),
+    ...items.tracks.flatMap((track) => {
+      const composer = track.composer;
+      if (!composer) return [];
+
+      return [
+        buildCreateActivity({
+          kind: "tracks",
+          id: track.slug,
+          actorId: getUserActorId(composer.slug),
+          object: buildTrackObject({ ...track, composer }),
+          published: track.createdAt,
+        }),
+      ];
+    }),
   ];
 }
 

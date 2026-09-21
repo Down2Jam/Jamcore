@@ -18,6 +18,7 @@ import { BadRequestError, NotFoundError } from "../../lib/errors.js";
 import { parseTrackPageVersion } from "./page.js";
 import { canReadGame } from "../games/inspection.policy.js";
 import type { GameViewer } from "../../types/game.js";
+import { getTrackLicenseDefinition } from "./licenses.js";
 
 const SAFE_MUSIC_FILE = /^[A-Za-z0-9._-]+\.(wav|ogg|mp3)$/i;
 
@@ -117,6 +118,8 @@ export async function buildTrackDownloadBySlug({
       bpm: true,
       musicalKey: true,
       license: true,
+      origin: true,
+      externalAuthorName: true,
       createdAt: true,
       gamePage: {
         select: {
@@ -173,6 +176,11 @@ export async function buildTrackDownloadBySlug({
     throw new NotFoundError("Track not found");
   }
 
+  const licenseDefinition = getTrackLicenseDefinition(track.license);
+  if (!licenseDefinition.allowDownload) {
+    throw new NotFoundError("Track download not available");
+  }
+
   const belongsToTenant = await doesCoreEntityBelongToTenant({
     entityType: "Game",
     entityId: track.gamePage.game.id,
@@ -208,15 +216,21 @@ export async function buildTrackDownloadBySlug({
     track.gamePage.banner,
   );
   const albumName = track.gamePage.name ?? track.gamePage.game.slug ?? "Unknown game";
-  const metadataBuffer = embedTrackDownloadMetadata(originalBuffer, filename, {
+  const metadataBuffer = licenseDefinition.mustRemainUnmodified
+    ? originalBuffer
+    : embedTrackDownloadMetadata(originalBuffer, filename, {
     title: track.name,
-    artist: creditedComposer?.name || creditedComposer?.slug || "Unknown composer",
+    artist:
+      track.externalAuthorName ||
+      creditedComposer?.name ||
+      creditedComposer?.slug ||
+      "Unknown composer",
     album: albumName,
     bpm: track.bpm,
     key: track.musicalKey,
     date: metadataDate,
     year: String(metadataDateSource.getUTCFullYear()),
-    license: track.license,
+    license: licenseDefinition.label,
     genre: genre || null,
     coverArt,
   });

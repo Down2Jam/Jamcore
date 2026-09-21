@@ -14,6 +14,7 @@ export async function buildTrackSearchDocuments(input: {
       slug: true,
       name: true,
       commentary: true,
+      origin: true,
       updatedAt: true,
       composer: {
         select: {
@@ -41,7 +42,7 @@ export async function buildTrackSearchDocuments(input: {
     },
   });
 
-  if (!track || !track.gamePage.game.published) {
+  if (!track || track.origin === "ASSET_PACK" || !track.gamePage.game.published) {
     return [];
   }
 

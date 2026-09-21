@@ -1,5 +1,5 @@
 import { clearGameListingCache } from "./listing.service.js";
-import { PageVersion } from "@prisma/client";
+import { PageVersion, TrackLicense, TrackOrigin } from "@prisma/client";
 import { z } from "zod";
 
 import { assignCoreEntityTenant } from "../../infra/coreTenantStore.js";
@@ -21,8 +21,14 @@ import {
 function createTrackCreateData(song: z.infer<typeof trackInputSchema>, sortOrder: number) {
   const trackData = buildTrackWriteData(song);
 
-  if (trackData.composerId == null) {
+  if (trackData.origin === TrackOrigin.ORIGINAL && trackData.composerId == null) {
     throw new BadRequestError("Track composer is required.");
+  }
+  if (
+    trackData.origin === TrackOrigin.ASSET_PACK &&
+    (!trackData.externalAuthorName || trackData.license === TrackLicense.ALL_RIGHTS_RESERVED)
+  ) {
+    throw new BadRequestError("Asset-pack tracks require an author and reusable license.");
   }
 
   return {
@@ -37,15 +43,15 @@ function createTrackCreateData(song: z.infer<typeof trackInputSchema>, sortOrder
     truePeakDb: trackData.truePeakDb,
     loudnessGainDb: trackData.loudnessGainDb,
     softwareUsed: trackData.softwareUsed,
+    origin: trackData.origin,
+    externalAuthorName: trackData.externalAuthorName,
     license: trackData.license,
     allowDownload: trackData.allowDownload,
     allowBackgroundUse: trackData.allowBackgroundUse,
     allowBackgroundUseAttribution: trackData.allowBackgroundUseAttribution,
-    composer: {
-      connect: {
-        id: trackData.composerId,
-      },
-    },
+    ...(trackData.composerId
+      ? { composer: { connect: { id: trackData.composerId } } }
+      : {}),
     tags: {
       connect: trackData.tagIds.map((id: number) => ({ id })),
     },

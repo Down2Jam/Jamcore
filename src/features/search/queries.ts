@@ -79,6 +79,7 @@ export async function searchGames(input: SearchInput) {
         FROM "Game" g
         JOIN "GamePage" gp ON gp."gameId" = g.id
         WHERE g."published" = true
+          AND t."origin" = 'ORIGINAL'
           AND (
             to_tsvector('simple', concat_ws(' ', coalesce(gp."name", ''), coalesce(gp."short", ''))) @@ websearch_to_tsquery('simple', $1)
             OR similarity(coalesce(gp."name", ''), $1) > $3
@@ -295,8 +296,9 @@ export async function searchTracks(input: SearchInput) {
 
   const tracks = await db.gamePageTrack.findMany({
     where: rankedIds?.length
-      ? { id: { in: rankedIds } }
+      ? { id: { in: rankedIds }, origin: "ORIGINAL" }
       : {
+          origin: "ORIGINAL",
           OR: [
             ...containsClauses("name", terms),
             ...containsClauses("commentary", terms),

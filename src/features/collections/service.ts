@@ -774,7 +774,7 @@ async function enrichCollectionItems(items: CollectionItemRow[]) {
       : [],
     trackIds.length
       ? db.gamePageTrack.findMany({
-          where: { id: { in: trackIds } },
+          where: { id: { in: trackIds }, origin: "ORIGINAL" },
           select: {
             id: true,
             slug: true,
@@ -1015,6 +1015,7 @@ async function assertItemVisible(
     where: { id: itemId },
     select: {
       id: true,
+      origin: true,
       gamePage: {
         select: {
           game: {
@@ -1024,7 +1025,7 @@ async function assertItemVisible(
       },
     },
   });
-  if (!track?.gamePage.game.published) throw new NotFoundError("Track not found");
+  if (!track?.gamePage.game.published || track.origin === "ASSET_PACK") throw new NotFoundError("Track not found");
   const allowed = await filterCoreEntityIdsByTenant({
     entityType: "Game",
     ids: [track.gamePage.game.id],
@@ -1316,6 +1317,7 @@ export async function getCollectionPlayback({
       JOIN "GamePage" gp ON gp.id = t."gamePageId"
       JOIN "Game" g ON g.id = gp."gameId"
       WHERE ci.collection_id = $1 AND ci.item_type = 'track' AND g.published = true
+        AND t.origin = 'ORIGINAL'
       ORDER BY ci.position ASC, ci.added_at ASC
     `,
     row.id,

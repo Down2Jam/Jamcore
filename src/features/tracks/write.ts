@@ -1,15 +1,21 @@
 import { calculateLoudnessGainDb } from "../uploads/audio-loudness.js";
+import { TrackLicense, TrackOrigin } from "@prisma/client";
+import { getTrackLicenseDefinition, normalizeTrackLicense } from "./licenses.js";
 
 export const backgroundUsageAllowedByDefault = (license?: string | null) => {
-  const normalized = (license ?? "").toUpperCase().replace(/\s+/g, " ").trim();
-  return normalized === "CC0" || normalized === "CC BY";
+  const normalized = normalizeTrackLicense(license);
+  return (
+    normalized === TrackLicense.CC0_1_0 ||
+    normalized === TrackLicense.CC_BY_3_0 ||
+    normalized === TrackLicense.CC_BY_4_0
+  );
 };
 
 export const backgroundUsageAttributionAllowedByDefault = (
   license?: string | null,
 ) => {
-  const normalized = (license ?? "").toUpperCase().replace(/\s+/g, " ").trim();
-  return normalized !== "CC0";
+  const normalized = normalizeTrackLicense(license);
+  return normalized !== TrackLicense.CC0_1_0;
 };
 
 type RawCredit = {
@@ -34,7 +40,8 @@ type RawSong = {
   loudnessGainDb?: number | null;
   softwareUsed?: unknown[];
   license?: string | null;
-  allowDownload?: boolean;
+  origin?: TrackOrigin | "ORIGINAL" | "ASSET_PACK";
+  externalAuthorName?: string | null;
   allowBackgroundUse?: boolean;
   allowBackgroundUseAttribution?: boolean;
   tagIds?: Array<number | string>;
@@ -96,7 +103,22 @@ export function normalizeTrackIdList(ids: Array<number | string> | undefined) {
 export function buildTrackWriteData(song: RawSong) {
   const normalizedCredits = normalizeTrackCredits(song.credits);
   const composerId = getPrimaryComposerId(normalizedCredits, song.composerId);
-  const normalizedLicense = song.license?.trim() || null;
+  const normalizedLicense = normalizeTrackLicense(song.license);
+  const origin = song.origin === TrackOrigin.ASSET_PACK ? TrackOrigin.ASSET_PACK : TrackOrigin.ORIGINAL;
+  const externalAuthorName = song.externalAuthorName?.trim() || null;
+  const licenseRequiresBackgroundUse = backgroundUsageAllowedByDefault(normalizedLicense);
+  const allowBackgroundUse =
+    origin === TrackOrigin.ASSET_PACK || licenseRequiresBackgroundUse
+      ? licenseRequiresBackgroundUse
+      : typeof song.allowBackgroundUse === "boolean"
+        ? song.allowBackgroundUse
+        : false;
+  const allowBackgroundUseAttribution =
+    allowBackgroundUse && backgroundUsageAttributionAllowedByDefault(normalizedLicense)
+      ? origin === TrackOrigin.ASSET_PACK || licenseRequiresBackgroundUse
+        ? true
+        : (song.allowBackgroundUseAttribution ?? true)
+      : false;
   const integratedLufs =
     typeof song.integratedLufs === "number" && Number.isFinite(song.integratedLufs)
       ? song.integratedLufs
@@ -126,19 +148,15 @@ export function buildTrackWriteData(song: RawSong) {
       ? song.softwareUsed.map((value) => String(value).trim()).filter(Boolean)
       : [],
     license: normalizedLicense,
-    allowDownload: Boolean(song.allowDownload),
-    allowBackgroundUse:
-      typeof song.allowBackgroundUse === "boolean"
-        ? song.allowBackgroundUse
-        : backgroundUsageAllowedByDefault(normalizedLicense),
-    allowBackgroundUseAttribution:
-      typeof song.allowBackgroundUseAttribution === "boolean"
-        ? song.allowBackgroundUseAttribution
-        : backgroundUsageAttributionAllowedByDefault(normalizedLicense),
-    composerId,
+    origin,
+    externalAuthorName,
+    allowDownload: getTrackLicenseDefinition(normalizedLicense).allowDownload,
+    allowBackgroundUse,
+    allowBackgroundUseAttribution,
+    composerId: origin === TrackOrigin.ASSET_PACK ? null : composerId,
     tagIds: normalizeTrackIdList(song.tagIds),
     flagIds: normalizeTrackIdList(song.flagIds),
     links: normalizeTrackLinks(song.links),
-    credits: normalizedCredits,
+    credits: origin === TrackOrigin.ASSET_PACK ? [] : normalizedCredits,
   };
 }

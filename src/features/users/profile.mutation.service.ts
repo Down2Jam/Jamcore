@@ -170,6 +170,7 @@ async function assertRecommendationIdsExist(input: {
       ? db.gamePageTrack.findMany({
           where: {
             id: { in: rawTrackIds },
+            origin: "ORIGINAL",
             gamePage: {
               game: {
                 published: true,

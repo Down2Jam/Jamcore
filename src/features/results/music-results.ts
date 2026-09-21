@@ -74,6 +74,7 @@ export async function loadMusicResults({
       : undefined;
   const tracks = await db.gamePageTrack.findMany({
     where: {
+      origin: "ORIGINAL",
       gamePage: {
         version: {
           in: [PageVersion.JAM, PageVersion.POST_JAM],

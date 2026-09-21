@@ -1,5 +1,5 @@
 import type { Prisma } from "@prisma/client";
-import { PageVersion } from "@prisma/client";
+import { PageVersion, TrackLicense, TrackOrigin } from "@prisma/client";
 
 import db from "../../infra/db.js";
 import { BadRequestError } from "../../lib/errors.js";
@@ -19,25 +19,25 @@ type AchievementInput = NonNullable<GamePageWriteBody["achievements"]>[number];
 type LeaderboardInput = NonNullable<GamePageWriteBody["leaderboards"]>[number];
 type SongInput = NonNullable<GamePageWriteBody["songs"]>[number];
 type TrackWriteData = ReturnType<typeof buildTrackWriteData>;
-type TrackWriteDataWithComposer = Omit<TrackWriteData, "composerId"> & {
-  composerId: number;
-};
 type GamePageTrackCreateData = Prisma.GamePageTrackCreateWithoutGamePageInput;
 
-function requireComposerId(song: SongInput): TrackWriteDataWithComposer {
+function validateTrackAttribution(song: SongInput): TrackWriteData {
   const trackData = buildTrackWriteData(song);
-  if (trackData.composerId == null) {
+  if (trackData.origin === TrackOrigin.ORIGINAL && trackData.composerId == null) {
     throw new BadRequestError("Track composer is required.");
   }
+  if (
+    trackData.origin === TrackOrigin.ASSET_PACK &&
+    (!trackData.externalAuthorName || trackData.license === TrackLicense.ALL_RIGHTS_RESERVED)
+  ) {
+    throw new BadRequestError("Asset-pack tracks require an author and reusable license.");
+  }
 
-  return {
-    ...trackData,
-    composerId: trackData.composerId,
-  };
+  return trackData;
 }
 
 function buildTrackCreateData(song: SongInput, sortOrder: number): GamePageTrackCreateData {
-  const trackData = requireComposerId(song);
+  const trackData = validateTrackAttribution(song);
 
   return {
     sortOrder,
@@ -51,15 +51,15 @@ function buildTrackCreateData(song: SongInput, sortOrder: number): GamePageTrack
     truePeakDb: trackData.truePeakDb,
     loudnessGainDb: trackData.loudnessGainDb,
     softwareUsed: trackData.softwareUsed,
+    origin: trackData.origin,
+    externalAuthorName: trackData.externalAuthorName,
     license: trackData.license,
     allowDownload: trackData.allowDownload,
     allowBackgroundUse: trackData.allowBackgroundUse,
     allowBackgroundUseAttribution: trackData.allowBackgroundUseAttribution,
-    composer: {
-      connect: {
-        id: trackData.composerId,
-      },
-    },
+    ...(trackData.composerId
+      ? { composer: { connect: { id: trackData.composerId } } }
+      : {}),
     tags: {
       connect: trackData.tagIds.map((id) => ({ id })),
     },
@@ -104,7 +104,7 @@ async function syncGamePageTracks(
   const retainedTrackIds = new Set<number>();
 
   for (const [sortOrder, song] of (songs ?? []).entries()) {
-    const trackData = requireComposerId(song);
+    const trackData = validateTrackAttribution(song);
     const slug = String(trackData.slug ?? "").trim();
     if (!slug) continue;
     const existingTrack = song.id ? existingTracks.find(track => track.id === song.id) : existingTrackBySlug.get(slug);
@@ -118,7 +118,9 @@ async function syncGamePageTracks(
         set: trackData.flagIds.map((id) => ({ id })),
       },
       ...(song.links !== undefined ? { links: reconcileMetadata(existingTrack?.links ?? [], trackData.links, link => link.url) } : {}),
-      ...(song.credits !== undefined ? { credits: reconcileMetadata(existingTrack?.credits ?? [], trackData.credits, credit => String(credit.userId)) } : {}),
+      ...(song.credits !== undefined || trackData.origin === TrackOrigin.ASSET_PACK
+        ? { credits: reconcileMetadata(existingTrack?.credits ?? [], trackData.credits, credit => String(credit.userId)) }
+        : {}),
     };
 
     if (existingTrack) {
@@ -143,12 +145,14 @@ async function syncGamePageTracks(
             trackData.loudnessGainDb ??
             (preservesExistingAudio ? existingTrack.loudnessGainDb : null),
           softwareUsed: trackData.softwareUsed,
+          origin: trackData.origin,
+          externalAuthorName: trackData.externalAuthorName,
           license: trackData.license,
           allowDownload: trackData.allowDownload,
           allowBackgroundUse: trackData.allowBackgroundUse,
           allowBackgroundUseAttribution:
             trackData.allowBackgroundUseAttribution,
-          composerId: trackData.composerId ?? undefined,
+          composerId: trackData.composerId,
           ...relationData,
         },
       });
@@ -169,12 +173,14 @@ async function syncGamePageTracks(
         truePeakDb: trackData.truePeakDb,
         loudnessGainDb: trackData.loudnessGainDb,
         softwareUsed: trackData.softwareUsed,
+        origin: trackData.origin,
+        externalAuthorName: trackData.externalAuthorName,
         license: trackData.license,
         allowDownload: trackData.allowDownload,
         allowBackgroundUse: trackData.allowBackgroundUse,
         allowBackgroundUseAttribution:
           trackData.allowBackgroundUseAttribution,
-        composerId: trackData.composerId ?? undefined,
+        composerId: trackData.composerId,
         tags: {
           connect: trackData.tagIds.map((id) => ({ id })),
         },

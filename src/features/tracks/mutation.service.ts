@@ -9,6 +9,7 @@ import {
 import { publishTrackUpdated } from "../federation/index.js";
 import { parseTrackPageVersion } from "./page.js";
 import { buildTrackWriteData } from "./write.js";
+import { trackLicenseSchema } from "./licenses.js";
 
 export const updateTrackSchema = z.object({
   name: z.string().trim().min(1).optional(),
@@ -35,10 +36,9 @@ export const updateTrackSchema = z.object({
     )
     .optional(),
   composerId: z.number().int().optional().nullable(),
-  allowDownload: z.boolean().optional(),
   allowBackgroundUse: z.boolean().optional(),
   allowBackgroundUseAttribution: z.boolean().optional(),
-  license: z.string().optional().nullable(),
+  license: trackLicenseSchema.optional(),
 });
 
 type TrackActor = {
@@ -89,6 +89,9 @@ export async function updateTrackBySlug({
   if (!track) {
     throw new NotFoundError("Track not found");
   }
+  if (track.origin === "ASSET_PACK") {
+    throw new NotFoundError("Track not found");
+  }
 
   const isTeamMember = track.gamePage.game.team.users.some(
     (member) => member.id === actor.id,
@@ -110,7 +113,8 @@ export async function updateTrackBySlug({
     links: input.links,
     credits: input.credits,
     composerId: input.composerId,
-    allowDownload: input.allowDownload,
+    origin: track.origin,
+    externalAuthorName: track.externalAuthorName,
     allowBackgroundUse: input.allowBackgroundUse,
     allowBackgroundUseAttribution: input.allowBackgroundUseAttribution,
     license: input.license,
@@ -136,7 +140,7 @@ export async function updateTrackBySlug({
       ...(Array.isArray(input.softwareUsed)
         ? { softwareUsed: trackData.softwareUsed }
         : {}),
-      ...(typeof input.allowDownload === "boolean"
+      ...(input.license !== undefined
         ? { allowDownload: trackData.allowDownload }
         : {}),
       ...(typeof input.allowBackgroundUse === "boolean"
@@ -155,7 +159,7 @@ export async function updateTrackBySlug({
                 trackData.allowBackgroundUseAttribution,
             }
           : {}),
-      ...(typeof input.license === "string" ? { license: trackData.license } : {}),
+      ...(input.license !== undefined ? { license: trackData.license } : {}),
       ...(trackData.composerId ? { composerId: trackData.composerId } : {}),
       ...(Array.isArray(input.tagIds)
         ? {

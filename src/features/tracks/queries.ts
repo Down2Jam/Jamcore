@@ -422,6 +422,7 @@ export async function loadTrackScoreRecords({
 
   return db.gamePageTrack.findMany({
     where: {
+      origin: "ORIGINAL",
       gamePage: {
         version: {
           in: scoreVersions,

@@ -200,8 +200,9 @@ export function buildPostJamBodyFromGame(game: PageCollection<GamePageRecord>) {
         userId: entry.userId,
       })),
       composerId: song.composerId ?? song.composer?.id,
-      license: song.license ?? null,
-      allowDownload: Boolean(song.allowDownload),
+      origin: song.origin,
+      externalAuthorName: song.externalAuthorName ?? null,
+      license: song.license,
       allowBackgroundUse: Boolean(song.allowBackgroundUse),
       allowBackgroundUseAttribution: Boolean(
         song.allowBackgroundUseAttribution,

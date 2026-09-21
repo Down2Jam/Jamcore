@@ -1,4 +1,4 @@
-import type { GameCategory, LeaderboardType, PageVersion, Prisma } from "@prisma/client";
+import type { GameCategory, LeaderboardType, PageVersion, Prisma, TrackLicense, TrackOrigin } from "@prisma/client";
 
 import type { postJamPageInclude } from "../features/games/page.service.js";
 
@@ -34,8 +34,9 @@ export type GamePageWriteSong = {
   links?: LabeledUrl[];
   credits?: CreditInput[];
   composerId?: number | null;
-  license?: string | null;
-  allowDownload?: boolean;
+  origin?: TrackOrigin;
+  externalAuthorName?: string | null;
+  license?: TrackLicense;
   allowBackgroundUse?: boolean;
   allowBackgroundUseAttribution?: boolean;
 };
