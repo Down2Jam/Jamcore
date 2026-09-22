@@ -1,5 +1,6 @@
 ﻿import db from "../../infra/db.js";
 import { appConfig } from "../../config/app.js";
+import { createNotifications } from "../notifications/delivery.js";
 
 const LOCAL_DOMAINS = new Set(appConfig.mentionDomains.map((domain) => domain.toLowerCase()));
 
@@ -186,8 +187,7 @@ export async function notifyNewMentions(context: MentionNotificationContext) {
 
   const notification = buildMentionNotification(context);
 
-  await db.notification.createMany({
-    data: recipients.map((recipient) => ({
+  await createNotifications(recipients.map((recipient) => ({
       type: "GENERAL" as const,
       actorId: context.actorId,
       recipientId: recipient.id,
@@ -200,8 +200,7 @@ export async function notifyNewMentions(context: MentionNotificationContext) {
       gameId: "gameId" in notification ? notification.gameId ?? null : null,
       trackId:
         "trackId" in notification ? notification.trackId ?? null : null,
-    })),
-  });
+  })));
 }
 
 async function findCommentMentionReference(commentId: number) {

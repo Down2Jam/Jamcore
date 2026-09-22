@@ -36,6 +36,7 @@ export const updateTrackSchema = z.object({
     )
     .optional(),
   composerId: z.number().int().optional().nullable(),
+  allowDownload: z.boolean().optional(),
   allowBackgroundUse: z.boolean().optional(),
   allowBackgroundUseAttribution: z.boolean().optional(),
   license: trackLicenseSchema.optional(),
@@ -115,9 +116,11 @@ export async function updateTrackBySlug({
     composerId: input.composerId,
     origin: track.origin,
     externalAuthorName: track.externalAuthorName,
-    allowBackgroundUse: input.allowBackgroundUse,
-    allowBackgroundUseAttribution: input.allowBackgroundUseAttribution,
-    license: input.license,
+    allowDownload: input.allowDownload ?? track.allowDownload,
+    allowBackgroundUse: input.allowBackgroundUse ?? track.allowBackgroundUse,
+    allowBackgroundUseAttribution:
+      input.allowBackgroundUseAttribution ?? track.allowBackgroundUseAttribution,
+    license: input.license ?? track.license,
   });
 
   const updated = await db.gamePageTrack.update({
@@ -140,7 +143,9 @@ export async function updateTrackBySlug({
       ...(Array.isArray(input.softwareUsed)
         ? { softwareUsed: trackData.softwareUsed }
         : {}),
-      ...(input.license !== undefined
+      ...(typeof input.allowDownload === "boolean" ||
+        typeof input.allowBackgroundUse === "boolean" ||
+        input.license !== undefined
         ? { allowDownload: trackData.allowDownload }
         : {}),
       ...(typeof input.allowBackgroundUse === "boolean"

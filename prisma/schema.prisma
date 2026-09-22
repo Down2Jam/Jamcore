@@ -260,6 +260,11 @@ enum ReactionScope {
   GAME
 }
 
+enum ReactionKind {
+  EMOTE
+  STICKER
+}
+
 model Reaction {
   id          Int           @id @default(autoincrement())
   slug        String        @unique
@@ -267,6 +272,7 @@ model Reaction {
   artist      String?
   artistId    Int?
   uploaderId  Int?
+  kind        ReactionKind  @default(EMOTE)
   scopeType   ReactionScope @default(GLOBAL)
   scopeUserId Int?
   scopeGameId Int?
@@ -726,17 +732,21 @@ model GamePageLeaderboard {
 }
 
 model Score {
-  id        Int      @id @default(autoincrement())
-  data      Int
-  evidence  String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                      Int       @id @default(autoincrement())
+  data                    Int
+  evidence                String
+  placementAlertThreshold Int?
+  placementAlertSentAt    DateTime?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
 
   // Relations
   user          User                @relation(fields: [userId], references: [id], name: "ScoreToUser")
   userId        Int
   leaderboard   GamePageLeaderboard @relation(fields: [leaderboardId], references: [id], name: "ScoreToGamePageLeaderboard")
   leaderboardId Int
+
+  @@index([leaderboardId, placementAlertSentAt])
 }
 
 model GamePageAchievement {
@@ -970,6 +980,10 @@ enum NotificationType {
   FOLLOW_BACK
   TEAM_INVITE
   TEAM_APPLICATION
+  LEADERBOARD_TOP_SPOT_LOST
+  LEADERBOARD_TOP_THREE_LOST
+  LEADERBOARD_TOP_FIVE_LOST
+  STREAM_LIVE
 }
 
 model Notification {
@@ -1560,6 +1574,7 @@ model ReportNote {
 model NotificationPreference {
   userId       Int      @id @map("user_id")
   mutedTypes   Json     @map("muted_types")
+  enabledTypes Json     @default("[]") @map("enabled_types")
   emailEnabled Boolean  @default(false) @map("email_enabled")
   updatedAt    DateTime @default(now()) @map("updated_at")
 }

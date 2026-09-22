@@ -57,6 +57,7 @@ export const trackInputSchema = z.object({
   origin: trackOriginSchema.optional(),
   externalAuthorName: z.string().trim().max(200).nullable().optional(),
   license: trackLicenseSchema.optional(),
+  allowDownload: z.boolean().optional(),
   allowBackgroundUse: z.boolean().optional(),
   allowBackgroundUseAttribution: z.boolean().optional(),
   tagIds: z.array(z.coerce.number().int().positive()).optional(),

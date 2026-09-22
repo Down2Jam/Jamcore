@@ -42,6 +42,7 @@ type RawSong = {
   license?: string | null;
   origin?: TrackOrigin | "ORIGINAL" | "ASSET_PACK";
   externalAuthorName?: string | null;
+  allowDownload?: boolean;
   allowBackgroundUse?: boolean;
   allowBackgroundUseAttribution?: boolean;
   tagIds?: Array<number | string>;
@@ -106,6 +107,7 @@ export function buildTrackWriteData(song: RawSong) {
   const normalizedLicense = normalizeTrackLicense(song.license);
   const origin = song.origin === TrackOrigin.ASSET_PACK ? TrackOrigin.ASSET_PACK : TrackOrigin.ORIGINAL;
   const externalAuthorName = song.externalAuthorName?.trim() || null;
+  const licenseAllowsDownload = getTrackLicenseDefinition(normalizedLicense).allowDownload;
   const licenseRequiresBackgroundUse = backgroundUsageAllowedByDefault(normalizedLicense);
   const allowBackgroundUse =
     origin === TrackOrigin.ASSET_PACK || licenseRequiresBackgroundUse
@@ -119,6 +121,12 @@ export function buildTrackWriteData(song: RawSong) {
         ? true
         : (song.allowBackgroundUseAttribution ?? true)
       : false;
+  const allowDownload =
+    origin === TrackOrigin.ASSET_PACK
+      ? licenseAllowsDownload
+      : licenseAllowsDownload || allowBackgroundUse
+        ? true
+        : Boolean(song.allowDownload);
   const integratedLufs =
     typeof song.integratedLufs === "number" && Number.isFinite(song.integratedLufs)
       ? song.integratedLufs
@@ -150,7 +158,7 @@ export function buildTrackWriteData(song: RawSong) {
     license: normalizedLicense,
     origin,
     externalAuthorName,
-    allowDownload: getTrackLicenseDefinition(normalizedLicense).allowDownload,
+    allowDownload,
     allowBackgroundUse,
     allowBackgroundUseAttribution,
     composerId: origin === TrackOrigin.ASSET_PACK ? null : composerId,

@@ -2,6 +2,7 @@ import { appConfig } from "../../../config/app.js";
 import { filterCoreEntityIdsByTenant } from "../../../infra/coreTenantStore.js";
 import db from "../../../infra/db.js";
 import { resolveCommentMentionContext } from "../../mentions/notifications.service.js";
+import { createNotifications } from "../../notifications/delivery.js";
 import {
   assertCommentTargetBelongsToTenant,
   assertGameBelongsToTenant,
@@ -65,16 +66,14 @@ async function createNotificationForUsers(
     return;
   }
 
-  await db.notification.createMany({
-    data: recipientIds.map((recipientId) => ({
-      recipientId,
-      type: payload.type,
-      title: payload.title,
-      body: payload.body,
-      link: payload.link,
-      data: payload.data as object | undefined,
-    })),
-  });
+  await createNotifications(recipientIds.map((recipientId) => ({
+    recipientId,
+    type: payload.type,
+    title: payload.title,
+    body: payload.body,
+    link: payload.link,
+    data: payload.data as object | undefined,
+  })));
 }
 
 async function getJamModeratorIds(tenantId?: string | null) {

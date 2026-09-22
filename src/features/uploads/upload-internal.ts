@@ -184,6 +184,15 @@ async function applyImageCrop(
   const extractWidth = Math.max(1, Math.min(cropRect.width, width - left));
   const extractHeight = Math.max(1, Math.min(cropRect.height, height - top));
 
+  if (
+    left === 0 &&
+    top === 0 &&
+    extractWidth === width &&
+    extractHeight === height
+  ) {
+    return { buffer: fileBuffer, mimeType };
+  }
+
   let pipeline = sharp(fileBuffer, { animated: true, pages: -1 }).extract({
     left,
     top,
@@ -201,7 +210,7 @@ async function applyImageCrop(
       mimeType = "image/png";
       break;
     case "image/gif":
-      pipeline = pipeline.gif();
+      pipeline = pipeline.gif({ effort: 1 });
       break;
     case "image/webp":
       pipeline = pipeline.webp();

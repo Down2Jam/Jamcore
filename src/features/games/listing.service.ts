@@ -1,5 +1,6 @@
 import { activeRatingSelect, activeRatingPageSelect, isActiveGameRating } from "../ratings/active.js";
 import { PageVersion, type Prisma } from "@prisma/client";
+import { randomBytes } from "node:crypto";
 import { z } from "zod";
 
 import db from "../../infra/db.js";
@@ -31,6 +32,7 @@ const SCORE_SORT_RATING_GOAL = 5;
 const SCORE_SORT_MIDPOINT = 6;
 const DEFAULT_LIMIT = 24;
 const MAX_LIMIT = 50;
+const RANDOM_CURSOR_PREFIX = "random";
 
 type ListedGame = ReturnType<typeof materializeGameListingEntries>[number];
 type GameListingResult = {
@@ -111,6 +113,60 @@ function parseCursor(cursor: unknown) {
 
 function listingCursorFor(game: Pick<ListedGame, "id" | "pageVersion">) {
   return `${game.id}:${game.pageVersion ?? PageVersion.JAM}`;
+}
+
+function compareListingIdentity(a: ListedGame, b: ListedGame) {
+  return (
+    b.id - a.id ||
+    (b.pageVersion ?? PageVersion.JAM).localeCompare(
+      a.pageVersion ?? PageVersion.JAM,
+    )
+  );
+}
+
+function parseRandomCursor(cursor: string | null) {
+  if (!cursor) {
+    return null;
+  }
+
+  const [prefix, seed, rawOffset, extra] = cursor.split(":");
+  const offset = Number.parseInt(rawOffset ?? "", 10);
+  if (
+    prefix !== RANDOM_CURSOR_PREFIX ||
+    !/^[a-f0-9]{16}$/.test(seed ?? "") ||
+    !/^\d+$/.test(rawOffset ?? "") ||
+    !Number.isSafeInteger(offset) ||
+    offset < 0 ||
+    extra !== undefined
+  ) {
+    return null;
+  }
+
+  return { seed, offset };
+}
+
+function randomCursorFor(seed: string, offset: number) {
+  return `${RANDOM_CURSOR_PREFIX}:${seed}:${offset}`;
+}
+
+function randomRank(seed: string, game: ListedGame) {
+  const value = `${seed}:${listingCursorFor(game)}`;
+  let hash = 2166136261;
+
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+
+  return hash >>> 0;
+}
+
+function sortRandomly(games: ListedGame[], seed: string) {
+  return [...games].sort(
+    (a, b) =>
+      randomRank(seed, a) - randomRank(seed, b) ||
+      listingCursorFor(a).localeCompare(listingCursorFor(b)),
+  );
 }
 
 function parseGameListingSort(value: unknown): GameListingSort | undefined {
@@ -229,16 +285,19 @@ function sortByScore(games: ListedGame[]) {
       getAdjusted(b) - getAdjusted(a) ||
       getAverage(b) - getAverage(a) ||
       getOverallRatings(b).length - getOverallRatings(a).length ||
-      b.id - a.id,
+      compareListingIdentity(a, b),
   );
 }
 
 function sortByLeastRated(games: ListedGame[], ratingCategoryCount: number) {
-  return [...games].sort(
-    (a, b) =>
-      a.ratings.length / (a.ratingCategories.length + ratingCategoryCount) -
-      b.ratings.length / (b.ratingCategories.length + ratingCategoryCount),
-  );
+  return [...games].sort((a, b) => {
+    const aRatingRatio =
+      a.ratings.length / (a.ratingCategories.length + ratingCategoryCount);
+    const bRatingRatio =
+      b.ratings.length / (b.ratingCategories.length + ratingCategoryCount);
+
+    return aRatingRatio - bRatingRatio || compareListingIdentity(a, b);
+  });
 }
 
 function sortByDanger(games: ListedGame[], ratingCategoryCount: number) {
@@ -263,7 +322,7 @@ function sortByDanger(games: ListedGame[], ratingCategoryCount: number) {
       ).length;
       const normA = allowedA / (a.ratingCategories.length + ratingCategoryCount);
       const normB = allowedB / (b.ratingCategories.length + ratingCategoryCount);
-      return normB - normA;
+      return normB - normA || compareListingIdentity(a, b);
     });
 }
 
@@ -299,7 +358,9 @@ function sortByRatingBalance(games: ListedGame[], ratingCategoryCount: number) {
     return given - gotten;
   };
 
-  return [...games].sort((a, b) => diff(b) - diff(a));
+  return [...games].sort(
+    (a, b) => diff(b) - diff(a) || compareListingIdentity(a, b),
+  );
 }
 
 async function getRecommendedPointsByGameKey(
@@ -612,7 +673,10 @@ async function sortByKarmaOrRecommended(
             exponent
         : 0;
 
-    return karmaScore(b) + bBoost - (karmaScore(a) + aBoost);
+    const scoreDifference =
+      karmaScore(b) + bBoost - (karmaScore(a) + aBoost);
+
+    return scoreDifference || compareListingIdentity(a, b);
   });
 }
 
@@ -655,6 +719,8 @@ export async function listGames({
   const normalizedSort = parseGameListingSort(sort);
   const normalizedLimit = normalizeLimit(limit);
   const normalizedCursor = parseCursor(cursor);
+  const randomCursor =
+    normalizedSort === "random" ? parseRandomCursor(normalizedCursor) : null;
   const externalJamsOnly = externalJams === true || externalJams === "true";
   const where: Prisma.GameWhereInput = { published: true };
   const resolvedJam =
@@ -698,6 +764,10 @@ export async function listGames({
   });
 
   const loadListing = async () => {
+    const randomSeed =
+      normalizedSort === "random"
+        ? randomCursor?.seed ?? randomBytes(8).toString("hex")
+        : null;
     const pageVersionWhere: Prisma.GameWhereInput =
       pageVersion === PageVersion.POST_JAM
         ? { pages: { some: { version: PageVersion.POST_JAM } } }
@@ -741,7 +811,7 @@ export async function listGames({
 
       switch (normalizedSort) {
         case "random":
-          listedGames = [...listedGames].sort(() => Math.random() - 0.5);
+          listedGames = sortRandomly(listedGames, randomSeed!);
           break;
         case "score":
           listedGames = sortByScore(listedGames);
@@ -794,8 +864,11 @@ export async function listGames({
       );
     }
 
-    let slicedGames = listedGames;
-    if (normalizedCursor && (expensiveSort || normalizedSort === "random")) {
+    let slicedGames =
+      normalizedSort === "random" && randomCursor
+        ? listedGames.slice(randomCursor.offset)
+        : listedGames;
+    if (normalizedCursor && expensiveSort) {
       const cursorIndex = listedGames.findIndex(
         (game) =>
           listingCursorFor(game) === normalizedCursor ||
@@ -813,7 +886,12 @@ export async function listGames({
         hasMore,
         nextCursor:
           hasMore && items.length > 0
-            ? expensiveSort || normalizedSort === "random"
+            ? normalizedSort === "random"
+              ? randomCursorFor(
+                  randomSeed!,
+                  (randomCursor?.offset ?? 0) + items.length,
+                )
+              : expensiveSort
               ? listingCursorFor(items[items.length - 1])
               : String(items[items.length - 1]?.id ?? "")
             : null,

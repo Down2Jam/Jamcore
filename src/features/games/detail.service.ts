@@ -43,6 +43,7 @@ const gameDetailInclude = {
   tags: true,
   flags: true,
   gameEmotes: {
+    where: { kind: "EMOTE" },
     include: {
       artistUser: true,
       ownerGame: {

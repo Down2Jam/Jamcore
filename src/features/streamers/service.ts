@@ -4,6 +4,7 @@ import db from "../../infra/db.js";
 import { appConfig } from "../../config/app.js";
 import logger from "../../infra/logger.js";
 import { TTLCache } from "../../lib/cache.js";
+import { createNotifications } from "../notifications/delivery.js";
 
 type TwitchStream = {
   user_name: string;
@@ -12,6 +13,7 @@ type TwitchStream = {
   viewer_count: number;
   language: string;
   game_id: string;
+  game_name: string;
   tags?: string[];
   is_mature?: boolean;
 };
@@ -209,6 +211,17 @@ export async function updateFeaturedStreamers() {
           (Math.random() - 0.5) * 2,
       );
 
+    const previousPriorityStreamers = new Set(
+      (await db.featuredStreamer.findMany({
+        select: { userName: true, streamTags: true },
+      }))
+        .filter((stream) => hasConfiguredPriorityTag(stream.streamTags))
+        .map((stream) => stream.userName.toLowerCase()),
+    );
+    const newlyLivePriorityStreams = priorityStreams.filter(
+      (stream) => !previousPriorityStreamers.has(stream.user_name.toLowerCase()),
+    );
+
     const streamerStreams = normalizedStreams
       .filter(hasDesiredTag)
       .filter((s) => !hasPriorityTag(s))
@@ -266,6 +279,37 @@ export async function updateFeaturedStreamers() {
           viewerCount: stream.viewer_count,
         },
       });
+    }
+
+    if (newlyLivePriorityStreams.length > 0) {
+      const optedInPreferences = await db.notificationPreference.findMany({
+        select: { userId: true, enabledTypes: true },
+      });
+      const recipientIds = optedInPreferences
+        .filter(
+          (preference) =>
+            Array.isArray(preference.enabledTypes) &&
+            preference.enabledTypes.includes("STREAM_LIVE"),
+        )
+        .map((preference) => preference.userId);
+
+      await createNotifications(
+        newlyLivePriorityStreams.flatMap((stream) =>
+          recipientIds.map((recipientId) => ({
+            type: "STREAM_LIVE" as const,
+            recipientId,
+            title: `${stream.user_name} is live with the D2Jam tag`,
+            body: `${stream.title}${stream.game_name ? ` — ${stream.game_name}` : ""}`,
+            link: `https://www.twitch.tv/${encodeURIComponent(stream.user_name)}`,
+            data: {
+              kind: "stream_live",
+              streamer: stream.user_name,
+              category: stream.game_name,
+              tags: stream.tags ?? [],
+            },
+          })),
+        ),
+      );
     }
 
     // Keep serving the previous snapshot during the Twitch/database update,

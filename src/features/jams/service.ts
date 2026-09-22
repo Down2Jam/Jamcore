@@ -58,12 +58,69 @@ type ActiveJamResult =
       nextJam?: undefined;
     };
 
+export type ActiveJamMetadata = {
+  id: number;
+  name: string;
+  slug: string;
+  startTime: Date | string;
+  suggestionHours: number;
+  slaughterHours: number;
+  votingHours: number;
+  jammingHours: number;
+  submissionHours: number;
+  ratingHours: number;
+  postJamRefinementHours: number;
+  postJamRatingHours: number;
+  themePerUser?: number;
+  sourceUrl?: string | null;
+  sourcePlatform?: string | null;
+  icon?: string | null;
+  color?: string | null;
+};
+
+export type ActiveJamMetadataResult =
+  | {
+      phase: string;
+      jam: ActiveJamMetadata;
+      nextJam?: ActiveJamMetadata | null;
+    }
+  | {
+      phase: string;
+      jam?: undefined;
+      nextJam?: undefined;
+    };
+
 // This public snapshot feeds several home-page sections and is expensive to
 // assemble. The platform worker refreshes it every five minutes.
 const activeJamCache = new TTLCache<ActiveJamResult>(10 * 60_000, "active-jam");
+const activeJamMetadataCache = new TTLCache<ActiveJamMetadataResult>(
+  10 * 60_000,
+  "active-jam-metadata",
+);
 const jamListCache = new TTLCache<RecentJam[]>(60_000);
 const ACTIVE_JAM_CACHE_KEY = "active-jam";
+const ACTIVE_JAM_METADATA_CACHE_KEY = "active-jam-metadata";
 const JAM_LIST_CACHE_KEY = "list-jams";
+
+const activeJamMetadataSelect = {
+  id: true,
+  name: true,
+  slug: true,
+  startTime: true,
+  suggestionHours: true,
+  slaughterHours: true,
+  votingHours: true,
+  jammingHours: true,
+  submissionHours: true,
+  ratingHours: true,
+  postJamRefinementHours: true,
+  postJamRatingHours: true,
+  themePerUser: true,
+  sourceUrl: true,
+  sourcePlatform: true,
+  icon: true,
+  color: true,
+} as const;
 
 const activeJamSummaryInclude = {
   users: {
@@ -120,7 +177,11 @@ export function userIsInJam(
 }
 
 export function clearJamServiceCaches() {
-  return Promise.all([activeJamCache.clear(), jamListCache.clear()]);
+  return Promise.all([
+    activeJamCache.clear(),
+    activeJamMetadataCache.clear(),
+    jamListCache.clear(),
+  ]);
 }
 
 function normalizeJamGames<T extends { games?: any[] }>(jam: T): T {
@@ -422,6 +483,79 @@ export async function getCurrentActiveJam(
 
   // Cache the expensive jam summary, but always derive its phase from the
   // current time so phase boundaries take effect immediately.
+  if (activeJam.jam) {
+    const phase = getJamPhase(activeJam.jam);
+    if (phase && phase !== activeJam.phase) {
+      return { ...activeJam, phase };
+    }
+  }
+
+  return activeJam;
+}
+
+export async function getCurrentActiveJamMetadata(
+  tenantId?: string | null,
+  refresh = false,
+): Promise<ActiveJamMetadataResult> {
+  const cacheKey = tenantCacheKey(ACTIVE_JAM_METADATA_CACHE_KEY, tenantId);
+  const loadActiveJam = async () => {
+    const jams = await db.jam.findMany({
+      where: { isActive: true },
+      select: activeJamMetadataSelect,
+    });
+
+    const allowedJamIds = await filterCoreEntityIdsByTenant({
+      entityType: "Jam",
+      ids: jams.map((jam) => jam.id),
+      tenantId,
+      strictIsolation: appConfig.platform.multiTenant.strictIsolation,
+    });
+    const sortedJams = sortJamsByStartTime(
+      jams.filter((jam) => allowedJamIds.includes(jam.id)),
+    );
+
+    const now = new Date().toISOString();
+    let upcomingJam: ActiveJamMetadata | null = null;
+
+    for (const jam of sortedJams) {
+      const timeline = buildJamTimeline(jam);
+      const phase = getJamPhase(jam, now);
+
+      if (
+        shouldTreatJamAsUpcoming({
+          now,
+          postJamRatingEnd: timeline.postJamRatingEnd,
+        })
+      ) {
+        if (!upcomingJam) {
+          upcomingJam = jam;
+        }
+      }
+
+      if (phase) {
+        return {
+          phase,
+          jam,
+          nextJam: getNextJamAfter(sortedJams, jam.id),
+        };
+      }
+    }
+
+    if (upcomingJam) {
+      return {
+        phase: getFallbackJamPhase(true),
+        jam: upcomingJam,
+        nextJam: getNextJamAfter(sortedJams, upcomingJam.id),
+      };
+    }
+
+    return { phase: getFallbackJamPhase(false) };
+  };
+
+  const activeJam = await (refresh
+    ? activeJamMetadataCache.refresh(cacheKey, loadActiveJam)
+    : activeJamMetadataCache.getOrSet(cacheKey, loadActiveJam));
+
   if (activeJam.jam) {
     const phase = getJamPhase(activeJam.jam);
     if (phase && phase !== activeJam.phase) {

@@ -33,6 +33,7 @@ import {
   listRemoteFeedPosts,
 } from "../federation/remote-content.service.js";
 import { notifyFollowers } from "../social/index.js";
+import { createNotification } from "../notifications/delivery.js";
 import {
   BadRequestError,
   ForbiddenError,
@@ -1342,16 +1343,14 @@ export async function reviewPendingPost({
     });
     await enqueueSearchEntityIndex({ entityType: "post", entityId: post.id, tenantId });
   }
-  await db.notification.create({
-    data: {
-      recipientId: post.authorId,
-      actorId: actor.id,
-      type: "GENERAL",
-      title: `Your post was ${input.decision === "approve" ? "approved" : "sent back to drafts"}`,
-      body: post.title,
-      link: `/p/${post.slug ?? post.id}`,
-      data: { kind: "post_review", postId: post.id, decision: input.decision },
-    },
+  await createNotification({
+    recipientId: post.authorId,
+    actorId: actor.id,
+    type: "GENERAL",
+    title: `Your post was ${input.decision === "approve" ? "approved" : "sent back to drafts"}`,
+    body: post.title,
+    link: `/p/${post.slug ?? post.id}`,
+    data: { kind: "post_review", postId: post.id, decision: input.decision },
   });
   return { ok: true };
 }
@@ -1573,16 +1572,14 @@ export async function addPostToSeries({
   );
   await db.$executeRawUnsafe(`UPDATE "PostSeries" SET updated_at = NOW() WHERE id = $1`, seriesId);
   if (post.authorId !== actor.id) {
-    await db.notification.create({
-      data: {
-        recipientId: post.authorId,
-        actorId: actor.id,
-        type: "GENERAL",
-        title: `${actor.name} added your post to a series`,
-        body: series.title,
-        link: `/p/${post.slug ?? post.id}`,
-        data: { kind: "post_series_add", postId: post.id, seriesId },
-      },
+    await createNotification({
+      recipientId: post.authorId,
+      actorId: actor.id,
+      type: "GENERAL",
+      title: `${actor.name} added your post to a series`,
+      body: series.title,
+      link: `/p/${post.slug ?? post.id}`,
+      data: { kind: "post_series_add", postId: post.id, seriesId },
     });
   }
   return getPostSeries({ seriesId, actor });

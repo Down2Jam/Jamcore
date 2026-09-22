@@ -3,6 +3,7 @@ import { z } from "zod";
 import { filterCoreEntityIdsByTenant } from "../../infra/coreTenantStore.js";
 import db from "../../infra/db.js";
 import { BadRequestError, ForbiddenError, NotFoundError } from "../../lib/errors.js";
+import { createNotification, createNotifications } from "../notifications/delivery.js";
 
 type FollowActor = {
   id: number;
@@ -65,19 +66,17 @@ export async function followUserBySlug({
       },
     });
     if (!existing) {
-      await db.notification.create({
+      await createNotification({
+        recipientId: target.id,
+        actorId: actor.id,
+        type: "FOLLOW",
+        title: `${actor.name ?? actor.slug} followed you`,
+        body: "You have a new follower.",
+        link: `/u/${actor.slug}`,
         data: {
-          recipientId: target.id,
-          actorId: actor.id,
-          type: "FOLLOW",
-          title: `${actor.name ?? actor.slug} followed you`,
-          body: "You have a new follower.",
-          link: `/u/${actor.slug}`,
-          data: {
-            kind: "user_follow",
-            followerId: actor.id,
-            userSlug: actor.slug,
-          },
+          kind: "user_follow",
+          followerId: actor.id,
+          userSlug: actor.slug,
         },
       });
     }
@@ -125,8 +124,8 @@ export async function notifyFollowers({
 }) {
   const followerIds = await listFollowerIds({ userId: authorId, tenantId });
   if (followerIds.length === 0) return;
-  await db.notification.createMany({
-    data: followerIds
+  await createNotifications(
+    followerIds
       .filter((recipientId) => recipientId !== authorId)
       .map((recipientId) => ({
         recipientId,
@@ -137,5 +136,5 @@ export async function notifyFollowers({
         link,
         data: data as object | undefined,
       })),
-  });
+  );
 }

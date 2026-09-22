@@ -37,7 +37,7 @@ export function requiredAppScope(path: string, method: string): AppScope | null 
   if (["/self/game-context", "/self/achievements", "/self/scores"].includes(clean) || /^\/games\/[^/]+\/(leaderboards|achievements)$/.test(clean) || /^\/leaderboards\/[^/]+\/scores$/.test(clean)) return read ? "games:read" : null;
   if (["/score", "/achievement"].includes(clean)) return read ? "games:read" : "games:write";
   if (!read && (clean === "/quilts" || /^\/quilts\/[^/]+\/resize$/.test(clean) || /^\/quilts\/submissions\/[^/]+\/accept$/.test(clean))) return null;
-  if (/^\/(games|posts|comment|comments|collections|teams|themes|quilt|quilts|rating|ratings|like|likes|reaction|reactions|tracks|music|events|jams|join-jam|leave-team|invite|application|recap|results|radio|track-rating|track-timestamp-comments|image|emojis|reports)(?:\/|$)/.test(clean) || clean === "/post/reaction") {
+  if (/^\/(games|posts|comment|comments|collections|teams|themes|quilt|quilts|rating|ratings|like|likes|reaction|reactions|tracks|music|events|jams|join-jam|leave-team|invite|application|recap|results|radio|track-rating|track-timestamp-comments|image|emojis|stickers|reports)(?:\/|$)/.test(clean) || clean === "/post/reaction") {
     return read ? "content:read" : "content:write";
   }
   return null;

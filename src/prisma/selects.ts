@@ -506,6 +506,7 @@ export const targetUserBaseSelect = {
     },
   },
   userEmotes: {
+    where: { kind: "EMOTE" },
     select: {
       id: true,
       slug: true,

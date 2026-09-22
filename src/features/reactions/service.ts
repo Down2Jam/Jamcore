@@ -209,6 +209,10 @@ async function findReactionByRef({
     throw new NotFoundError("Reaction not found.");
   }
 
+  if (reaction.kind !== "EMOTE") {
+    throw new NotFoundError("Reaction not found.");
+  }
+
   return reaction;
 }
 

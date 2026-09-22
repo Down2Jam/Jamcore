@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { Notification } from "@prisma/client";
+import { NotificationType, type Notification } from "@prisma/client";
 import { repairCommentNotificationLinks } from "./links.js";
 
 import db from "../../infra/db.js";
@@ -21,7 +21,8 @@ export const notificationIdParamsSchema = z.object({
 });
 
 export const notificationPreferencesSchema = z.object({
-  mutedTypes: z.array(z.string().trim().min(1)).optional().default([]),
+  mutedTypes: z.array(z.enum(NotificationType)).optional().default([]),
+  enabledTypes: z.array(z.enum(NotificationType)).optional().default([]),
   emailEnabled: z.boolean().optional().default(false),
 });
 
@@ -171,6 +172,7 @@ export async function getNotificationPreferences(actor: NotificationActor) {
   return preferences ?? {
     userId: actor.id,
     mutedTypes: [],
+    enabledTypes: [],
     emailEnabled: false,
     updatedAt: null,
   };
@@ -188,10 +190,12 @@ export async function updateNotificationPreferences({
     create: {
       userId: actor.id,
       mutedTypes: input.mutedTypes,
+      enabledTypes: input.enabledTypes,
       emailEnabled: input.emailEnabled,
     },
     update: {
       mutedTypes: input.mutedTypes,
+      enabledTypes: input.enabledTypes,
       emailEnabled: input.emailEnabled,
       updatedAt: new Date(),
     },

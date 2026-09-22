@@ -6,6 +6,7 @@ import { z } from "zod";
 import { filterCoreEntityIdsByTenant } from "../../infra/coreTenantStore.js";
 import db from "../../infra/db.js";
 import { BadRequestError, ForbiddenError, NotFoundError } from "../../lib/errors.js";
+import { createNotification, createNotifications } from "../notifications/delivery.js";
 
 type CollectionActor = {
   id: number;
@@ -724,8 +725,7 @@ async function notifyCollectionRecipients({
 }) {
   const recipientIds = await listCollectionNotificationRecipientIds(collection.id, actor.id);
   if (recipientIds.length === 0) return;
-  await db.notification.createMany({
-    data: recipientIds.map((recipientId) => ({
+  await createNotifications(recipientIds.map((recipientId) => ({
       recipientId,
       actorId: actor.id,
       type: "GENERAL",
@@ -737,8 +737,7 @@ async function notifyCollectionRecipients({
         collectionId: collection.id,
         ...data,
       },
-    })),
-  });
+  })));
 }
 
 async function enrichCollectionItems(items: CollectionItemRow[]) {
@@ -1273,16 +1272,14 @@ export async function forkCollection({
   const row = await getCollectionRow(newCollectionId ?? slug);
   if (!row) throw new NotFoundError("Collection not found");
   if (source.ownerId !== actor.id) {
-    await db.notification.create({
-      data: {
-        recipientId: source.ownerId,
-        actorId: actor.id,
-        type: "GENERAL",
-        title: `${actor.slug} forked your collection`,
-        body: source.title,
-        link: `/c/${source.slug}`,
-        data: { kind: "collection_fork", collectionId: source.id },
-      },
+    await createNotification({
+      recipientId: source.ownerId,
+      actorId: actor.id,
+      type: "GENERAL",
+      title: `${actor.slug} forked your collection`,
+      body: source.title,
+      link: `/c/${source.slug}`,
+      data: { kind: "collection_fork", collectionId: source.id },
     });
   }
   return presentCollection(row);
@@ -1510,16 +1507,14 @@ export async function inviteCollectionCollaborator({
     input.role,
     actor.id,
   );
-  await db.notification.create({
-    data: {
-      recipientId: user.id,
-      actorId: actor.id,
-      type: "GENERAL",
-      title: `${actor.slug} invited you to collaborate on a collection`,
-      body: row.title,
-      link: `/c/${row.slug}`,
-      data: { kind: "collection_collaborator_invite", collectionId: row.id, role: input.role },
-    },
+  await createNotification({
+    recipientId: user.id,
+    actorId: actor.id,
+    type: "GENERAL",
+    title: `${actor.slug} invited you to collaborate on a collection`,
+    body: row.title,
+    link: `/c/${row.slug}`,
+    data: { kind: "collection_collaborator_invite", collectionId: row.id, role: input.role },
   });
   return getCollection({ collectionId: row.id, actor });
 }
@@ -1546,16 +1541,14 @@ export async function respondCollectionCollaboratorInvite({
     input.status,
   );
   if (row && row.ownerId !== actor.id) {
-    await db.notification.create({
-      data: {
-        recipientId: row.ownerId,
-        actorId: actor.id,
-        type: "GENERAL",
-        title: `${actor.slug} ${input.status} your collection invite`,
-        body: row.title,
-        link: `/c/${row.slug}`,
-        data: { kind: "collection_collaborator_response", collectionId: row.id, status: input.status },
-      },
+    await createNotification({
+      recipientId: row.ownerId,
+      actorId: actor.id,
+      type: "GENERAL",
+      title: `${actor.slug} ${input.status} your collection invite`,
+      body: row.title,
+      link: `/c/${row.slug}`,
+      data: { kind: "collection_collaborator_response", collectionId: row.id, status: input.status },
     });
   }
   return getCollection({ collectionId: row.id, actor });
@@ -1680,16 +1673,14 @@ export async function followCollection({
       actor.id,
     );
     if (row.ownerId !== actor.id && existing.length === 0) {
-      await db.notification.create({
-        data: {
-          recipientId: row.ownerId,
-          actorId: actor.id,
-          type: "GENERAL",
-          title: `${actor.slug} followed your collection`,
-          body: row.title,
-          link: `/c/${row.slug}`,
-          data: { kind: "collection_follow", collectionId: row.id },
-        },
+      await createNotification({
+        recipientId: row.ownerId,
+        actorId: actor.id,
+        type: "GENERAL",
+        title: `${actor.slug} followed your collection`,
+        body: row.title,
+        link: `/c/${row.slug}`,
+        data: { kind: "collection_follow", collectionId: row.id },
       });
     }
   } else {

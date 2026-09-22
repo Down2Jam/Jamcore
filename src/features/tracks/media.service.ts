@@ -118,6 +118,7 @@ export async function buildTrackDownloadBySlug({
       bpm: true,
       musicalKey: true,
       license: true,
+      allowDownload: true,
       origin: true,
       externalAuthorName: true,
       createdAt: true,
@@ -177,7 +178,7 @@ export async function buildTrackDownloadBySlug({
   }
 
   const licenseDefinition = getTrackLicenseDefinition(track.license);
-  if (!licenseDefinition.allowDownload) {
+  if (!track.allowDownload) {
     throw new NotFoundError("Track download not available");
   }
 
