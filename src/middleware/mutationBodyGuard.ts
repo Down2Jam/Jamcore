@@ -20,6 +20,15 @@ export function mutationBodyGuard(
     return;
   }
 
+  const isGamePageWrite =
+    (req.method === "POST" && req.path === "/games") ||
+    (req.method === "PUT" && /^\/games\/[^/]+$/.test(req.path));
+  if (isGamePageWrite) {
+    // The JSON parser already enforces the larger game page request limit.
+    next();
+    return;
+  }
+
   const rawSize = Buffer.byteLength(req.rawBody ?? "", "utf8");
   if (rawSize > mutationBodyLimitBytes) {
     next(new BadRequestError("Mutation body exceeds configured size limit"));

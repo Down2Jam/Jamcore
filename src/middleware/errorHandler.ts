@@ -10,15 +10,15 @@ export const notFoundHandler: RequestHandler = (_req, _res, next) => {
 };
 
 export const errorHandler: ErrorRequestHandler = (error, _req, res, _next) => {
-  const shouldExposeRequestId =
-    !(error instanceof ApiError) && !(error instanceof ZodError);
-
   const normalizedError =
     error instanceof ZodError
       ? fromZodError(error)
       : error instanceof ApiError
         ? error
+        : error && typeof error === "object" && "status" in error && error.status === 413
+          ? new ApiError(413, "Request body exceeds configured size limit", undefined, "ERR_PAYLOAD_TOO_LARGE")
         : new ApiError(500, "Internal server error");
+  const shouldExposeRequestId = normalizedError.statusCode >= 500;
 
   if (shouldExposeRequestId) {
     logger.error("Unhandled request error", {
