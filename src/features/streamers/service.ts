@@ -299,7 +299,7 @@ export async function updateFeaturedStreamers() {
             type: "STREAM_LIVE" as const,
             recipientId,
             title: `${stream.user_name} is live with the D2Jam tag`,
-            body: `${stream.title}${stream.game_name ? ` — ${stream.game_name}` : ""}`,
+            body: `${stream.title}${stream.game_name ? ` (${stream.game_name})` : ""}`,
             link: `https://www.twitch.tv/${encodeURIComponent(stream.user_name)}`,
             data: {
               kind: "stream_live",
