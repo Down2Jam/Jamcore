@@ -159,10 +159,6 @@ export async function saveTrackRating({
   if (!track || !track.gamePage?.game?.published) {
     throw new NotFoundError("Track not found");
   }
-  if (track.origin === "ASSET_PACK") {
-    throw new ForbiddenError("Asset-pack tracks cannot be rated.");
-  }
-
   const belongsToTenant = await doesCoreEntityBelongToTenant({
     entityType: "Game",
     entityId: track.gamePage.game.id,

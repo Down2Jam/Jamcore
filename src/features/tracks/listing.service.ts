@@ -123,7 +123,9 @@ export async function listTracks(
     }
 
     if (sort === "score") {
-      tracks = sortTracksByScore(tracks);
+      tracks = sortTracksByScore(
+        tracks.filter((track) => track.origin !== "ASSET_PACK"),
+      );
     }
 
     if (sort === "leastratings") {

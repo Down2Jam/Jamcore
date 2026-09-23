@@ -438,6 +438,7 @@ export function buildTrackDetailScores({
         avg.categoryName === appConfig.games.ratingCategoryNames.overallTrack,
     );
     return (
+      candidate.origin !== "ASSET_PACK" &&
       !isNonCompetitiveGameCategory(candidate.gamePage.game.category) &&
       overallCategory &&
       overallCategory.rankedRatingCount >= 5 &&
@@ -480,6 +481,7 @@ export function buildTrackDetailScores({
   if (target) {
     target.categoryAverages.forEach((category: any) => {
       const canBeRanked =
+        target.origin !== "ASSET_PACK" &&
         !isNonCompetitiveGameCategory(target.gamePage.game.category) &&
         category.rankedRatingCount >= 5 &&
         target.ratingsCount >= 4.99;
