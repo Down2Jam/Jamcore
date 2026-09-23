@@ -6,6 +6,7 @@ import { z } from "zod";
 import db from "../../infra/db.js";
 import { filterCoreEntityIdsByTenant } from "../../infra/coreTenantStore.js";
 import { TTLCache } from "../../lib/cache.js";
+import { NotFoundError } from "../../lib/errors.js";
 import { resolveJamReference } from "../jams/index.js";
 import {
   gameListingInclude,
@@ -22,6 +23,8 @@ import {
   applyRecommendationOverrides,
   rankRecommendationCandidates,
 } from "../users/recommendations.core.js";
+import { buildPreferenceScorer, type PreferenceReason } from "./recommendation.personalization.js";
+import { loadPreferenceExamples } from "./recommendation.profile.js";
 import type {
   GameListingRecord,
   GameListingSort,
@@ -73,8 +76,15 @@ type RecommendationRating = {
 // tenant. Keep them longer than the five-minute background warming interval so
 // a request never has to become the cache warmer because of minor job drift.
 const gameListingCache = new TTLCache<GameListingResult>(10 * 60_000, "game-listings");
+const personalizedListingCache = new Map<string, {
+  expiresAt: number;
+  value: Promise<GameListingResult>;
+}>();
+const PERSONALIZED_CACHE_TTL_MS = 60_000;
+const PERSONALIZED_CACHE_MAX_ENTRIES = 200;
 
 export function clearGameListingCache() {
+  personalizedListingCache.clear();
   return gameListingCache.clear();
 }
 
@@ -86,6 +96,14 @@ export const gameListingQuerySchema = z.object({
   pageVersion: z.unknown().optional(),
   cursor: z.unknown().optional(),
   limit: z.unknown().optional(),
+});
+
+export const recommendationPreviewQuerySchema = z.object({
+  userId: z.coerce.number().int().positive().optional(),
+  jamId: z.coerce.number().int().positive().optional(),
+  pageVersion: z.enum(["JAM", "POST_JAM", "ALL"]).default("JAM"),
+  offset: z.coerce.number().int().min(0).default(0),
+  limit: z.coerce.number().int().min(1).max(50).default(24),
 });
 
 function normalizeLimit(limit: unknown) {
@@ -527,10 +545,19 @@ async function getRecommendedPointsByGameKey(
   return recommendedPointsByGameId;
 }
 
-async function sortByKarmaOrRecommended(
+type RankedGame = {
+  game: ListedGame;
+  baseScore: number;
+  adjustment: number;
+  reasons: PreferenceReason[];
+};
+
+async function rankByKarmaOrRecommended(
   games: ListedGame[],
   ratingCategories: Array<{ id: number; name: string }>,
   sort: "karma" | "recommended",
+  viewerId?: number,
+  tenantId?: string | null,
 ) {
   const exponent = 0.73412;
   const recommendationWeight = 2;
@@ -542,6 +569,13 @@ async function sortByKarmaOrRecommended(
     games,
     overallCategoryId,
   );
+  const preferenceScorer =
+    sort === "recommended" && viewerId
+      ? buildPreferenceScorer(
+          await loadPreferenceExamples(viewerId, overallCategoryId, tenantId),
+          games,
+        )
+      : null;
   const recommendationKeyFor = (gameId: number, version: PageVersion) =>
     `${gameId}:${version}`;
 
@@ -655,29 +689,26 @@ async function sortByKarmaOrRecommended(
     );
   };
 
-  return [...games].sort((a, b) => {
-    const aBoost =
-      sort === "recommended"
-        ? recommendationWeight *
-          (recommendedPointsByGameId.get(
-            recommendationKeyFor(a.id, a.pageVersion ?? PageVersion.JAM),
-          ) ?? 0) **
-            exponent
-        : 0;
-    const bBoost =
-      sort === "recommended"
-        ? recommendationWeight *
-          (recommendedPointsByGameId.get(
-            recommendationKeyFor(b.id, b.pageVersion ?? PageVersion.JAM),
-          ) ?? 0) **
-            exponent
-        : 0;
+  const ranked: RankedGame[] = games.map((game) => {
+    const recommendationBoost = sort === "recommended"
+      ? recommendationWeight *
+        (recommendedPointsByGameId.get(
+          recommendationKeyFor(game.id, game.pageVersion ?? PageVersion.JAM),
+        ) ?? 0) ** exponent
+      : 0;
+    const preference = preferenceScorer?.(game) ?? { adjustment: 0, reasons: [] };
 
-    const scoreDifference =
-      karmaScore(b) + bBoost - (karmaScore(a) + aBoost);
-
-    return scoreDifference || compareListingIdentity(a, b);
+    return {
+      game,
+      baseScore: karmaScore(game) + recommendationBoost,
+      adjustment: preference.adjustment,
+      reasons: preference.reasons,
+    };
   });
+  return ranked.sort((a, b) =>
+    b.baseScore + b.adjustment - (a.baseScore + a.adjustment) ||
+    compareListingIdentity(a.game, b.game),
+  );
 }
 
 async function filterGameRecordsByTenant<T extends { id: number }>(
@@ -695,6 +726,85 @@ async function filterGameRecordsByTenant<T extends { id: number }>(
   return games.filter((game) => allowedIds.has(game.id));
 }
 
+export async function previewRecommendedGames({
+  viewerId,
+  jamId,
+  pageVersion,
+  offset,
+  limit,
+  tenantId,
+}: {
+  viewerId: number;
+  jamId?: number;
+  pageVersion: ListingPageVersion;
+  offset: number;
+  limit: number;
+  tenantId?: string | null;
+}) {
+  const [viewer, allowedUserIds] = await Promise.all([
+    db.user.findUnique({
+      where: { id: viewerId },
+      select: { id: true, name: true, slug: true },
+    }),
+    filterCoreEntityIdsByTenant({
+      entityType: "User",
+      ids: [viewerId],
+      tenantId,
+    }),
+  ]);
+  if (!viewer || !allowedUserIds.includes(viewerId)) {
+    throw new NotFoundError("User not found.");
+  }
+
+  const games = await db.game.findMany({
+    include: gameListingInclude,
+    where: { published: true, ...(jamId ? { jamId } : {}) },
+  });
+  const tenantGames = await filterGameRecordsByTenant(games, tenantId);
+  const listedGames = tenantGames.flatMap((game: GameListingRecord) =>
+    materializeGameListingEntries(game, pageVersion),
+  );
+  const ratingCategories = await db.ratingCategory.findMany({
+    where: { always: true },
+    select: { id: true, name: true },
+  });
+  const personalized = await rankByKarmaOrRecommended(
+    listedGames,
+    ratingCategories,
+    "recommended",
+    viewerId,
+    tenantId,
+  );
+  const baseline = [...personalized].sort((a, b) =>
+    b.baseScore - a.baseScore || compareListingIdentity(a.game, b.game),
+  );
+  const baselineRanks = new Map(baseline.map((entry, index) => [listingCursorFor(entry.game), index + 1]));
+  const personalizedRanks = new Map(personalized.map((entry, index) => [listingCursorFor(entry.game), index + 1]));
+  const toPreviewItem = (entry: RankedGame, index: number, otherRanks: Map<string, number>) => ({
+    game: toGameListingResponse(entry.game),
+    rank: offset + index + 1,
+    otherRank: otherRanks.get(listingCursorFor(entry.game)) ?? null,
+    baseScore: entry.baseScore,
+    adjustment: entry.adjustment,
+    reasons: entry.reasons,
+  });
+
+  return {
+    viewer,
+    baseline: baseline.slice(offset, offset + limit).map((entry, index) =>
+      toPreviewItem(entry, index, personalizedRanks),
+    ),
+    personalized: personalized.slice(offset, offset + limit).map((entry, index) =>
+      toPreviewItem(entry, index, baselineRanks),
+    ),
+    pageInfo: {
+      totalCount: listedGames.length,
+      hasMore: offset + limit < listedGames.length,
+      nextOffset: offset + limit < listedGames.length ? offset + limit : null,
+    },
+  };
+}
+
 export async function listGames({
   sort,
   jamId,
@@ -704,6 +814,7 @@ export async function listGames({
   cursor,
   limit,
   tenantId,
+  viewerId,
   refresh = false,
 }: {
   sort?: unknown;
@@ -714,6 +825,7 @@ export async function listGames({
   cursor?: unknown;
   limit?: unknown;
   tenantId?: string | null;
+  viewerId?: number;
   refresh?: boolean;
 }): Promise<GameListingResult> {
   const normalizedSort = parseGameListingSort(sort);
@@ -827,11 +939,13 @@ export async function listGames({
           break;
         case "karma":
         case "recommended":
-          listedGames = await sortByKarmaOrRecommended(
+          listedGames = (await rankByKarmaOrRecommended(
             listedGames,
             ratingCategories,
             normalizedSort,
-          );
+            viewerId,
+            tenantId,
+          )).map((entry) => entry.game);
           break;
         default:
           break;
@@ -900,6 +1014,29 @@ export async function listGames({
       },
     };
   };
+
+  if (normalizedSort === "recommended" && viewerId) {
+    const personalizedKey = JSON.stringify([viewerId, cacheKey]);
+    const cached = personalizedListingCache.get(personalizedKey);
+    if (cached && cached.expiresAt > Date.now()) return cached.value;
+
+    personalizedListingCache.delete(personalizedKey);
+    const value = loadListing().catch((error) => {
+      if (personalizedListingCache.get(personalizedKey)?.value === value) {
+        personalizedListingCache.delete(personalizedKey);
+      }
+      throw error;
+    });
+    personalizedListingCache.set(personalizedKey, {
+      expiresAt: Date.now() + PERSONALIZED_CACHE_TTL_MS,
+      value,
+    });
+    if (personalizedListingCache.size > PERSONALIZED_CACHE_MAX_ENTRIES) {
+      const oldestKey = personalizedListingCache.keys().next().value;
+      if (oldestKey) personalizedListingCache.delete(oldestKey);
+    }
+    return value;
+  }
 
   return refresh
     ? gameListingCache.refresh(cacheKey, loadListing)

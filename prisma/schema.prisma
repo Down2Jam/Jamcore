@@ -360,6 +360,7 @@ model Jam {
   submissionHours        Int      @default(2)
   postJamRefinementHours Int      @default(336)
   postJamRatingHours     Int      @default(336)
+  musicRankingRuleVersion Int     @default(2) @map("music_ranking_rule_version")
   isActive               Boolean  @default(true)
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt
@@ -379,6 +380,7 @@ model Jam {
   themeVotes       ThemeVote[]       @relation(name: "VoteToJam")
   themeVotes2      ThemeVote2[]      @relation(name: "Vote2ToJam")
   teams            Team[]            @relation(name: "TeamsToJam")
+  ratingReminderDispatch JamRatingReminderDispatch?
 
   @@index([tenantId, startTime])
 }
@@ -972,6 +974,7 @@ model UserBlock {
 
 enum NotificationType {
   GENERAL
+  RATING_REMINDER
   GAME_COMMENT
   TRACK_COMMENT
   COMMENT_REPLY
@@ -994,6 +997,7 @@ model Notification {
   body       String?
   link       String?
   data       Json?
+  dedupeKey  String? @unique @map("dedupe_key")
   readAt     DateTime? @map("read_at")
   archivedAt DateTime? @map("archived_at")
   createdAt  DateTime  @default(now())
@@ -1029,6 +1033,15 @@ model Notification {
   @@index([gameId])
   @@index([trackId])
   @@index([teamId])
+}
+
+model JamRatingReminderDispatch {
+  jamId       Int      @id @map("jam_id")
+  status      String
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
+  completedAt DateTime? @map("completed_at")
+
+  jam Jam @relation(fields: [jamId], references: [id], onDelete: Cascade)
 }
 
 model ThemeSuggestion {

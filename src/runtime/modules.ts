@@ -8,6 +8,7 @@ import { startPlatformRuntime } from "../jobs/platform.js";
 import { startDeviceAuthCleanupJob } from "../auth/deviceAuthCleanupJob.js";
 import { startTokenCleanupJob } from "../auth/tokenCleanupJob.js";
 import { startWebBuildCleanupRuntime } from "../features/games/web-build.runtime.js";
+import { startHalfwayRatingReminderRuntime } from "../features/notifications/rating-reminders.js";
 
 export type RuntimeModuleHandle = {
   name: string;
@@ -28,6 +29,7 @@ export async function startRuntimeModules(): Promise<RuntimeModules> {
     Promise.resolve(startPlatformRuntime()),
     Promise.resolve(startScheduledPostPublisherRuntime()),
     Promise.resolve(startWebBuildCleanupRuntime()),
+    Promise.resolve(startHalfwayRatingReminderRuntime()),
     startRadioRuntime(),
     startStreamersRuntime(),
     Promise.resolve({

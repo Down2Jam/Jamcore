@@ -81,6 +81,6 @@ export async function createNotifications(
   });
 
   return enabled.length > 0
-    ? client.notification.createMany({ data: enabled })
+    ? client.notification.createMany({ data: enabled, skipDuplicates: true })
     : { count: 0 };
 }

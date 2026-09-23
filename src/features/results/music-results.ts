@@ -92,6 +92,7 @@ export async function loadMusicResults({
         include: {
           game: {
             include: {
+              jam: { select: { musicRankingRuleVersion: true } },
               team: {
                 select: {
                   users: {
@@ -327,7 +328,9 @@ export async function loadMusicResults({
       return (
         !isNonCompetitiveGameCategory(track.game.category) &&
         overall &&
-        overall.rankedRatingCount >= 5
+        (track.game.jam?.musicRankingRuleVersion >= 2
+          ? overall.actualRankedRatingCount >= RESULT_RATING_TARGET
+          : overall.rankedRatingCount >= RESULT_RATING_TARGET)
       );
     })
     .filter((track) => track.ratingsCount >= 4.99);

@@ -245,6 +245,12 @@ export const gameListingPageInclude = {
   downloadLinks: true,
 } as const;
 
+export const gameRankingPageInclude = {
+  ...gameListingPageInclude,
+  achievements: { select: { id: true } },
+  leaderboards: { select: { id: true } },
+} as const;
+
 export const gameListingSummaryInclude = {
   jam: true,
   ratingCategories: true,
@@ -291,7 +297,7 @@ export const gameListingInclude = {
         in: jamAndPostJamVersions,
       },
     },
-    include: gameListingPageInclude,
+    include: gameRankingPageInclude,
   },
   ratings: {
     select: {
@@ -350,6 +356,7 @@ export const gameListingInclude = {
       users: {
         select: {
           id: true,
+          name: true,
           gamePageAchievements: {
             select: {
               gamePage: {

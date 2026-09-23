@@ -7,9 +7,19 @@ type ListedGame = ReturnType<typeof materializeGameListingEntries>[number];
 export function toGameListingResponse(game: ListedGame) {
   const compactRatings = (ratings: ListedGame["ratings"]) =>
     ratings.map(({ user: _user, ...rating }) => rating);
+  const compactPage = (page: ListedGame["jamPage"]) => {
+    if (!page) return page;
+    const { achievements: _achievements, leaderboards: _leaderboards, ...listingPage } = page;
+    return listingPage;
+  };
+  const { achievements: _achievements, leaderboards: _leaderboards, ...listingGame } = game as
+    ListedGame & { achievements?: unknown[]; leaderboards?: unknown[] };
 
   return {
-    ...game,
+    ...listingGame,
+    pages: game.pages.map(compactPage),
+    jamPage: compactPage(game.jamPage),
+    postJamPage: compactPage(game.postJamPage),
     ratings: compactRatings(game.ratings ?? []),
     allRatings: compactRatings(game.allRatings ?? []),
     team: game.team ? {

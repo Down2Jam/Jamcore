@@ -57,6 +57,12 @@ function placementAlertThreshold(
   return null;
 }
 
+function placementAlertMinimumScoreCount(threshold: PlacementAlertThreshold) {
+  if (threshold === 1) return 5;
+  if (threshold === 3) return 10;
+  return 15;
+}
+
 function placementAlertCopy(threshold: PlacementAlertThreshold) {
   if (threshold === 1) {
     return {
@@ -175,7 +181,10 @@ async function createScoreWithPlacementNotifications({
       ? placementAlertThreshold(newPlacement)
       : null;
 
-    if (newThreshold !== null) {
+    if (
+      newThreshold !== null &&
+      scores.length >= placementAlertMinimumScoreCount(newThreshold)
+    ) {
       await tx.$executeRaw`
         UPDATE "Score" AS score
         SET

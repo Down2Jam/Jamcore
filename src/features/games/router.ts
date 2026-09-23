@@ -3,6 +3,7 @@ import express from "express";
 import multer from "multer";
 import fs from "node:fs";
 import fsPromises from "node:fs/promises";
+import db from "../../infra/db.js";
 import path from "node:path";
 import { v4 as uuidv4 } from "uuid";
 
@@ -315,8 +316,15 @@ export function createGamesRouter() {
 
   router.get(
     "/",
+    authUserOptional,
     asyncHandler(async (req: Request, res: Response) => {
       const query = parseQuery(req, gameListingQuerySchema);
+      const viewer = query.sort === "recommended" && res.locals.userSlug
+        ? await db.user.findUnique({
+            where: { slug: res.locals.userSlug },
+            select: { id: true },
+          })
+        : null;
       const games = await listGames({
         sort: query.sort,
         jamId: query.jamId,
@@ -326,6 +334,7 @@ export function createGamesRouter() {
         cursor: query.cursor,
         limit: query.limit,
         tenantId: res.locals.tenantId,
+        viewerId: viewer?.id,
       });
 
       // Listing freshness is managed by the server cache, which publishing invalidates.
