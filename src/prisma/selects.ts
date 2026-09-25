@@ -74,6 +74,7 @@ export const trackSummarySelect = {
           pages: {
             where: { version: "JAM" },
             select: {
+              version: true,
               name: true,
               thumbnail: true,
               soundtrackThumbnail: true,

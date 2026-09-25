@@ -19,16 +19,56 @@ router.get(
       throw new UnauthorizedError("Authentication required");
     }
 
-    const followingCount = await db.userFollow.count({
-      where: {
-        followerId: res.locals.user.id,
-        tenantId: res.locals.tenantId ?? null,
-      },
-    });
+    const [followingCount, unlockedAchievements] = await Promise.all([
+      db.userFollow.count({
+        where: {
+          followerId: res.locals.user.id,
+          tenantId: res.locals.tenantId ?? null,
+        },
+      }),
+      db.gamePageAchievement.findMany({
+        where: { users: { some: { id: res.locals.user.id } } },
+        select: {
+          id: true,
+          gamePageId: true,
+          gamePage: {
+            select: {
+              gameId: true,
+              version: true,
+              _count: { select: { achievements: true } },
+            },
+          },
+        },
+      }),
+    ]);
+
+    const progress = new Map<number, {
+      gameId: number;
+      pageVersion: string;
+      total: number;
+      unlockedIds: Set<number>;
+    }>();
+
+    for (const achievement of unlockedAchievements) {
+      const page = achievement.gamePage;
+      const entry = progress.get(achievement.gamePageId) ?? {
+        gameId: page.gameId,
+        pageVersion: page.version,
+        total: page._count.achievements,
+        unlockedIds: new Set<number>(),
+      };
+      entry.unlockedIds.add(achievement.id);
+      progress.set(achievement.gamePageId, entry);
+    }
+
+    const perfectedGamePages = [...progress.values()]
+      .filter((entry) => entry.total > 0 && entry.unlockedIds.size === entry.total)
+      .map(({ gameId, pageVersion }) => ({ gameId, pageVersion }));
 
     res.json({
       ...res.locals.user,
       followingCount,
+      perfectedGamePages,
     });
   }
 );

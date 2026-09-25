@@ -550,6 +550,14 @@ type RankedGame = {
   baseScore: number;
   adjustment: number;
   reasons: PreferenceReason[];
+  scoreParts: {
+    ratingsGiven: number;
+    commentLikes: number;
+    achievements: number;
+    leaderboardScores: number;
+    ratingsReceived: number;
+    communityRecommendations: number;
+  };
 };
 
 async function rankByKarmaOrRecommended(
@@ -680,13 +688,13 @@ async function rankByKarmaOrRecommended(
       0,
     );
 
-    return (
-      given ** exponent +
-      likes ** exponent +
-      0.3333 * achievements ** exponent +
-      0.3333 * scores ** exponent -
-      gotten
-    );
+    return {
+      ratingsGiven: given ** exponent,
+      commentLikes: likes ** exponent,
+      achievements: 0.3333 * achievements ** exponent,
+      leaderboardScores: 0.3333 * scores ** exponent,
+      ratingsReceived: -gotten,
+    };
   };
 
   const ranked: RankedGame[] = games.map((game) => {
@@ -698,11 +706,17 @@ async function rankByKarmaOrRecommended(
       : 0;
     const preference = preferenceScorer?.(game) ?? { adjustment: 0, reasons: [] };
 
+    const scoreParts = {
+      ...karmaScore(game),
+      communityRecommendations: recommendationBoost,
+    };
+
     return {
       game,
-      baseScore: karmaScore(game) + recommendationBoost,
+      baseScore: Object.values(scoreParts).reduce((sum, value) => sum + value, 0),
       adjustment: preference.adjustment,
       reasons: preference.reasons,
+      scoreParts,
     };
   });
   return ranked.sort((a, b) =>
@@ -787,6 +801,7 @@ export async function previewRecommendedGames({
     baseScore: entry.baseScore,
     adjustment: entry.adjustment,
     reasons: entry.reasons,
+    scoreParts: entry.scoreParts,
   });
 
   return {

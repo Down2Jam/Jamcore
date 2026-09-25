@@ -25,13 +25,16 @@ export async function loadTargetUserRecommendations({
   targetUserId?: number;
   targetUserSlug?: string;
 }) {
-  const { overallGameCategoryId, overallTrackCategoryId, activeJamId } =
-    await getRecommendationContext();
-
-  const user = await loadRawTargetUser(targetUserId, targetUserSlug);
+  const [recommendationContext, user] = await Promise.all([
+    getRecommendationContext(),
+    loadRawTargetUser(targetUserId, targetUserSlug),
+  ]);
   if (!user) {
     return null;
   }
+
+  const { overallGameCategoryId, overallTrackCategoryId, activeJamId } =
+    recommendationContext;
 
   const { ratings, gameAverageById, trackAverageById } =
     buildUserRecommendationBase(user, activeJamId);
@@ -50,22 +53,59 @@ export async function loadTargetUserRecommendations({
     trackAverageById,
   );
 
+  const [validGameOverrides, validTrackOverrides] = activeJamId == null
+    ? [user.recommendedGameOverrideIds ?? [], user.recommendedTrackOverrideIds ?? []]
+    : await Promise.all([
+        db.game.findMany({
+          where: {
+            id: { in: user.recommendedGameOverrideIds ?? [] },
+            jamId: activeJamId,
+            published: true,
+          },
+          select: { id: true },
+        }).then((games) => games.map((game) => game.id)),
+        db.gamePageTrack.findMany({
+          where: {
+            id: { in: user.recommendedTrackOverrideIds ?? [] },
+            origin: "ORIGINAL",
+            gamePage: {
+              version: "JAM",
+              game: { jamId: activeJamId, published: true },
+            },
+          },
+          select: { id: true },
+        }).then((tracks) => tracks.map((track) => track.id)),
+      ]);
+  const gameOverrideSet = new Set(validGameOverrides);
+  const trackOverrideSet = new Set(validTrackOverrides);
+  const currentGameOverrides = (user.recommendedGameOverrideIds ?? [])
+    .filter((id) => gameOverrideSet.has(id));
+  const currentTrackOverrides = (user.recommendedTrackOverrideIds ?? [])
+    .filter((id) => trackOverrideSet.has(id));
+
   const recommendedGameIds = gameRecommendationBase.eligible
     ? applyRecommendationOverrides(
         gameRecommendationBase.candidateIds,
-        user.recommendedGameOverrideIds ?? [],
+        currentGameOverrides,
         user.recommendedGameHiddenIds ?? [],
       )
     : [];
   const recommendedTrackIds = trackRecommendationBase.eligible
     ? applyRecommendationOverrides(
         trackRecommendationBase.candidateIds,
-        user.recommendedTrackOverrideIds ?? [],
+        currentTrackOverrides,
         user.recommendedTrackHiddenIds ?? [],
       )
     : [];
 
-  const [gameCandidates, recommendedGames, trackCandidates, recommendedTracks] =
+  const ownedGameIds = (user.teams ?? [])
+    .map((team: any) => team.game?.id)
+    .filter((id: unknown): id is number => Number.isInteger(id));
+  const ownedTrackIds = (user.gamePageTracks ?? [])
+    .map((track: any) => track.id)
+    .filter((id: unknown): id is number => Number.isInteger(id));
+
+  const [gameCandidates, recommendedGames, trackCandidates, recommendedTracks, recommendationUsers] =
     await Promise.all([
       gameRecommendationBase.candidateIds.length > 0
         ? db.game.findMany({
@@ -91,19 +131,10 @@ export async function loadTargetUserRecommendations({
             select: trackSummarySelect,
           })
         : Promise.resolve([]),
+      ownedGameIds.length > 0 || ownedTrackIds.length > 0
+        ? loadRecommendationUsers(user.id, activeJamId)
+        : Promise.resolve([]),
     ]);
-
-  const ownedGameIds = (user.teams ?? [])
-    .map((team: any) => team.game?.id)
-    .filter((id: unknown): id is number => Number.isInteger(id));
-  const ownedTrackIds = (user.gamePageTracks ?? [])
-    .map((track: any) => track.id)
-    .filter((id: unknown): id is number => Number.isInteger(id));
-
-  const recommendationUsers =
-    ownedGameIds.length > 0 || ownedTrackIds.length > 0
-      ? await loadRecommendationUsers(user.id, activeJamId)
-      : [];
 
   const { favoriteGameCounts, favoriteTrackCounts } = buildFavoriteCounts({
     recommendationUsers,
@@ -114,7 +145,11 @@ export async function loadTargetUserRecommendations({
   });
 
   return {
-    user,
+    user: {
+      ...user,
+      recommendedGameOverrideIds: currentGameOverrides,
+      recommendedTrackOverrideIds: currentTrackOverrides,
+    },
     ratings,
     gameCandidates,
     recommendedGames,

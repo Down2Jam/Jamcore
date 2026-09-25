@@ -459,6 +459,7 @@ export async function searchContent({
   query,
   type,
   limit = 2,
+  jamId,
   debug,
   includeFacets,
   tenantId,
@@ -470,6 +471,7 @@ export async function searchContent({
       query,
       type,
       limit: normalizedLimit,
+      jamId: jamId ?? null,
       debug: debug === "true",
       includeFacets: includeFacets === "true",
       tenantId: tenantId ?? null,
@@ -478,6 +480,25 @@ export async function searchContent({
   return searchCache.getOrSet(cacheKey, async () => {
     const startedAt = Date.now();
     const searchTypes = getSearchTypes(type) as SearchEntityType[];
+    const scopedEntityIds = jamId != null && searchTypes.length === 1
+      ? searchTypes[0] === "games"
+        ? (await db.game.findMany({
+            where: { jamId, published: true },
+            select: { id: true },
+          })).map((game) => game.id)
+        : searchTypes[0] === "tracks"
+          ? (await db.gamePageTrack.findMany({
+              where: {
+                origin: "ORIGINAL",
+                gamePage: {
+                  version: PageVersion.JAM,
+                  game: { jamId, published: true },
+                },
+              },
+              select: { id: true },
+            })).map((track) => track.id)
+          : undefined
+      : undefined;
     const [expandedTerms, tuning] = await Promise.all([
       expandSearchTerms(query, tenantId),
       getSearchTuning(tenantId),
@@ -496,6 +517,7 @@ export async function searchContent({
     const matchedDocuments = await querySearchDocuments({
       tenantId,
       entityTypes: mapRequestedTypesToEntityTypes(searchTypes),
+      entityIds: scopedEntityIds,
       query,
       terms: expandedTerms,
       limit: normalizedLimit * Math.max(searchTypes.length, 1) * 3,

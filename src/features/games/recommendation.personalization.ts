@@ -47,6 +47,7 @@ const FAMILY_WEIGHTS: Record<PreferenceFamily, number> = {
   competition: 0.075,
   creators: 0.5,
 };
+const PERSONAL_ADJUSTMENT_STRENGTH = 8;
 const FAMILIES = Object.keys(FAMILY_WEIGHTS) as PreferenceFamily[];
 const CONTROL_LABELS: Record<string, string> = {
   KeyboardMouse: "Keyboard and mouse",
@@ -162,15 +163,15 @@ export function buildPreferenceScorer(
         if (!learned) return;
         const commonness = (prevalence[family].get(feature.id) ?? 0) / Math.max(candidates.length, 1);
         const rarity = family === "creators" ? 1 : Math.max(0.2, 1 - commonness);
-        const contribution = FAMILY_WEIGHTS[family] * learned.net / (learned.support + 3) * rarity / matched.length;
+        const contribution = PERSONAL_ADJUSTMENT_STRENGTH * FAMILY_WEIGHTS[family] * learned.net / (learned.support + 1) * rarity / matched.length;
         adjustment += contribution;
-        if (Math.abs(contribution) >= 0.01) {
+        if (contribution !== 0) {
           reasons.push({ family, label: feature.label, contribution });
         }
       });
     });
 
     reasons.sort((a, b) => Math.abs(b.contribution) - Math.abs(a.contribution));
-    return { adjustment: Math.max(-1.5, Math.min(1.5, adjustment)), reasons: reasons.slice(0, 5) };
+    return { adjustment, reasons };
   };
 }
