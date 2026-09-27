@@ -15,6 +15,7 @@ const firstQueryValue = (value: unknown) =>
   Array.isArray(value) ? value[0] : value;
 
 export const getRecapVisibilityQuerySchema = z.object({
+  preview: z.preprocess(firstQueryValue, z.enum(["1"]).optional()),
   userSlug: z.preprocess(firstQueryValue, z.string().trim().optional()),
   jamSlug: z.preprocess(firstQueryValue, z.string().trim().min(1).optional()),
   jamId: z.preprocess(
@@ -57,6 +58,7 @@ function parseVisibilityPayload(raw: string): RecapVisibilityPayload | null {
 }
 
 type RecapViewer = {
+  admin?: boolean | null;
   id?: number | null;
   slug?: string | null;
 } | null | undefined;
@@ -84,18 +86,23 @@ async function assertRecapEntityTenant({
 }
 
 export async function getRecapVisibility({
+  preview = false,
   userSlug,
   jamId,
   jamSlug,
   viewer,
   tenantId,
 }: {
+  preview?: boolean;
   userSlug?: string;
   jamId?: number;
   jamSlug?: string;
   viewer?: RecapViewer;
   tenantId?: string | null;
 }) {
+  if (preview && !viewer?.admin) {
+    throw new ForbiddenError("Admin access required");
+  }
   const targetSlug = userSlug || viewer?.slug;
   if (!targetSlug) {
     throw new UnauthorizedError("Not authenticated");
@@ -149,6 +156,7 @@ export async function getRecapVisibility({
       isPublic: false,
       canEdit: viewer?.slug === targetUser.slug,
       sharePath: null,
+      ...(preview ? { canPreview: true } : {}),
     };
   }
 
@@ -211,6 +219,7 @@ export async function getRecapVisibility({
 
   return {
     jamId: targetJamId,
+    ...(preview ? { canPreview: true } : {}),
     jamSlug: targetJam?.slug ?? null,
     isPublic,
     canEdit,

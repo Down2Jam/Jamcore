@@ -17,6 +17,7 @@ router.get(
   asyncHandler(async (req, res) => {
     const input = parseQuery(req, getRecapVisibilityQuerySchema);
     const data = await getRecapVisibility({
+      preview: input.preview === "1",
       userSlug: input.userSlug,
       jamId: input.jamId,
       jamSlug: input.jamSlug,

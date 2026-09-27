@@ -62,13 +62,19 @@ export const trackSummarySelect = {
   allowBackgroundUseAttribution: true,
   allowDownload: true,
   license: true,
-  composer: { select: { name: true, slug: true } },
+  loudnessGainDb: true,
+  composer: { select: { name: true, slug: true, profilePicture: true } },
   gamePage: {
     select: {
       version: true,
       gameId: true,
+      name: true,
+      thumbnail: true,
+      soundtrackThumbnail: true,
       game: {
         select: {
+          id: true,
+          category: true,
           slug: true,
           jamId: true,
           pages: {

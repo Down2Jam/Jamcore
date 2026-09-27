@@ -59,6 +59,29 @@ import {
 } from "../src/features/tracks/index.js";
 
 describe("tracks read service", () => {
+  it("sorts asset pack songs alongside original songs using their ratings", async () => {
+    const makeTrack = (id: number, origin: string, value: number) => ({
+      id, slug: `song-${id}`, origin, comments: [],
+      ratings: Array.from({ length: 5 }, () => ({
+        value, category: { name: "Overall" },
+        user: { teams: [{ game: { jamId: 12, category: "REGULAR", published: true } }] },
+      })),
+      gamePage: {
+        version: PageVersion.JAM,
+        gameId: id,
+        game: { id, jamId: 12, category: "REGULAR", published: true, ratings: [] },
+      },
+    });
+    dbMock.gamePageTrack.findMany.mockResolvedValueOnce([
+      makeTrack(1, "ASSET_PACK", 9), makeTrack(2, "ORIGINAL", 7),
+      makeTrack(3, "ASSET_PACK", 5),
+    ]);
+    dbMock.trackRatingCategory.findMany.mockResolvedValueOnce([]);
+
+    const result = await listTracks({ sort: "score", pageVersion: "ALL" }, undefined, true);
+
+    expect(result.data.map((track) => track.id)).toEqual([1, 2, 3]);
+  });
   it("filters external jams separately from the cached all-jams listing", async () => {
     dbMock.gamePageTrack.findMany.mockResolvedValue([]);
     dbMock.trackRatingCategory.findMany.mockResolvedValue([]);

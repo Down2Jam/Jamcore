@@ -35,6 +35,31 @@ describe("recap service", () => {
     vi.clearAllMocks();
   });
 
+  it.each([null, { id: 1, slug: "viewer", admin: false }])(
+    "rejects non-admin recap previews",
+    async (viewer) => {
+      await expect(getRecapVisibility({ userSlug: "ben", preview: true, viewer }))
+        .rejects.toBeInstanceOf(ForbiddenError);
+      expect(dbMock.user.findUnique).not.toHaveBeenCalled();
+    },
+  );
+
+  it("allows admins to preview a private recap without changing its visibility", async () => {
+    dbMock.user.findUnique.mockResolvedValueOnce({
+      id: 4, slug: "ben", teams: [{ jamId: 3, game: { id: 10, jamId: 3, published: true } }],
+    });
+    dbMock.jam.findUnique.mockResolvedValueOnce({ id: 3, slug: "third-edition" });
+    dbMock.gamePage.findFirst.mockResolvedValueOnce({ id: 11 });
+    dbMock.data.findMany.mockResolvedValueOnce([]);
+    const result = await getRecapVisibility({
+      userSlug: "ben", jamId: 3, preview: true,
+      viewer: { id: 1, slug: "admin", admin: true },
+    });
+    expect(result).toMatchObject({ canPreview: true, canEdit: false, isPublic: false, sharePath: null });
+    expect(dbMock.data.update).not.toHaveBeenCalled();
+    expect(dbMock.data.create).not.toHaveBeenCalled();
+  });
+
   it("creates recap visibility state and returns a share path", async () => {
     dbMock.jam.findUnique.mockResolvedValueOnce({ id: 2, slug: "third-edition" });
     dbMock.game.findFirst.mockResolvedValue({ id: 7 });

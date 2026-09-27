@@ -331,6 +331,7 @@ export function createGamesRouter() {
         jamSlug: query.jamSlug,
         externalJams: query.externalJams,
         pageVersion: parseListingPageVersion(query.pageVersion),
+        postJamFirst: query.postJamFirst === "true",
         cursor: query.cursor,
         limit: query.limit,
         tenantId: res.locals.tenantId,

@@ -17,7 +17,7 @@ export function toGameListingResponse(game: ListedGame) {
 
   return {
     ...listingGame,
-    pages: game.pages.map(compactPage),
+    pages: (game.pages ?? []).map(compactPage),
     jamPage: compactPage(game.jamPage),
     postJamPage: compactPage(game.postJamPage),
     ratings: compactRatings(game.ratings ?? []),

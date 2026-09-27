@@ -11,7 +11,7 @@ describe("gamePageService", () => {
     expect(buildPrefix("My Cool Game!")).toBe("mycool");
   });
 
-  it("materializes post-jam write data from the jam page", () => {
+  it.each([true, false])("copies page metadata without duplicating tracks (composer present: %s)", (hasComposer) => {
     const payload = buildPostJamBodyFromGame({
       pages: [
         {
@@ -49,7 +49,7 @@ describe("gamePageService", () => {
           leaderboards: [{ sortOrder: 0, id: 5, name: "LB", type: LeaderboardType.SCORE, onlyBest: false, maxUsersShown: 10, decimalPlaces: 0, gamePageId: 10, createdAt: new Date(), updatedAt: new Date(), scores: [] }],
           downloadLinks: [{ id: 7, url: "u", platform: "WEB", gamePageId: 10 }],
           comments: [],
-          tracks: [{ sortOrder: 0, id: 8, name: "Song", slug: "song", url: "song.mp3", commentary: null, bpm: null, musicalKey: null, integratedLufs: null, truePeakDb: null, loudnessGainDb: null, softwareUsed: [], license: null, allowDownload: false, allowBackgroundUse: false, allowBackgroundUseAttribution: false, composerId: 1, gamePageId: 10, createdAt: new Date(), updatedAt: new Date(), tags: [], flags: [], links: [], credits: [], composer: { id: 1 } as never }],
+          tracks: [{ sortOrder: 0, id: 8, name: "Song", slug: "song", url: "song.mp3", commentary: null, bpm: null, musicalKey: null, integratedLufs: null, truePeakDb: null, loudnessGainDb: null, softwareUsed: [], origin: "ORIGINAL", externalAuthorName: null, license: "ALL_RIGHTS_RESERVED", allowDownload: false, allowBackgroundUse: false, allowBackgroundUseAttribution: false, composerId: (hasComposer ? 1 : null) as never, gamePageId: 10, createdAt: new Date(), updatedAt: new Date(), tags: [], flags: [], links: [], credits: [], composer: (hasComposer ? { id: 1 } : null) as never }],
         },
       ],
     });
@@ -61,7 +61,9 @@ describe("gamePageService", () => {
         soundtrackThumbnail: "album.png",
         playableBuildShowFullscreenButton: true,
         ratingCategories: [1],
-        songs: [expect.objectContaining({ slug: "song" })],
+        songs: [],
+        achievements: [],
+        leaderboards: [],
       }),
     );
   });
