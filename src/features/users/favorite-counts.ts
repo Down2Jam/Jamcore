@@ -114,7 +114,7 @@ export function buildFavoriteCounts({
         const current = favoriteGameCountMap.get(gameId);
         if (!current) return;
         current.count += 1;
-        if (current.users.length < 5) {
+        if (current.users.length < 10) {
           current.users.push(toFavoriteCountUser(recommendationUser));
         }
       });
@@ -158,7 +158,7 @@ export function buildFavoriteCounts({
         const current = favoriteTrackCountMap.get(trackId);
         if (!current) return;
         current.count += 1;
-        if (current.users.length < 5) {
+        if (current.users.length < 10) {
           current.users.push(toFavoriteCountUser(recommendationUser));
         }
       });

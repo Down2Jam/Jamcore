@@ -78,6 +78,7 @@ export const gameListingQuerySchema = z.object({
   jamSlug: z.unknown().optional(),
   externalJams: z.unknown().optional(),
   pageVersion: z.unknown().optional(),
+  postJamFirst: z.unknown().optional(),
   cursor: z.unknown().optional(),
   limit: z.unknown().optional(),
 });
@@ -635,6 +636,7 @@ export async function listGames({
   limit,
   tenantId,
   refresh = false,
+  postJamFirst = false,
 }: {
   sort?: unknown;
   jamId?: unknown;
@@ -645,6 +647,7 @@ export async function listGames({
   limit?: unknown;
   tenantId?: string | null;
   refresh?: boolean;
+  postJamFirst?: boolean;
 }): Promise<GameListingResult> {
   const normalizedSort = parseGameListingSort(sort);
   const normalizedLimit = normalizeLimit(limit);
@@ -682,6 +685,7 @@ export async function listGames({
 
   const cacheKey = JSON.stringify({
     sort: normalizedSort ?? null,
+    postJamFirst,
     jamId: where.jamId ?? null,
     jamSlug: resolvedJam?.slug ?? (typeof jamSlug === "string" ? jamSlug.trim() : null),
     externalJams: externalJamsOnly,
@@ -716,7 +720,7 @@ export async function listGames({
     const expensiveSort = isExpensiveSort(normalizedSort);
     let listedGames: ReturnType<typeof materializeGameListingEntries>;
 
-    if (expensiveSort || normalizedSort === "random") {
+    if (expensiveSort || normalizedSort === "random" || postJamFirst) {
       const games = await db.game.findMany({
         include: gameListingInclude,
         where,
@@ -788,8 +792,11 @@ export async function listGames({
       );
     }
 
+    if (postJamFirst) {
+      listedGames.sort((a, b) => Number(b.pageVersion === PageVersion.POST_JAM) - Number(a.pageVersion === PageVersion.POST_JAM));
+    }
     let slicedGames = listedGames;
-    if (normalizedCursor && (expensiveSort || normalizedSort === "random")) {
+    if (normalizedCursor && (expensiveSort || normalizedSort === "random" || postJamFirst)) {
       const cursorIndex = listedGames.findIndex(
         (game) =>
           listingCursorFor(game) === normalizedCursor ||
@@ -807,7 +814,7 @@ export async function listGames({
         hasMore,
         nextCursor:
           hasMore && items.length > 0
-            ? expensiveSort || normalizedSort === "random"
+            ? expensiveSort || normalizedSort === "random" || postJamFirst
               ? listingCursorFor(items[items.length - 1])
               : String(items[items.length - 1]?.id ?? "")
             : null,

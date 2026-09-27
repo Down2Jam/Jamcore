@@ -42,6 +42,26 @@ vi.mock("../src/features/games/presenters.js", () => ({
 import { listGames } from "../src/features/games/listing.service.js";
 
 describe("game listing service", () => {
+  it("groups post-jam games before pagination while preserving their sort order", async () => {
+    const games = [
+      { id: 93, pageVersion: "JAM", pages: [], ratings: [], team: { users: [] } },
+      { id: 92, pageVersion: "POST_JAM", pages: [], ratings: [], team: { users: [] } },
+      { id: 91, pageVersion: "POST_JAM", pages: [], ratings: [], team: { users: [] } },
+    ];
+    dbMock.game.count.mockResolvedValue(3);
+    dbMock.game.findMany.mockResolvedValue(games);
+    dbMock.ratingCategory.findMany.mockResolvedValue([]);
+    for (let i = 0; i < 6; i++) {
+      presentersMock.materializeGameListingEntries.mockImplementationOnce((game) => [game]);
+    }
+    const options = { sort: "newest", pageVersion: "ALL" as const, postJamFirst: true, limit: 2, refresh: true };
+    const first = await listGames(options);
+    expect(first.items.map((game) => game.id)).toEqual([92, 91]);
+    expect(first.pageInfo.nextCursor).toBe("91:POST_JAM");
+    const second = await listGames({ ...options, cursor: first.pageInfo.nextCursor });
+    expect(second.items.map((game) => game.id)).toEqual([93]);
+    expect(second.pageInfo.hasMore).toBe(false);
+  });
   beforeEach(() => {
     vi.clearAllMocks();
     dbMock.game.count.mockResolvedValue(2);

@@ -159,52 +159,13 @@ export function buildPostJamBodyFromGame(game: PageCollection<GamePageRecord>) {
     ),
     flags: (jamPage.flags ?? []).map((entry) => entry.id),
     tags: (jamPage.tags ?? []).map((entry) => entry.id),
-    achievements: (jamPage.achievements ?? []).map((entry) => ({
-      name: entry.name,
-      description: entry.description ?? "",
-      image: entry.image ?? "",
-    })),
-    leaderboards: (jamPage.leaderboards ?? []).map((entry) => ({
-      id: entry.id,
-      name: entry.name,
-      type: entry.type,
-      onlyBest: entry.onlyBest,
-      maxUsersShown: entry.maxUsersShown,
-      decimalPlaces: entry.decimalPlaces,
-    })),
+    achievements: [],
+    leaderboards: [],
     downloadLinks: (jamPage.downloadLinks ?? []).map((entry) => ({
       url: entry.url,
       platform: entry.platform,
     })),
-    songs: (jamPage.tracks ?? []).map((song) => ({
-      name: song.name,
-      slug: song.slug,
-      url: song.url,
-      commentary: song.commentary ?? null,
-      tagIds: (song.tags ?? []).map((entry) => entry.id),
-      flagIds: (song.flags ?? []).map((entry) => entry.id),
-      bpm: song.bpm ?? null,
-      musicalKey: song.musicalKey ?? null,
-      integratedLufs: song.integratedLufs ?? null,
-      truePeakDb: song.truePeakDb ?? null,
-      loudnessGainDb: song.loudnessGainDb ?? null,
-      softwareUsed: song.softwareUsed ?? [],
-      links: (song.links ?? []).map((entry) => ({
-        label: entry.label,
-        url: entry.url,
-      })),
-      credits: (song.credits ?? []).map((entry) => ({
-        role: entry.role,
-        userId: entry.userId,
-      })),
-      composerId: song.composerId ?? song.composer?.id,
-      license: song.license ?? null,
-      allowDownload: Boolean(song.allowDownload),
-      allowBackgroundUse: Boolean(song.allowBackgroundUse),
-      allowBackgroundUseAttribution: Boolean(
-        song.allowBackgroundUseAttribution,
-      ),
-    })),
+    songs: [],
   };
 }
 
