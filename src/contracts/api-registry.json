@@ -3457,6 +3457,35 @@
       }
     },
     {
+      "sdkName": "getRecapUser",
+      "method": "GET",
+      "path": "/users/{userSlug}/recap",
+      "tag": "Users",
+      "summary": "Return recap data for a user and jam",
+      "parameters": [
+        {
+          "name": "userSlug",
+          "in": "path",
+          "required": true,
+          "schema": { "type": "string" }
+        },
+        {
+          "name": "jamId",
+          "in": "query",
+          "required": true,
+          "schema": { "type": "integer" }
+        }
+      ],
+      "auth": {
+        "kind": "user",
+        "required": false,
+        "optional": true,
+        "label": "Public recap; uses login if present"
+      },
+      "visibility": "public",
+      "rateLimit": { "documented": true, "headers": true }
+    },
+    {
       "sdkName": "createUser",
       "method": "POST",
       "path": "/users",

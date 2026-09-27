@@ -17,6 +17,21 @@ import {
   loadRawTargetUser,
   loadRecommendationUsers,
 } from "./target.queries.js";
+import type { RawTargetUser } from "./target.queries.js";
+
+type RecommendationUser = Pick<
+  RawTargetUser,
+  | "id"
+  | "ratings"
+  | "trackRatings"
+  | "recommendedGameOverrideIds"
+  | "recommendedTrackOverrideIds"
+  | "recommendedGameHiddenIds"
+  | "recommendedTrackHiddenIds"
+> & {
+  teams: Array<{ game: { id: number } | null }>;
+  gamePageTracks: Array<{ id: number }>;
+};
 
 export async function loadTargetUserRecommendations({
   targetUserId,
@@ -32,6 +47,21 @@ export async function loadTargetUserRecommendations({
   if (!user) {
     return null;
   }
+
+  return buildTargetUserRecommendations(user, { recommendationContext });
+}
+
+export async function buildTargetUserRecommendations<User extends RecommendationUser>(
+  user: User,
+  {
+    includeCandidates = true,
+    recommendationContext: providedContext,
+  }: {
+    includeCandidates?: boolean;
+    recommendationContext?: Awaited<ReturnType<typeof getRecommendationContext>>;
+  } = {},
+) {
+  const recommendationContext = providedContext ?? await getRecommendationContext();
 
   const { overallGameCategoryId, overallTrackCategoryId, activeJamId } =
     recommendationContext;
@@ -107,7 +137,7 @@ export async function loadTargetUserRecommendations({
 
   const [gameCandidates, recommendedGames, trackCandidates, recommendedTracks, recommendationUsers] =
     await Promise.all([
-      gameRecommendationBase.candidateIds.length > 0
+      includeCandidates && gameRecommendationBase.candidateIds.length > 0
         ? db.game.findMany({
             where: { id: { in: gameRecommendationBase.candidateIds } },
             select: gameSummarySelect,
@@ -119,7 +149,7 @@ export async function loadTargetUserRecommendations({
             select: gameSummarySelect,
           })
         : Promise.resolve([]),
-      trackRecommendationBase.candidateIds.length > 0
+      includeCandidates && trackRecommendationBase.candidateIds.length > 0
         ? db.gamePageTrack.findMany({
             where: { id: { in: trackRecommendationBase.candidateIds }, origin: "ORIGINAL" },
             select: trackSummarySelect,

@@ -1,4 +1,5 @@
 import express from "express";
+import { z } from "zod";
 
 import getTargetUser from "@loaders/getTargetUser";
 import authUser from "@middleware/authUser";
@@ -25,6 +26,7 @@ import {
 import { requireRequestUser, requireTargetUser } from "../../lib/locals.js";
 import { parseBody, parseQuery } from "../../lib/request.js";
 import { blockUser, unblockUser } from "../messages/service.js";
+import { loadRecapUser } from "./recap.service.js";
 
 export function createUsersRouter() {
   const router = express.Router();
@@ -78,6 +80,21 @@ export function createUsersRouter() {
         actor: requireRequestUser(res),
         targetSlug: String(req.params.userSlug),
       }));
+    }),
+  );
+
+  router.get(
+    "/:userSlug/recap",
+    rateLimit(),
+    authUserOptional,
+    asyncHandler(async (req, res) => {
+      const { jamId } = parseQuery(req, z.object({ jamId: z.coerce.number().int().positive() }));
+      const data = await loadRecapUser({
+        userSlug: String(req.params.userSlug),
+        jamId,
+        tenantId: res.locals.tenantId,
+      });
+      res.json({ message: "Recap user fetched", data });
     }),
   );
 
