@@ -4,7 +4,6 @@ import getTargetUser from "@loaders/getTargetUser";
 import authUser from "@middleware/authUser";
 import authUserOptional from "@middleware/authUserOptional";
 import getUser from "@loaders/getUser";
-import getUserOptional from "@loaders/getUserOptional";
 import assertUserModOrUserTargetUser from "@guards/assertUserModOrUserTargetUser";
 import rateLimit from "@middleware/rateLimit";
 import logger from "@infra/logger";
@@ -86,10 +85,15 @@ export function createUsersRouter() {
     "/:userSlug",
     rateLimit(),
     authUserOptional,
-    getUserOptional,
     getTargetUser,
     asyncHandler(async (_req, res) => {
       const targetUser = requireTargetUser(res);
+      const viewer = res.locals.userSlug
+        ? await db.user.findUnique({
+            where: { slug: res.locals.userSlug },
+            select: { id: true },
+          })
+        : null;
       const [followerCount, viewerFollow] = await Promise.all([
         db.userFollow.count({
           where: {
@@ -97,10 +101,10 @@ export function createUsersRouter() {
             tenantId: res.locals.tenantId ?? null,
           },
         }),
-        res.locals.user
+        viewer
           ? db.userFollow.findFirst({
               where: {
-                followerId: res.locals.user.id,
+                followerId: viewer.id,
                 followingId: targetUser.id,
                 tenantId: res.locals.tenantId ?? null,
               },

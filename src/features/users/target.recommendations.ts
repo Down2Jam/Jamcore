@@ -132,7 +132,7 @@ export async function loadTargetUserRecommendations({
           })
         : Promise.resolve([]),
       ownedGameIds.length > 0 || ownedTrackIds.length > 0
-        ? loadRecommendationUsers(user.id, activeJamId)
+        ? loadRecommendationUsers(user.id, activeJamId, ownedGameIds, ownedTrackIds)
         : Promise.resolve([]),
     ]);
 

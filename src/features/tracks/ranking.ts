@@ -442,7 +442,7 @@ export function buildTrackDetailScores({
       !isNonCompetitiveGameCategory(candidate.gamePage.game.category) &&
       overallCategory &&
       overallCategory.rankedRatingCount >= 5 &&
-      candidate.ratingsCount >= 4.99
+      Math.round(candidate.ratingsCount) >= 5
     );
   });
 
@@ -484,7 +484,7 @@ export function buildTrackDetailScores({
         target.origin !== "ASSET_PACK" &&
         !isNonCompetitiveGameCategory(target.gamePage.game.category) &&
         category.rankedRatingCount >= 5 &&
-        target.ratingsCount >= 4.99;
+        Math.round(target.ratingsCount) >= 5;
 
       scores[category.categoryName] = {
         placement: canBeRanked ? category.placement : -1,

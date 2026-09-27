@@ -1,4 +1,5 @@
 import { activeRatingSelect, activeRatingPageSelect } from "../ratings/active.js";
+import type { Prisma } from "@prisma/client";
 import db from "../../infra/db.js";
 import { targetUserDetailSelect } from "../../prisma/selects.js";
 
@@ -30,9 +31,27 @@ export type RawTargetUser = NonNullable<
 export async function loadRecommendationUsers(
   currentUserId: number,
   activeJamId: number | null,
+  ownedGameIds: number[],
+  ownedTrackIds: number[],
 ) {
+  const relevantUsers: Prisma.UserWhereInput[] = [];
+  if (ownedGameIds.length > 0) {
+    relevantUsers.push(
+      { ratings: { some: { gameId: { in: ownedGameIds } } } },
+      { recommendedGameOverrideIds: { hasSome: ownedGameIds } },
+    );
+  }
+  if (ownedTrackIds.length > 0) {
+    relevantUsers.push(
+      { trackRatings: { some: { trackId: { in: ownedTrackIds } } } },
+      { recommendedTrackOverrideIds: { hasSome: ownedTrackIds } },
+    );
+  }
+
+  if (relevantUsers.length === 0) return [];
+
   return db.user.findMany({
-    where: { id: { not: currentUserId } },
+    where: { id: { not: currentUserId }, OR: relevantUsers },
     select: {
       id: true,
       slug: true,

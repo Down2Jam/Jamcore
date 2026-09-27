@@ -324,7 +324,7 @@ export async function buildVersionScores({
       );
       return overallCategory && overallCategory.ratingCount >= 5;
     })
-    .filter((entry) => entry.ratingsCount >= 4.99);
+    .filter((entry) => Math.round(entry.ratingsCount) >= 5);
 
   if (!isNonCompetitiveGameCategory(game.category)) {
     rankedGames.forEach((entry) => {

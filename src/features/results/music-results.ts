@@ -333,24 +333,28 @@ export async function loadMusicResults({
           : overall.rankedRatingCount >= RESULT_RATING_TARGET)
       );
     })
-    .filter((track) => track.ratingsCount >= 4.99);
+    .filter((track) => Math.round(track.ratingsCount) >= 5);
 
+  const placementsByCategory = new Map<number, Map<number, number>>();
   qualifiedTracks.forEach((track) => {
     track.categoryAverages.forEach((ratingCategory: any) => {
-      const rankedTracks = qualifiedTracks
-        .map((candidate) => ({
-          trackId: candidate.id,
-          score:
-            candidate.categoryAverages.find(
-              (avg: any) => avg.categoryId === ratingCategory.categoryId,
-            )?.averageScore ?? 0,
-        }))
-        .sort((a, b) => b.score - a.score);
+      let placements = placementsByCategory.get(ratingCategory.categoryId);
 
-      const placement = rankedTracks.findIndex(
-        (candidate) => candidate.trackId === track.id,
-      );
-      ratingCategory.placement = placement + 1;
+      if (!placements) {
+        const rankedTracks = qualifiedTracks
+          .map((candidate) => ({
+            trackId: candidate.id,
+            score:
+              candidate.categoryAverages.find(
+                (avg: any) => avg.categoryId === ratingCategory.categoryId,
+              )?.averageScore ?? 0,
+          }))
+          .sort((a, b) => b.score - a.score);
+        placements = new Map(rankedTracks.map((rankedTrack, index) => [rankedTrack.trackId, index + 1]));
+        placementsByCategory.set(ratingCategory.categoryId, placements);
+      }
+
+      ratingCategory.placement = placements.get(track.id) ?? -1;
     });
   });
 

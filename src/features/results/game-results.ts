@@ -344,13 +344,16 @@ export async function loadGameResults({
       );
       return overallCategory && overallCategory.ratingCount >= 5;
     })
-    .filter((game) => game.ratingsCount >= 4.99);
+    .filter((game) => Math.round(game.ratingsCount) >= 5);
 
+  const placementsByCategory = new Map<string, Map<number, number>>();
   qualifiedGames.forEach((game) => {
     game.categoryAverages.forEach((ratingCategory) => {
-      const rankedGamesInCategory = qualifiedGames
-        .slice()
-        .sort((a, b) =>
+      const key = `${ratingCategory.categoryId}:${ratingCategory.categoryName}`;
+      let placements = placementsByCategory.get(key);
+
+      if (!placements) {
+        const rankedGames = qualifiedGames.slice().sort((a, b) =>
           compareGamesByRawCategoryScore(
             a,
             b,
@@ -358,12 +361,11 @@ export async function loadGameResults({
             ratingCategory.categoryName,
           ),
         );
+        placements = new Map(rankedGames.map((rankedGame, index) => [rankedGame.id, index + 1]));
+        placementsByCategory.set(key, placements);
+      }
 
-      const gamePlacement = rankedGamesInCategory.findIndex(
-        (rankedGame) => rankedGame.id === game.id,
-      );
-
-      ratingCategory.placement = gamePlacement + 1;
+      ratingCategory.placement = placements.get(game.id) ?? -1;
     });
   });
 
