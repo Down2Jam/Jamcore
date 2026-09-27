@@ -60,7 +60,7 @@ export async function loadRecapUser({
   }
 
   const [recommendations, comments, rawScores, rawAchievements] = await Promise.all([
-    buildTargetUserRecommendations(user, { includeCandidates: false }),
+    buildTargetUserRecommendations(user, { includeCandidates: false, jamId }),
     db.comment.findMany({
       where: {
         authorId: user.id,

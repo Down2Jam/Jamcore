@@ -19,7 +19,11 @@ export async function getRecommendationContext(): Promise<RecommendationContext>
         select: { id: true },
       }),
       db.jam.findFirst({
-        where: { isActive: true },
+        where: {
+          isActive: true,
+          sourcePlatform: null,
+          startTime: { lte: new Date() },
+        },
         orderBy: { id: "desc" },
         select: { id: true },
       }),

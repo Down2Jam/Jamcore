@@ -55,16 +55,18 @@ export async function buildTargetUserRecommendations<User extends Recommendation
   user: User,
   {
     includeCandidates = true,
+    jamId,
     recommendationContext: providedContext,
   }: {
     includeCandidates?: boolean;
+    jamId?: number;
     recommendationContext?: Awaited<ReturnType<typeof getRecommendationContext>>;
   } = {},
 ) {
   const recommendationContext = providedContext ?? await getRecommendationContext();
 
-  const { overallGameCategoryId, overallTrackCategoryId, activeJamId } =
-    recommendationContext;
+  const { overallGameCategoryId, overallTrackCategoryId } = recommendationContext;
+  const activeJamId = jamId ?? recommendationContext.activeJamId;
 
   const { ratings, gameAverageById, trackAverageById } =
     buildUserRecommendationBase(user, activeJamId);
