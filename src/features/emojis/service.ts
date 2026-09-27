@@ -101,6 +101,7 @@ type EditableEmoji = {
   image: string;
   artist: string | null;
   artistId: number | null;
+  kind: "EMOTE" | "STICKER";
   scopeType: "GLOBAL" | "USER" | "GAME";
   scopeUserId: number | null;
   scopeGameId: number | null;
@@ -407,6 +408,7 @@ async function createEmoji(data: {
   artist?: string | null;
   artistId: number | null;
   uploaderId: number;
+  kind: "EMOTE" | "STICKER";
   scopeType: "GLOBAL" | "USER" | "GAME";
   scopeUserId?: number | null;
   scopeGameId?: number | null;
@@ -418,6 +420,7 @@ async function createEmoji(data: {
       artist: normalizeArtistName(data.artist),
       artistId: data.artistId,
       uploaderId: data.uploaderId,
+      kind: data.kind,
       scopeType: data.scopeType,
       scopeUserId: data.scopeUserId ?? null,
       scopeGameId: data.scopeGameId ?? null,
@@ -437,6 +440,7 @@ async function loadEditableEmoji(emojiId: number): Promise<EditableEmoji> {
       image: true,
       artist: true,
       artistId: true,
+      kind: true,
       scopeType: true,
       scopeUserId: true,
       scopeGameId: true,
@@ -528,6 +532,7 @@ function resolveScopedSlug(baseSlug: string, prefix?: string) {
 
 export async function listEmojis(tenantId?: string | null) {
   const emojis = await db.reaction.findMany({
+    where: { kind: "EMOTE" },
     orderBy: { slug: "asc" },
     include: emojiInclude,
   });
@@ -567,6 +572,49 @@ export async function listEmojis(tenantId?: string | null) {
     .map((emoji) => withEmojiUseCount(materializeEmoji(emoji), useCounts));
 }
 
+export async function listStickers(tenantId?: string | null) {
+  const stickers = await db.reaction.findMany({
+    where: { kind: "STICKER" },
+    orderBy: { slug: "asc" },
+    include: emojiInclude,
+  });
+
+  if (!tenantId) {
+    return stickers.map(materializeEmoji);
+  }
+
+  const [allowedUserIds, allowedGameIds] = await Promise.all([
+    filterCoreEntityIdsByTenant({
+      entityType: "User",
+      ids: stickers
+        .map((sticker) => sticker.scopeUserId)
+        .filter((id): id is number => Number.isInteger(id)),
+      tenantId,
+      strictIsolation: appConfig.platform.multiTenant.strictIsolation,
+    }),
+    filterCoreEntityIdsByTenant({
+      entityType: "Game",
+      ids: stickers
+        .map((sticker) => sticker.scopeGameId)
+        .filter((id): id is number => Number.isInteger(id)),
+      tenantId,
+      strictIsolation: appConfig.platform.multiTenant.strictIsolation,
+    }),
+  ]);
+  const userIds = new Set(allowedUserIds);
+  const gameIds = new Set(allowedGameIds);
+
+  return stickers
+    .filter((sticker) => {
+      if (sticker.scopeType === "GLOBAL") return true;
+      if (sticker.scopeType === "USER") {
+        return Boolean(sticker.scopeUserId && userIds.has(sticker.scopeUserId));
+      }
+      return Boolean(sticker.scopeGameId && gameIds.has(sticker.scopeGameId));
+    })
+    .map(materializeEmoji);
+}
+
 export async function createGlobalEmoji({
   actorId,
   input,
@@ -587,6 +635,7 @@ export async function createGlobalEmoji({
     artist: input.artist,
     artistId,
     uploaderId: actorId,
+    kind: "EMOTE",
     scopeType: "GLOBAL",
   });
 }
@@ -612,6 +661,7 @@ export async function createUserEmoji({
     artist: input.artist,
     artistId,
     uploaderId: actorId,
+    kind: "EMOTE",
     scopeType: "USER",
     scopeUserId: actorId,
   });
@@ -640,6 +690,63 @@ export async function createGameEmoji({
     artist: input.artist,
     artistId,
     uploaderId: actorId,
+    kind: "EMOTE",
+    scopeType: "GAME",
+    scopeGameId: gameId,
+  });
+}
+
+export async function createUserSticker({
+  actorId,
+  input,
+  tenantId,
+}: {
+  actorId: number;
+  input: z.infer<typeof createEmojiSchema>;
+  tenantId?: string | null;
+}) {
+  const prefix = await ensureUserPrefix(actorId);
+  const slug = resolveScopedSlug(input.slug, prefix);
+  await assertUniqueSlug(slug);
+
+  const artistId = await resolveArtistId({ ...input, tenantId });
+
+  return createEmoji({
+    slug,
+    image: input.image,
+    artist: input.artist,
+    artistId,
+    uploaderId: actorId,
+    kind: "STICKER",
+    scopeType: "USER",
+    scopeUserId: actorId,
+  });
+}
+
+export async function createGameSticker({
+  actorId,
+  gameSlug,
+  input,
+  tenantId,
+}: {
+  actorId: number;
+  gameSlug: string;
+  input: z.infer<typeof createEmojiSchema>;
+  tenantId?: string | null;
+}) {
+  const { gameId, prefix } = await ensureGamePrefix(gameSlug, actorId, tenantId);
+  const slug = resolveScopedSlug(input.slug, prefix);
+  await assertUniqueSlug(slug);
+
+  const artistId = await resolveArtistId({ ...input, tenantId });
+
+  return createEmoji({
+    slug,
+    image: input.image,
+    artist: input.artist,
+    artistId,
+    uploaderId: actorId,
+    kind: "STICKER",
     scopeType: "GAME",
     scopeGameId: gameId,
   });

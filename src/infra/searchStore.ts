@@ -257,6 +257,7 @@ export async function deleteSearchDocumentsForEntity(input: {
 export async function querySearchDocuments(input: {
   tenantId?: string | null;
   entityTypes: SearchDocumentRecord["entityType"][];
+  entityIds?: number[];
   query: string;
   terms: string[];
   limit: number;
@@ -321,6 +322,7 @@ export async function querySearchDocuments(input: {
       WHERE tenant_id = $1
         AND visibility = 'public'
         AND entity_type = ANY($2::text[])
+        AND ($16::int[] IS NULL OR entity_id = ANY($16::int[]))
         AND (
           document_tsv @@ websearch_to_tsquery('simple', $3)
           OR similarity(coalesce(title, ''), $4) > $8::double precision
@@ -344,6 +346,7 @@ export async function querySearchDocuments(input: {
     input.entityTypeWeights?.team ?? 1,
     input.freshnessHalfLifeHours ?? 168,
     limit,
+    input.entityIds ?? null,
   )) as Array<Record<string, unknown>>;
 
   return rows.map((row) => ({

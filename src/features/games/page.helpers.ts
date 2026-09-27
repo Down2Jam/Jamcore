@@ -100,6 +100,7 @@ type MaterializableGamePage = {
   thumbnail?: string | null;
   soundtrackThumbnail?: string | null;
   banner?: string | null;
+  pageBackground?: string | null;
   screenshots?: string[];
   trailerUrl?: string | null;
   itchEmbedUrl?: string | null;
@@ -143,6 +144,7 @@ export function materializeGamePage<TGame extends object, TPage extends Material
     thumbnail: page.thumbnail,
     soundtrackThumbnail: page.soundtrackThumbnail,
     banner: page.banner,
+    pageBackground: page.pageBackground,
     screenshots: page.screenshots,
     trailerUrl: page.trailerUrl,
     itchEmbedUrl: page.itchEmbedUrl,
@@ -179,6 +181,7 @@ export function buildGamePagePayload(body: GamePageWriteBody) {
     thumbnail: body?.thumbnail ?? null,
     soundtrackThumbnail: body?.soundtrackThumbnail ?? null,
     banner: body?.banner ?? null,
+    pageBackground: body?.pageBackground ?? null,
     screenshots: Array.isArray(body?.screenshots) ? body.screenshots : [],
     trailerUrl: body?.trailerUrl ?? null,
     itchEmbedUrl: body?.itchEmbedUrl ?? null,

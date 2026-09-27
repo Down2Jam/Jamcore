@@ -1,4 +1,8 @@
-﻿import { PageVersion } from "@prisma/client";
+import { activeRatingPageSelect } from "./active.js";
+import { clearGameListingCache } from "../games/listing.service.js";
+import { clearGameDetailCache } from "../games/detail.service.js";
+import { clearJamServiceCaches } from "../jams/service.js";
+import { PageVersion } from "@prisma/client";
 import { z } from "zod";
 
 import { appConfig } from "../../config/app.js";
@@ -68,11 +72,17 @@ export async function saveGameRating({
     },
     select: {
       id: true,
+      ...activeRatingPageSelect,
     },
   });
 
   if (!targetGamePage) {
     throw new NotFoundError("Game page missing.");
+  }
+
+  const category = await db.ratingCategory.findUnique({ where: { id: categoryId } });
+  if (!category || (!category.always && !targetGamePage.ratingCategories.some((entry) => entry.id === categoryId))) {
+    throw new BadRequestError("This rating category is no longer active. Refresh the game page to see its current categories.");
   }
 
   targetGamePageId = targetGamePage.id;
@@ -107,6 +117,9 @@ export async function saveGameRating({
       },
     });
   }
+  await clearGameListingCache();
+  await clearGameDetailCache();
+  await clearJamServiceCaches();
 }
 
 export async function saveTrackRating({
@@ -146,7 +159,6 @@ export async function saveTrackRating({
   if (!track || !track.gamePage?.game?.published) {
     throw new NotFoundError("Track not found");
   }
-
   const belongsToTenant = await doesCoreEntityBelongToTenant({
     entityType: "Game",
     entityId: track.gamePage.game.id,
@@ -168,7 +180,7 @@ export async function saveTrackRating({
   const isOwnTeam = track.gamePage.game.team.users.some(
     (member) => member.id === userId,
   );
-  if (isOwnTeam) {
+  if (isOwnTeam || track.gamePage.game.team.ownerId === userId || track.composerId === userId) {
     throw new ForbiddenError("You can't rate your own track.");
   }
 
@@ -257,4 +269,3 @@ export async function createTrackTimestampComment({
     },
   });
 }
-

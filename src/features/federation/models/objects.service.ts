@@ -214,6 +214,7 @@ export async function getFederatedTrackBySlug(
   const track = await db.gamePageTrack.findFirst({
     where: {
       slug,
+      origin: "ORIGINAL",
       gamePage: {
         game: {
           published: true,
@@ -249,7 +250,7 @@ export async function getFederatedTrackBySlug(
     },
   });
 
-  if (!track || !track.gamePage?.game?.published) {
+  if (!track || !track.composer || !track.gamePage?.game?.published) {
     throw new NotFoundError("Federated track not found");
   }
 
@@ -259,6 +260,7 @@ export async function getFederatedTrackBySlug(
 
   return {
     ...track,
+    composer: track.composer,
     emojis,
   };
 }

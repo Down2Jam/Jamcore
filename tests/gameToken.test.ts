@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { dbMock } = vi.hoisted(() => ({
   dbMock: {
+    $transaction: vi.fn(),
     gameAccessToken: {
       create: vi.fn(),
       findFirst: vi.fn(),
@@ -11,6 +12,7 @@ const { dbMock } = vi.hoisted(() => ({
       updateMany: vi.fn(),
     },
     deviceAuthRequest: {
+      findUniqueOrThrow: vi.fn(),
       create: vi.fn(),
       findUnique: vi.fn(),
       update: vi.fn(),
@@ -50,6 +52,10 @@ import {
 function hashKey(key: string) {
   return createHash("sha256").update(key).digest("hex");
 }
+beforeEach(() => {
+  dbMock.$transaction.mockImplementation(async callback => callback(dbMock));
+  dbMock.deviceAuthRequest.deleteMany.mockResolvedValue({ count: 1 });
+});
 
 describe("game access tokens", () => {
   beforeEach(() => vi.clearAllMocks());
@@ -189,6 +195,7 @@ describe("device authorization flow", () => {
   });
 
   it("rejects approval of an unknown, non-pending, or expired code", async () => {
+    dbMock.deviceAuthRequest.updateMany.mockResolvedValue({ count: 0 });
     dbMock.deviceAuthRequest.findUnique.mockResolvedValue(null);
 
     await expect(
@@ -197,7 +204,7 @@ describe("device authorization flow", () => {
   });
 
   it("issues a token scoped to the device row's game, and stages its raw value for pickup", async () => {
-    dbMock.deviceAuthRequest.findUnique.mockResolvedValue({
+    dbMock.deviceAuthRequest.findUniqueOrThrow.mockResolvedValue({
       id: "device-1",
       status: "PENDING",
       clientName: "Godot Client",
@@ -215,14 +222,13 @@ describe("device authorization flow", () => {
       data: expect.objectContaining({ userId: 7, gameId: 42 }),
     });
     expect(dbMock.deviceAuthRequest.updateMany).toHaveBeenCalledWith({
-      where: { id: "device-1", status: "PENDING" },
+      where: { userCode: "AAAA-BBBB", status: "PENDING", expiresAt: { gt: expect.any(Date) } },
       data: expect.objectContaining({
         status: "APPROVED",
         userId: 7,
-        tokenId: "token-1",
-        pendingToken: expect.stringContaining("d2j_"),
       }),
     });
+    expect(dbMock.deviceAuthRequest.update).toHaveBeenCalledWith({ where: { id: "device-1" }, data: { tokenId: "token-1", pendingToken: expect.stringContaining("d2j_") } });
   });
 
   it("rejects denial of a request that is not pending", async () => {
@@ -231,6 +237,26 @@ describe("device authorization flow", () => {
     await expect(denyDeviceAuthRequest({ userCode: "AAAA-BBBB" })).rejects.toBeInstanceOf(
       NotFoundError,
     );
+  });
+  it("creates only one token when two approvals compete for a request", async () => {
+    dbMock.deviceAuthRequest.updateMany.mockResolvedValueOnce({ count: 1 }).mockResolvedValueOnce({ count: 0 });
+    dbMock.deviceAuthRequest.findUniqueOrThrow.mockResolvedValue({ id: "device-1", gameId: 42, clientName: "Client" });
+    dbMock.gameAccessToken.create.mockResolvedValue({ id: "token-1" });
+    const results = await Promise.allSettled([
+      approveDeviceAuthRequest({ userCode: "AAAA-BBBB", userId: 7 }),
+      approveDeviceAuthRequest({ userCode: "AAAA-BBBB", userId: 8 }),
+    ]);
+    expect(results.filter(result => result.status === "fulfilled")).toHaveLength(1);
+    expect(dbMock.gameAccessToken.create).toHaveBeenCalledTimes(1);
+    expect(dbMock.deviceAuthRequest.update).toHaveBeenCalledTimes(1);
+    expect(dbMock.$transaction).toHaveBeenCalledTimes(2);
+  });
+  it("propagates token-creation failures out of the transaction without publishing a token", async () => {
+    dbMock.deviceAuthRequest.updateMany.mockResolvedValue({ count: 1 });
+    dbMock.deviceAuthRequest.findUniqueOrThrow.mockResolvedValue({ id: "device-1", gameId: 42, clientName: "Client" });
+    dbMock.gameAccessToken.create.mockRejectedValueOnce(new Error("Write failed"));
+    await expect(approveDeviceAuthRequest({ userCode: "AAAA-BBBB", userId: 7 })).rejects.toThrow("Write failed");
+    expect(dbMock.deviceAuthRequest.update).not.toHaveBeenCalled();
   });
 
   it("cleans up stale pending/expired requests", async () => {
@@ -254,6 +280,12 @@ describe("device authorization flow", () => {
       const result = await pollDeviceAuthRequest({ deviceCode: "d2jd_nope" });
 
       expect(result).toEqual({ status: "expired" });
+    });
+    it("does not hand over a token when another poll already consumed it", async () => {
+      dbMock.deviceAuthRequest.findUnique.mockResolvedValue({ id: "device-1", status: "APPROVED", expiresAt: new Date(Date.now() + 60000), pendingToken: "secret", userId: 7 });
+      dbMock.deviceAuthRequest.deleteMany.mockResolvedValue({ count: 0 });
+      expect(await pollDeviceAuthRequest({ deviceCode: "device" })).toEqual({ status: "expired" });
+      expect(dbMock.user.findUnique).not.toHaveBeenCalled();
     });
 
     it("reports denied", async () => {
@@ -319,7 +351,7 @@ describe("device authorization flow", () => {
         token: "d2j_secret",
         user: { id: 7, slug: "ategon", name: "Ategon", profilePicture: null },
       });
-      expect(dbMock.deviceAuthRequest.delete).toHaveBeenCalledWith({ where: { id: "device-1" } });
+      expect(dbMock.deviceAuthRequest.deleteMany).toHaveBeenCalledWith({ where: { id: "device-1", status: "APPROVED", expiresAt: { gt: expect.any(Date) } } });
       expect(dbMock.user.findUnique).toHaveBeenCalledWith({
         where: { id: 7 },
         select: { id: true, slug: true, name: true, profilePicture: true },

@@ -10,7 +10,7 @@ const { dbMock, passwordMock, sessionMock } = vi.hoisted(() => ({
     checkPasswordHash: vi.fn(),
   },
   sessionMock: {
-    signAccessToken: vi.fn(),
+    createSessionTokens: vi.fn(),
     signRefreshToken: vi.fn(),
     writeSession: vi.fn(),
   },
@@ -25,7 +25,7 @@ vi.mock("../src/infra/password.js", () => ({
 }));
 
 vi.mock("../src/auth/session.js", () => ({
-  signAccessToken: sessionMock.signAccessToken,
+  createSessionTokens: sessionMock.createSessionTokens,
   signRefreshToken: sessionMock.signRefreshToken,
   writeSession: sessionMock.writeSession,
 }));
@@ -45,7 +45,7 @@ describe("session service", () => {
       password: "hash",
     });
     passwordMock.checkPasswordHash.mockResolvedValueOnce(true);
-    sessionMock.signAccessToken.mockReturnValueOnce("access-token");
+    sessionMock.createSessionTokens.mockResolvedValueOnce({ accessToken: "access-token", refreshToken: "refresh-token", expiresAt: undefined });
     sessionMock.signRefreshToken.mockReturnValueOnce("refresh-token");
 
     const res = {} as never;
@@ -69,9 +69,10 @@ describe("session service", () => {
       res,
       "refresh-token",
       "access-token",
+      undefined,
     );
     expect(result).toEqual({
-      user: { id: 1, slug: "ben", password: "hash" },
+      user: { id: 1, slug: "ben" },
       token: "access-token",
     });
   });

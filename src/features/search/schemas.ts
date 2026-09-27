@@ -11,6 +11,9 @@ export const searchQuerySchema = z.object({
   limit: z
     .preprocess(firstQueryValue, z.coerce.number().int().min(1).max(10).optional())
     .optional(),
+  jamId: z
+    .preprocess(firstQueryValue, z.coerce.number().int().positive().optional())
+    .optional(),
   debug: z
     .preprocess(
       firstQueryValue,

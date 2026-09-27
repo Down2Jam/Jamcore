@@ -23,6 +23,7 @@ describe("gamePageService", () => {
           thumbnail: null,
           soundtrackThumbnail: "album.png",
           banner: null,
+          pageBackground: "background.png",
           trailerUrl: null,
           itchEmbedUrl: null,
           itchEmbedAspectRatio: null,
@@ -48,7 +49,7 @@ describe("gamePageService", () => {
           leaderboards: [{ sortOrder: 0, id: 5, name: "LB", type: LeaderboardType.SCORE, onlyBest: false, maxUsersShown: 10, decimalPlaces: 0, gamePageId: 10, createdAt: new Date(), updatedAt: new Date(), scores: [] }],
           downloadLinks: [{ id: 7, url: "u", platform: "WEB", gamePageId: 10 }],
           comments: [],
-          tracks: [{ sortOrder: 0, id: 8, name: "Song", slug: "song", url: "song.mp3", commentary: null, bpm: null, musicalKey: null, integratedLufs: null, truePeakDb: null, loudnessGainDb: null, softwareUsed: [], license: null, allowDownload: false, allowBackgroundUse: false, allowBackgroundUseAttribution: false, composerId: (hasComposer ? 1 : null) as never, gamePageId: 10, createdAt: new Date(), updatedAt: new Date(), tags: [], flags: [], links: [], credits: [], composer: (hasComposer ? { id: 1 } : null) as never }],
+          tracks: [{ sortOrder: 0, id: 8, name: "Song", slug: "song", url: "song.mp3", commentary: null, bpm: null, musicalKey: null, integratedLufs: null, truePeakDb: null, loudnessGainDb: null, softwareUsed: [], origin: "ORIGINAL", externalAuthorName: null, license: "ALL_RIGHTS_RESERVED", allowDownload: false, allowBackgroundUse: false, allowBackgroundUseAttribution: false, composerId: (hasComposer ? 1 : null) as never, gamePageId: 10, createdAt: new Date(), updatedAt: new Date(), tags: [], flags: [], links: [], credits: [], composer: (hasComposer ? { id: 1 } : null) as never }],
         },
       ],
     });
@@ -56,6 +57,7 @@ describe("gamePageService", () => {
     expect(payload).toEqual(
       expect.objectContaining({
         name: "Jam Name",
+        pageBackground: "background.png",
         soundtrackThumbnail: "album.png",
         playableBuildShowFullscreenButton: true,
         ratingCategories: [1],

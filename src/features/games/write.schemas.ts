@@ -2,6 +2,7 @@ import { GameCategory, LeaderboardType } from "@prisma/client";
 import { z } from "zod";
 
 import { GAME_CATEGORY_VALUES } from "./policies.js";
+import { trackLicenseSchema, trackOriginSchema } from "../tracks/licenses.js";
 
 export const MIN_GAME_PREFIX_LENGTH = 4;
 export const MAX_GAME_PREFIX_LENGTH = 8;
@@ -26,6 +27,7 @@ export const gameLinkSchema = z.object({
 });
 
 export const gameAchievementSchema = z.object({
+  id: z.coerce.number().int().min(-1).max(2147483647).optional(),
   name: z.string().trim().min(1),
   description: z.string().optional(),
   image: z.string().optional(),
@@ -41,6 +43,7 @@ export const gameLeaderboardSchema = z.object({
 });
 
 export const trackInputSchema = z.object({
+  id: z.coerce.number().int().positive().max(2147483647).optional(),
   name: z.string().trim().min(1),
   slug: z.string().trim().min(1),
   url: z.string().trim().min(1),
@@ -51,7 +54,9 @@ export const trackInputSchema = z.object({
   truePeakDb: z.number().finite().min(-100).max(20).nullable().optional(),
   loudnessGainDb: z.number().finite().min(-24).max(12).nullable().optional(),
   softwareUsed: z.array(z.string()).optional(),
-  license: z.string().nullable().optional(),
+  origin: trackOriginSchema.optional(),
+  externalAuthorName: z.string().trim().max(200).nullable().optional(),
+  license: trackLicenseSchema.optional(),
   allowDownload: z.boolean().optional(),
   allowBackgroundUse: z.boolean().optional(),
   allowBackgroundUseAttribution: z.boolean().optional(),
@@ -74,6 +79,23 @@ export const trackInputSchema = z.object({
     )
     .optional(),
   composerId: z.coerce.number().int().positive().nullable().optional(),
+}).superRefine((track, context) => {
+  if (track.origin === "ASSET_PACK") {
+    if (!track.externalAuthorName?.trim()) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["externalAuthorName"],
+        message: "Asset-pack author is required.",
+      });
+    }
+    if (!track.license || track.license === "ALL_RIGHTS_RESERVED") {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["license"],
+        message: "Asset-pack tracks require a reusable license.",
+      });
+    }
+  }
 });
 
 export const createGameSchema = z.object({
@@ -83,6 +105,7 @@ export const createGameSchema = z.object({
   thumbnail: z.string().nullable().optional(),
   soundtrackThumbnail: z.string().nullable().optional(),
   banner: z.string().nullable().optional(),
+  pageBackground: z.string().nullable().optional(),
   downloadLinks: z.array(gameLinkSchema),
   category: z.enum(GAME_CATEGORY_VALUES) as z.ZodType<GameCategory>,
   ratingCategories: z.array(z.coerce.number().int().positive()),
@@ -131,6 +154,7 @@ export const updateGameSchema = z.object({
   thumbnail: z.string().nullable().optional(),
   soundtrackThumbnail: z.string().nullable().optional(),
   banner: z.string().nullable().optional(),
+  pageBackground: z.string().nullable().optional(),
   screenshots: z.array(z.string()).optional(),
   trailerUrl: z.string().nullable().optional(),
   itchEmbedUrl: z.string().nullable().optional(),

@@ -1,3 +1,4 @@
+import { activeRatingSelect, activeRatingPageSelect } from "../ratings/active.js";
 import { PageVersion } from "@prisma/client";
 
 import db from "../../infra/db.js";
@@ -124,14 +125,17 @@ export async function loadTrackListingRecords({
               jam: true,
               ratings: {
                 select: {
+                  ...activeRatingSelect,
                   value: true,
                   category: {
                     select: {
+                      always: true,
                       name: true,
                     },
                   },
                   gamePage: {
                     select: {
+                      ...activeRatingPageSelect,
                       version: true,
                     },
                   },

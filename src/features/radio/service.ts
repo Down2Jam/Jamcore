@@ -3,10 +3,13 @@ import { z } from "zod";
 import { PageVersion } from "@prisma/client";
 
 import { appConfig } from "../../config/app.js";
+import { JAM_PHASES } from "../../domain/jamTimeline.js";
+import { getCurrentActiveJam } from "../jams/service.js";
 import { filterCoreEntityIdsByTenant } from "../../infra/coreTenantStore.js";
 import db from "../../infra/db.js";
 import { BadRequestError, ForbiddenError, NotFoundError } from "../../lib/errors.js";
 import { getRadioListenerCount, broadcastRadioEvent } from "./events.js";
+import { trackCanUseRadio } from "../tracks/licenses.js";
 
 const DEFAULT_TRACK_DURATION_SECONDS = 180;
 const VOTE_OPTION_COUNT = 3;
@@ -163,11 +166,20 @@ async function getBannedTrackIds(tenantId: string) {
   return rows.map((row) => row.trackId);
 }
 
+async function getRadioJamId(tenantId: string) {
+  const active = await getCurrentActiveJam(tenantId);
+  return active.phase === JAM_PHASES.submission || active.phase === JAM_PHASES.rating
+    ? active.jam?.id ?? null
+    : null;
+}
+
 async function getEligibleTracks(
   tenantId: string,
   excludeIds: number[] = [],
   station: RadioStation = "all",
+  jamId: number | null = null,
 ) {
+  jamId ??= await getRadioJamId(tenantId);
   const banned = await getBannedTrackIds(radioTenantKey(tenantId, station));
   const excluded = new Set([...excludeIds, ...banned]);
   const tracks = await db.gamePageTrack.findMany({
@@ -176,6 +188,7 @@ async function getEligibleTracks(
       gamePage: {
         game: {
           published: true,
+          ...(jamId !== null ? { jamId } : {}),
         },
       },
     },
@@ -184,6 +197,8 @@ async function getEligibleTracks(
       slug: true,
       url: true,
       name: true,
+      origin: true,
+      externalAuthorName: true,
       license: true,
       allowBackgroundUse: true,
       allowDownload: true,
@@ -227,13 +242,10 @@ async function getEligibleTracks(
     (track) =>
       allowedGameIds.has(track.gamePage.game.id) &&
       !excluded.has(track.id) &&
-      !excludedEquivalentKeys.has(getRadioTrackEquivalentKey(track)),
+      !excludedEquivalentKeys.has(getRadioTrackEquivalentKey(track)) &&
+      trackCanUseRadio(track.license, station === "safe"),
   );
-  if (station === "safe") {
-    return preferPostJamRadioTracks(tenantTracks.filter((track) => track.allowBackgroundUse));
-  }
-  const licensed = tenantTracks.filter((track) => track.allowBackgroundUse || track.allowDownload);
-  return preferPostJamRadioTracks(licensed.length >= VOTE_OPTION_COUNT ? licensed : tenantTracks);
+  return preferPostJamRadioTracks(tenantTracks);
 }
 
 function pickRandomTracks<T extends { id: number }>(tracks: T[], count: number) {
@@ -274,6 +286,8 @@ async function getTrackSummaries(trackIds: number[]) {
       slug: true,
       url: true,
       name: true,
+      origin: true,
+      externalAuthorName: true,
       license: true,
       allowDownload: true,
       allowBackgroundUse: true,
@@ -405,6 +419,37 @@ async function getRecentEmotes(tenantId: string) {
 async function ensureRadioSession(tenantId: string, station: RadioStation = "all") {
   const sessionTenantId = radioTenantKey(tenantId, station);
   const existing = await getSession(sessionTenantId);
+  const jamId = await getRadioJamId(tenantId);
+  if (jamId !== null) {
+    const eligible = await getEligibleTracks(tenantId, [], station, jamId);
+    const eligibleIds = new Set(eligible.map((track) => track.id));
+    const currentIsEligible = existing?.currentTrackId != null && eligibleIds.has(existing.currentTrackId);
+    const oldOptions = parseJsonArray(existing?.voteOptions);
+    if (currentIsEligible && oldOptions.every((id) => eligibleIds.has(id))) {
+      return existing!;
+    }
+    if (existing && !existing.currentTrackId && oldOptions.length === 0 && eligible.length === 0) {
+      return existing;
+    }
+    const currentTrackId = currentIsEligible
+      ? existing!.currentTrackId
+      : pickRandomTracks(eligible, 1)[0]?.id ?? null;
+    await saveSession({
+      tenantId: sessionTenantId,
+      currentTrackId,
+      startedAt: currentIsEligible ? existing!.startedAt : currentTrackId ? new Date() : null,
+      durationSeconds: currentIsEligible ? existing!.durationSeconds : DEFAULT_TRACK_DURATION_SECONDS,
+      voteRound: randomUUID(),
+      voteOptions: pickRandomTracks(
+        eligible.filter((track) => track.id !== currentTrackId),
+        VOTE_OPTION_COUNT,
+      ).map((track) => track.id),
+      history: currentTrackId === null ? [] : [currentTrackId],
+    });
+    const session = (await getSession(sessionTenantId))!;
+    broadcastRadioEvent(sessionTenantId, { type: "state", payload: await presentRadioState(session) });
+    return session;
+  }
   if (existing?.currentTrackId) {
     return existing;
   }
@@ -622,6 +667,7 @@ export async function advanceRadioIfNeeded(
   const normalizedTenantId = resolvedTenantId(tenantId);
   const sessionTenantId = radioTenantKey(normalizedTenantId, station);
   const session = await ensureRadioSession(normalizedTenantId, station);
+  if (!session.currentTrackId) return false;
   const startedAtMs = session.startedAt?.getTime() ?? 0;
   if (!force && Date.now() < startedAtMs + session.durationSeconds * 1000) {
     return false;

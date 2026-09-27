@@ -99,25 +99,11 @@ export async function startDeviceAuthRequest(input: { clientName: string; gameSl
 }
 
 export async function approveDeviceAuthRequest(input: { userCode: string; userId: number }) {
-  const request = await GameTokenStore.findDeviceAuthRequestByUserCodeInDb(input.userCode);
-  if (!request || request.status !== "PENDING" || request.expiresAt < new Date()) {
+  const clientName = await GameTokenStore.approveDeviceAuthRequestInDb(input);
+  if (clientName === null) {
     throw new NotFoundError("Device request not found or expired");
   }
-
-  const { rawKey, token } = await GameTokenStore.createGameAccessTokenInDb({
-    userId: input.userId,
-    gameId: request.gameId,
-    name: request.clientName,
-  });
-
-  await GameTokenStore.approveDeviceAuthRequestInDb({
-    id: request.id,
-    userId: input.userId,
-    tokenId: token.id,
-    pendingToken: rawKey,
-  });
-
-  return request.clientName;
+  return clientName;
 }
 
 export async function denyDeviceAuthRequest(input: { userCode: string }) {

@@ -11,3 +11,8 @@ export {
   notificationPreferencesSchema,
   updateNotificationPreferences,
 } from "./service.js";
+export {
+  createNotification,
+  createNotifications,
+  isNotificationEnabled,
+} from "./delivery.js";

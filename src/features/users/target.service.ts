@@ -1,5 +1,6 @@
 import { presentTargetUser } from "./target.presenter.js";
 import { loadTargetUserRecommendations } from "./target.recommendations.js";
+import { loadCommentDescendants } from "../comments/load-tree.js";
 
 export async function loadTargetUserContext({
   targetUserId,
@@ -17,5 +18,8 @@ export async function loadTargetUserContext({
     return null;
   }
 
+  await loadCommentDescendants(
+    recommendationContext.user.posts.flatMap((post) => post.comments),
+  );
   return presentTargetUser(recommendationContext);
 }

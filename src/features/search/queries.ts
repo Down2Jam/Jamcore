@@ -274,6 +274,7 @@ export async function searchTracks(input: SearchInput) {
         JOIN "GamePage" gp ON gp.id = t."gamePageId"
         JOIN "Game" g ON g.id = gp."gameId"
         WHERE g."published" = true
+          AND t."origin" = 'ORIGINAL'
           AND gp."version" IN ('JAM', 'POST_JAM')
           AND (
             to_tsvector('simple', concat_ws(' ', coalesce(t."name", ''), coalesce(t."commentary", ''))) @@ websearch_to_tsquery('simple', $1)
@@ -295,8 +296,9 @@ export async function searchTracks(input: SearchInput) {
 
   const tracks = await db.gamePageTrack.findMany({
     where: rankedIds?.length
-      ? { id: { in: rankedIds } }
+      ? { id: { in: rankedIds }, origin: "ORIGINAL" }
       : {
+          origin: "ORIGINAL",
           OR: [
             ...containsClauses("name", terms),
             ...containsClauses("commentary", terms),

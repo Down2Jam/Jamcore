@@ -1,52 +1,32 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Request, Response } from "express";
-
-vi.mock("../src/auth/session.js", () => ({
-  authenticateRequest: vi.fn(),
-  verifySessionToken: vi.fn(),
-}));
-
-import { authenticateRequest, verifySessionToken } from "../src/auth/session.js";
+vi.mock("../src/auth/session.js", () => ({ authenticateRequest: vi.fn() }));
+vi.mock("../src/auth/tokenStore.js", () => ({ resolveAccessToken: vi.fn() }));
+import { authenticateRequest } from "../src/auth/session.js";
+import { resolveAccessToken } from "../src/auth/tokenStore.js";
 import authMediaUserOptional from "../src/middleware/authMediaUserOptional.js";
-
 async function authenticate(cookies = {}, headers = {}) {
-  const req = { cookies, headers } as Request;
-  const res = { locals: {} } as Response;
-  const next = vi.fn();
-  await authMediaUserOptional(req, res, next);
-  return { res, next };
+  const res = { locals: {} } as Response; const next = vi.fn();
+  await authMediaUserOptional({ cookies, headers } as Request, res, next); return { res, next };
 }
-
-describe("native media authentication", () => {
+describe("media access cookies", () => {
   beforeEach(() => vi.resetAllMocks());
-
-  it("authenticates a native audio request using its verified session cookie", async () => {
-    vi.mocked(verifySessionToken).mockReturnValue({ user: "composer" });
-    const { res, next } = await authenticate({ refreshToken: "signed-session" });
-    expect(verifySessionToken).toHaveBeenCalledWith("signed-session");
-    expect(res.locals.userSlug).toBe("composer");
-    expect(next).toHaveBeenCalledWith();
+  it("accepts an unexpired website access cookie", async () => {
+    vi.mocked(resolveAccessToken).mockResolvedValue({ user: { id: 1, slug: "composer" }, appId: null, sessionId: "s", scopes: [] });
+    expect((await authenticate({ mediaAccessToken: "access" })).res.locals.userSlug).toBe("composer");
   });
-
-  it("allows anonymous public requests", async () => {
-    const { res, next } = await authenticate();
-    expect(res.locals.userSlug).toBeUndefined();
-    expect(verifySessionToken).not.toHaveBeenCalled();
-    expect(next).toHaveBeenCalledWith();
+  it("never authenticates with refresh cookies", async () => {
+    expect((await authenticate({ refreshToken: "refresh" })).res.locals.userSlug).toBeUndefined();
+    expect(resolveAccessToken).not.toHaveBeenCalled();
   });
-
-  it("does not authenticate an invalid session cookie", async () => {
-    vi.mocked(verifySessionToken).mockImplementation(() => { throw new Error("Invalid signature"); });
-    const { res, next } = await authenticate({ refreshToken: "invalid" });
-    expect(res.locals.userSlug).toBeUndefined();
-    expect(next).toHaveBeenCalledWith();
+  it("allows public playback when access is expired", async () => {
+    vi.mocked(resolveAccessToken).mockResolvedValue(null);
+    const { res, next } = await authenticate({ mediaAccessToken: "expired" });
+    expect(res.locals.userSlug).toBeUndefined(); expect(next).toHaveBeenCalledWith();
   });
-
-  it("preserves authentication for requests with explicit authorization", async () => {
+  it("uses explicit authorization when present", async () => {
     vi.mocked(authenticateRequest).mockResolvedValue("composer");
-    const { res, next } = await authenticate({}, { authorization: "Bearer access" });
-    expect(res.locals.userSlug).toBe("composer");
-    expect(verifySessionToken).not.toHaveBeenCalled();
-    expect(next).toHaveBeenCalledWith();
+    expect((await authenticate({}, { authorization: "Bearer access" })).res.locals.userSlug).toBe("composer");
+    expect(resolveAccessToken).not.toHaveBeenCalled();
   });
 });

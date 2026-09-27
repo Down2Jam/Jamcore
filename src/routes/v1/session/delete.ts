@@ -1,6 +1,8 @@
 import { Router } from "express";
 import rateLimit from "@middleware/rateLimit";
-import { clearSession } from "../../../auth/session.js";
+import { assertSessionOrigin, clearSession, getAuthorizationToken } from "../../../auth/session.js";
+import { revokeSessionToken } from "../../../auth/tokenStore.js";
+import { asyncHandler } from "../../../middleware/asyncHandler.js";
 
 const router = Router();
 
@@ -11,11 +13,14 @@ const router = Router();
 router.delete(
   "/",
   rateLimit(),
-  async (_req, res) => {
+  asyncHandler(async (req, res) => {
+    assertSessionOrigin(req);
+    await revokeSessionToken(req.cookies?.refreshToken ?? "", "refresh", res.locals.tenantId);
+    await revokeSessionToken(getAuthorizationToken(req) ?? "", "access", res.locals.tenantId);
     clearSession(res);
     res.status(200);
     res.send({ message: "Logged out successfully" });
-  }
+  })
 );
 
 export default router;

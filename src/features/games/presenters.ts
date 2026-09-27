@@ -1,3 +1,4 @@
+import { isActiveGameRating } from "../ratings/active.js";
 import { PageVersion } from "@prisma/client";
 
 import { materializeGamePage } from "./page.helpers.js";
@@ -54,9 +55,9 @@ export function materializeGameListingEntries(
     pageVersion: version,
     jamPage,
     postJamPage,
-    allRatings: game.ratings ?? [],
+    allRatings: (game.ratings ?? []).filter(isActiveGameRating),
     ratings: (game.ratings ?? []).filter(
-      (rating) => (rating.gamePage?.version ?? PageVersion.JAM) === version,
+      (rating) => isActiveGameRating(rating) && (rating.gamePage?.version ?? PageVersion.JAM) === version,
     ),
     team: game.team
       ? {
@@ -65,7 +66,7 @@ export function materializeGameListingEntries(
             ...user,
             ratings: (user.ratings ?? []).filter(
               (rating) =>
-                (rating.gamePage?.version ?? PageVersion.JAM) === version,
+                isActiveGameRating(rating) && (rating.gamePage?.version ?? PageVersion.JAM) === version,
             ),
           })),
         }

@@ -19,6 +19,7 @@ import {
   publishCommentCreated,
   publishCommentUpdated,
 } from "../federation/index.js";
+import { createNotification } from "../notifications/delivery.js";
 
 const commentTargetSchema = z
   .object({
@@ -370,15 +371,13 @@ async function createTeamCommentNotifications({
 
   await Promise.all(
     filteredRecipientIds.map((recipientId) =>
-      db.notification.create({
-        data: {
-          type,
-          recipientId,
-          actorId,
-          ...(gameId ? { gameId } : {}),
-          ...(trackId ? { trackId } : {}),
-          commentId,
-        },
+      createNotification({
+        type,
+        recipientId,
+        actorId,
+        ...(gameId ? { gameId } : {}),
+        ...(trackId ? { trackId } : {}),
+        commentId,
       }),
     ),
   );
@@ -420,14 +419,12 @@ export async function createComment({
   });
 
   if (post && post.authorId !== actor.id) {
-    await db.notification.create({
-      data: {
-        type: "POST_COMMENT",
-        recipientId: post.authorId,
-        actorId: actor.id,
-        postId: post.id,
-        commentId: newComment.id,
-      },
+    await createNotification({
+      type: "POST_COMMENT",
+      recipientId: post.authorId,
+      actorId: actor.id,
+      postId: post.id,
+      commentId: newComment.id,
     });
   }
 
@@ -437,20 +434,18 @@ export async function createComment({
       : {};
 
   if (parentComment && parentComment.authorId !== actor.id) {
-    await db.notification.create({
-      data: {
-        type: "COMMENT_REPLY",
-        recipientId: parentComment.authorId,
-        actorId: actor.id,
-        postId: parentComment.postId ?? resolvedContext.postId ?? null,
-        gameId:
-          parentComment.gameId ??
-          parentComment.gamePage?.game?.id ??
-          resolvedContext.gameId ??
-          null,
-        trackId: parentComment.trackId ?? resolvedContext.trackId ?? null,
-        commentId: newComment.id,
-      },
+    await createNotification({
+      type: "COMMENT_REPLY",
+      recipientId: parentComment.authorId,
+      actorId: actor.id,
+      postId: parentComment.postId ?? resolvedContext.postId ?? null,
+      gameId:
+        parentComment.gameId ??
+        parentComment.gamePage?.game?.id ??
+        resolvedContext.gameId ??
+        null,
+      trackId: parentComment.trackId ?? resolvedContext.trackId ?? null,
+      commentId: newComment.id,
     });
   }
 

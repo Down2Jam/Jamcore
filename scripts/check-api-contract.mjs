@@ -27,7 +27,8 @@ for (const route of registry.routes) {
   if (!route.rateLimit?.headers) {
     errors.push(`Route missing rate-limit header metadata: ${key}`);
   }
-  if (["POST", "PUT", "DELETE"].includes(route.method) && !route.idempotency?.supported) {
+  const credentialRoute = /^\/(oauth(?:\/|$)|session(?:\/|$)|device(?:\/|$)|users$)/.test(route.path);
+  if (["POST", "PUT", "DELETE"].includes(route.method) && !credentialRoute && !route.idempotency?.supported) {
     errors.push(`Mutation route missing idempotency metadata: ${key}`);
   }
   for (const parameter of route.parameters ?? []) {

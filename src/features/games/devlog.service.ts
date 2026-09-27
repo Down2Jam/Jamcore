@@ -7,6 +7,7 @@ import { NotFoundError } from "../../lib/errors.js";
 export const gameDevlogQuerySchema = z.object({
   relationType: z.enum(["devlog", "release", "postmortem", "announcement", "other"]).optional(),
   limit: z.coerce.number().int().min(1).max(50).optional(),
+  cursorId: z.coerce.number().int().positive().optional(),
   cursor: z.string().datetime().optional(),
 });
 
@@ -50,17 +51,21 @@ export async function listGameDevlogPosts({
         AND ($2::text IS NULL OR pg.relation_type = $2)
         AND p."deletedAt" IS NULL
         AND p."removedAt" IS NULL
-        AND ($4::timestamptz IS NULL OR p."createdAt" < $4::timestamptz)
+        AND ($4::timestamptz IS NULL OR p."createdAt" < $4::timestamptz
+          OR (p."createdAt" = $4::timestamptz AND p.id < $5::int))
+        AND ($6::text IS NULL OR p.tenant_id IS NULL OR p.tenant_id = $6)
         AND (
           p.draft_status = 'published'
           OR (p.draft_status = 'scheduled' AND p.scheduled_publish_at <= NOW())
         )
-      ORDER BY p."createdAt" DESC
+      ORDER BY p."createdAt" DESC, p.id DESC
       LIMIT $3
     `,
     game.id,
     input.relationType ?? null,
     input.limit ?? 20,
     input.cursor ?? null,
+    input.cursorId ?? null,
+    tenantId ?? null,
   );
 }

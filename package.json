@@ -24,6 +24,7 @@
     "search:backfill": "tsx scripts/backfill-search.ts",
     "search:loadtest": "node scripts/loadtest-search.mjs",
     "music:backfill-loudness": "node --enable-source-maps dist/scripts/backfill-track-loudness.js",
+    "rating-reminders:catchup-current": "node --enable-source-maps dist/scripts/catchup-halfway-rating-reminders.js",
     "seed-users": "tsx prisma/seedUsers.ts",
     "seed-suggestions": "tsx prisma/seedSuggestions.ts",
     "seed-slaughter-votes": "tsx prisma/seedSlaughterVotes.ts",

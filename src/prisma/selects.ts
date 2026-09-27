@@ -1,3 +1,4 @@
+import { activeRatingSelect, activeRatingPageSelect } from "../features/ratings/active.js";
 import { PageVersion } from "@prisma/client";
 
 export const jamAndPostJamVersions: PageVersion[] = [
@@ -55,6 +56,8 @@ export const trackSummarySelect = {
   name: true,
   slug: true,
   url: true,
+  origin: true,
+  externalAuthorName: true,
   allowBackgroundUse: true,
   allowBackgroundUseAttribution: true,
   allowDownload: true,
@@ -93,12 +96,14 @@ export const trackSummarySelect = {
 export const requestUserBaseSelect = {
   ratings: {
     select: {
+      ...activeRatingSelect,
       value: true,
       userId: true,
       gamePageId: true,
       categoryId: true,
       gamePage: {
         select: {
+          ...activeRatingPageSelect,
           version: true,
           gameId: true,
         },
@@ -247,6 +252,12 @@ export const gameListingPageInclude = {
   downloadLinks: true,
 } as const;
 
+export const gameRankingPageInclude = {
+  ...gameListingPageInclude,
+  achievements: { select: { id: true } },
+  leaderboards: { select: { id: true } },
+} as const;
+
 export const gameListingSummaryInclude = {
   jam: true,
   ratingCategories: true,
@@ -293,10 +304,11 @@ export const gameListingInclude = {
         in: jamAndPostJamVersions,
       },
     },
-    include: gameListingPageInclude,
+    include: gameRankingPageInclude,
   },
   ratings: {
     select: {
+      ...activeRatingSelect,
       id: true,
       value: true,
       userId: true,
@@ -304,12 +316,14 @@ export const gameListingInclude = {
       gameId: true,
       category: {
         select: {
+          always: true,
           id: true,
           name: true,
         },
       },
       gamePage: {
         select: {
+          ...activeRatingPageSelect,
           version: true,
         },
       },
@@ -349,6 +363,7 @@ export const gameListingInclude = {
       users: {
         select: {
           id: true,
+          name: true,
           gamePageAchievements: {
             select: {
               gamePage: {
@@ -407,9 +422,11 @@ export const gameListingInclude = {
           },
           ratings: {
             select: {
+              ...activeRatingSelect,
               gameId: true,
               gamePage: {
                 select: {
+                  ...activeRatingPageSelect,
                   version: true,
                 },
               },
@@ -453,6 +470,7 @@ export const targetUserBaseSelect = {
   recommendedTrackHiddenIds: true,
   ratings: {
     select: {
+      ...activeRatingSelect,
       gameId: true,
       categoryId: true,
       value: true,
@@ -460,6 +478,7 @@ export const targetUserBaseSelect = {
       updatedAt: true,
       gamePage: {
         select: {
+          ...activeRatingPageSelect,
           version: true,
         },
       },
@@ -501,6 +520,7 @@ export const targetUserBaseSelect = {
     },
   },
   userEmotes: {
+    where: { kind: "EMOTE" },
     select: {
       id: true,
       slug: true,

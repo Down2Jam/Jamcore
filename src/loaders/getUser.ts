@@ -21,7 +21,7 @@ async function getUser(
     return;
   }
 
-  res.locals.user = user;
+  res.locals.user = ["appToken", "gameToken"].includes(res.locals.authMethod ?? "") ? { ...user, admin: false, mod: false } : user;
   next();
 }
 

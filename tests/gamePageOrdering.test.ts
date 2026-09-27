@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { db } = vi.hoisted(() => ({ db: {
+  $transaction: vi.fn(),
+  game: { update: vi.fn() },
   gamePage: { findFirst: vi.fn(), update: vi.fn(), create: vi.fn(), findUnique: vi.fn() },
   gamePageTrack: { findMany: vi.fn(), update: vi.fn(), create: vi.fn(), delete: vi.fn() },
   gamePageLeaderboard: { findMany: vi.fn(), update: vi.fn(), create: vi.fn(), delete: vi.fn() },
@@ -24,6 +26,7 @@ const leaderboards = [2, 1].map(id => ({ id, name: `Board ${id}`, type: "SCORE" 
 describe("game page item ordering", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    db.$transaction.mockImplementation(async (callback) => callback(db));
     db.gamePage.findFirst.mockResolvedValue({ id: 10, playableBuildId: null });
     db.gamePage.create.mockResolvedValue({ id: 10 });
     db.gamePageTrack.findMany.mockResolvedValue([]);
@@ -49,7 +52,7 @@ describe("game page item ordering", () => {
   });
 
   it("assigns positions to new items on an existing page", async () => {
-    await upsertGamePage(1, "JAM", { songs, leaderboards });
+    await upsertGamePage(1, "JAM", { songs, leaderboards: leaderboards.map(({ id: _id, ...board }) => board) });
     expect(db.gamePageTrack.create.mock.calls.map(([arg]) => [arg.data.slug, arg.data.sortOrder])).toEqual([["second", 0], ["first", 1]]);
     expect(db.gamePageLeaderboard.create.mock.calls.map(([arg]) => [arg.data.name, arg.data.sortOrder])).toEqual([["Board 2", 0], ["Board 1", 1]]);
   });

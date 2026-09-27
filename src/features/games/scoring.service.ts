@@ -1,3 +1,4 @@
+import { activeRatingSelect, activeRatingPageSelect, isActiveGameRating } from "../ratings/active.js";
 import { GameCategory, PageVersion } from "@prisma/client";
 import type { CategoryAverage, ScoreSummary } from "../../types/game.js";
 
@@ -128,6 +129,7 @@ export async function buildVersionScores({
             select: {
               ratings: {
                 select: {
+                  ...activeRatingSelect,
                   gamePage: {
                     select: {
                       version: true,
@@ -173,10 +175,12 @@ export async function buildVersionScores({
       },
       ratings: {
         select: {
+          ...activeRatingSelect,
           value: true,
           categoryId: true,
           gamePage: {
             select: {
+              ...activeRatingPageSelect,
               version: true,
               gameId: true,
               game: {
@@ -297,7 +301,7 @@ export async function buildVersionScores({
       categoryAverages,
       ratingsCount: loadedGame.team.users.reduce((totalRatings, user) => {
         const userRatingCount = user.ratings.reduce((count, rating) => {
-          if (!ratingBelongsToScoreVersion(rating, version)) return count;
+          if (!isActiveGameRating(rating) || !ratingBelongsToScoreVersion(rating, version)) return count;
           return (
             count +
             1 / (getRatingCategoryCount(rating) + alwaysCategories.length)

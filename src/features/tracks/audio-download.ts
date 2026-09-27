@@ -617,7 +617,8 @@ function addOggMetadata(buffer: Buffer, metadata: TrackDownloadMetadata) {
 
 export function extractMusicFilenameFromUrl(url: string) {
   try {
-    const parsed = new URL(url);
+    // Uploads return root-relative paths by default; older tracks use absolute URLs.
+    const parsed = new URL(url, url.startsWith("/") ? "https://uploads.invalid" : undefined);
     const filename = parsed.pathname.split("/").pop() ?? "";
     return SAFE_MUSIC_FILE.test(filename) ? filename : null;
   } catch {
@@ -649,7 +650,7 @@ export function extractImageFilenameFromUrl(url?: string | null) {
   if (!url) return null;
 
   try {
-    const parsed = new URL(url);
+    const parsed = new URL(url, url.startsWith("/") ? "https://uploads.invalid" : undefined);
     const filename = parsed.pathname.split("/").pop() ?? "";
     return /^[A-Za-z0-9._-]+\.(png|jpe?g|gif|webp)$/i.test(filename)
       ? filename

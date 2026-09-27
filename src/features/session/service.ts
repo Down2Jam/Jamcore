@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { signAccessToken, signRefreshToken, writeSession } from "../../auth/session.js";
+import { createSessionTokens, writeSession } from "../../auth/session.js";
 import db from "../../infra/db.js";
 import { appConfig } from "../../config/app.js";
 import { doesCoreEntityBelongToTenant } from "../../infra/coreTenantStore.js";
@@ -49,10 +49,8 @@ export async function createSession({
     throw new UnauthorizedError("Invalid username or password");
   }
 
-  const accessToken = signAccessToken(user.slug);
-  const refreshToken = signRefreshToken(user.slug);
-
-  writeSession(res, refreshToken, accessToken);
+  const { accessToken, refreshToken, expiresAt } = await createSessionTokens(user.id, tenantId);
+  writeSession(res, refreshToken, accessToken, expiresAt);
   await writeAuditEntry({
     action: "session.create",
     actor: {
@@ -72,7 +70,7 @@ export async function createSession({
   });
 
   return {
-    user,
+    user: { id: user.id, slug: user.slug },
     token: accessToken,
   };
 }

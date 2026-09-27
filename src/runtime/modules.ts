@@ -6,7 +6,9 @@ import { startRadioRuntime } from "../features/radio/index.js";
 import { startStreamersRuntime } from "../features/streamers/index.js";
 import { startPlatformRuntime } from "../jobs/platform.js";
 import { startDeviceAuthCleanupJob } from "../auth/deviceAuthCleanupJob.js";
+import { startTokenCleanupJob } from "../auth/tokenCleanupJob.js";
 import { startWebBuildCleanupRuntime } from "../features/games/web-build.runtime.js";
+import { startHalfwayRatingReminderRuntime } from "../features/notifications/rating-reminders.js";
 
 export type RuntimeModuleHandle = {
   name: string;
@@ -19,12 +21,15 @@ export type RuntimeModules = {
 
 export async function startRuntimeModules(): Promise<RuntimeModules> {
   const deviceAuthCleanupTask = startDeviceAuthCleanupJob();
+  const tokenCleanupTask = startTokenCleanupJob();
 
   const handles = await Promise.all([
+    Promise.resolve({ name: "token-cleanup", stop: () => tokenCleanupTask.stop() }),
     startFederationRuntime(),
     Promise.resolve(startPlatformRuntime()),
     Promise.resolve(startScheduledPostPublisherRuntime()),
     Promise.resolve(startWebBuildCleanupRuntime()),
+    Promise.resolve(startHalfwayRatingReminderRuntime()),
     startRadioRuntime(),
     startStreamersRuntime(),
     Promise.resolve({

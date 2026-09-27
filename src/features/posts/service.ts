@@ -1,3 +1,5 @@
+import { commentTreeInclude, loadCommentDescendants } from "../comments/load-tree.js";
+import { loadLinkedGames, validatePostGames } from "./linked-games.service.js";
 import { randomBytes, randomUUID } from "node:crypto";
 
 import { z } from "zod";
@@ -31,6 +33,7 @@ import {
   listRemoteFeedPosts,
 } from "../federation/remote-content.service.js";
 import { notifyFollowers } from "../social/index.js";
+import { createNotification } from "../notifications/delivery.js";
 import {
   BadRequestError,
   ForbiddenError,
@@ -107,64 +110,7 @@ const postInclude = {
       },
     },
   },
-  comments: {
-    include: {
-      author: true,
-      likes: true,
-      commentReactions: {
-        include: {
-          reaction: true,
-          user: {
-            select: {
-              id: true,
-              slug: true,
-              name: true,
-              profilePicture: true,
-            },
-          },
-        },
-      },
-      children: {
-        include: {
-          author: true,
-          likes: true,
-          commentReactions: {
-            include: {
-              reaction: true,
-              user: {
-                select: {
-                  id: true,
-                  slug: true,
-                  name: true,
-                  profilePicture: true,
-                },
-              },
-            },
-          },
-          children: {
-            include: {
-              author: true,
-              likes: true,
-              commentReactions: {
-                include: {
-                  reaction: true,
-                  user: {
-                    select: {
-                      id: true,
-                      slug: true,
-                      name: true,
-                      profilePicture: true,
-                    },
-                  },
-                },
-              },
-              children: true,
-            },
-          },
-        },
-      },
-    },
-  },
+  comments: { include: commentTreeInclude },
 } as const;
 
 const postContentSchema = z
@@ -679,19 +625,9 @@ async function getFollowingUserIds(userId: number, tenantId?: string | null) {
   return rows.map((row) => row.followingId);
 }
 
-async function getPostExtras(postId: number) {
-  const [games, collaborators] = await Promise.all([
-    db.$queryRawUnsafe(
-      `
-        SELECT pg.game_id AS "gameId", pg.relation_type AS "relationType", g.slug, gp.name
-        FROM "PostGameLink" pg
-        JOIN "Game" g ON g.id = pg.game_id
-        LEFT JOIN "GamePage" gp ON gp."gameId" = g.id AND gp.version = 'POST_JAM'
-        WHERE pg.post_id = $1
-        ORDER BY pg.created_at ASC
-      `,
-      postId,
-    ).catch(() => []),
+async function getPostExtras(postId: number, tenantId?: string | null) {
+  const [gamesByPost, collaborators] = await Promise.all([
+    loadLinkedGames([postId], tenantId),
     db.$queryRawUnsafe(
       `
         SELECT pc.user_id AS "userId", pc.role, pc.status, u.slug, u.name
@@ -703,7 +639,7 @@ async function getPostExtras(postId: number) {
       postId,
     ).catch(() => []),
   ]);
-  return { games, collaborators };
+  return { games: gamesByPost.get(postId) ?? [], collaborators };
 }
 
 async function updatePostPublicationMeta({
@@ -785,6 +721,7 @@ export async function createPost({
   }
 
   await assertAllowedModeratorTags(input.tags, actor);
+  await validatePostGames(actor.id, input.gameLinks, tenantId);
   const slug = await buildUniquePostSlug(input.title);
 
   const newPost = await db.post.create({
@@ -860,7 +797,7 @@ export async function createPost({
       type: "GENERAL",
       title: `${actor.name} published a post`,
       body: newPost.title,
-      link: `/forum/posts/${newPost.slug ?? newPost.id}`,
+      link: `/p/${newPost.slug ?? newPost.id}`,
       data: { kind: "post", postId: newPost.id },
     });
   }
@@ -942,6 +879,8 @@ export async function updatePost({
 
   await assertAllowedModeratorTags(input.tags, actor);
 
+  await validatePostGames(post.authorId, input.gameLinks, tenantId);
+
   const data: {
     title?: string;
     content?: string;
@@ -949,7 +888,7 @@ export async function updatePost({
     editedAt?: Date;
     tags?: { set: Array<{ id: number }> };
   } = {};
-  let shouldMarkEdited = false;
+  let shouldMarkEdited = input.gameLinks !== undefined;
 
   if (typeof input.title === "string") {
     data.title = input.title;
@@ -1170,6 +1109,7 @@ export async function loadPost(
     throw new NotFoundError("Post missing.");
   }
 
+  await loadCommentDescendants(post.comments);
   const presented = presentPost(post, viewer);
   return {
     ...presented,
@@ -1181,7 +1121,7 @@ export async function loadPost(
         tenantId,
       })),
     ],
-    ...(await getPostExtras(post.id)),
+    ...(await getPostExtras(post.id, tenantId)),
   };
 }
 
@@ -1279,7 +1219,7 @@ export async function publishPost({
     type: "GENERAL",
     title: `${actor.name} published a post`,
     body: post.title,
-    link: `/forum/posts/${post.slug ?? post.id}`,
+    link: `/p/${post.slug ?? post.id}`,
     data: { kind: "post", postId: post.id },
   });
   await enqueueSearchEntityIndex({
@@ -1398,21 +1338,19 @@ export async function reviewPendingPost({
       type: "GENERAL",
       title: "A followed author published a post",
       body: post.title,
-      link: `/forum/posts/${post.slug ?? post.id}`,
+      link: `/p/${post.slug ?? post.id}`,
       data: { kind: "post", postId: post.id, reviewApproved: true },
     });
     await enqueueSearchEntityIndex({ entityType: "post", entityId: post.id, tenantId });
   }
-  await db.notification.create({
-    data: {
-      recipientId: post.authorId,
-      actorId: actor.id,
-      type: "GENERAL",
-      title: `Your post was ${input.decision === "approve" ? "approved" : "sent back to drafts"}`,
-      body: post.title,
-      link: `/forum/posts/${post.slug ?? post.id}`,
-      data: { kind: "post_review", postId: post.id, decision: input.decision },
-    },
+  await createNotification({
+    recipientId: post.authorId,
+    actorId: actor.id,
+    type: "GENERAL",
+    title: `Your post was ${input.decision === "approve" ? "approved" : "sent back to drafts"}`,
+    body: post.title,
+    link: `/p/${post.slug ?? post.id}`,
+    data: { kind: "post_review", postId: post.id, decision: input.decision },
   });
   return { ok: true };
 }
@@ -1634,16 +1572,14 @@ export async function addPostToSeries({
   );
   await db.$executeRawUnsafe(`UPDATE "PostSeries" SET updated_at = NOW() WHERE id = $1`, seriesId);
   if (post.authorId !== actor.id) {
-    await db.notification.create({
-      data: {
-        recipientId: post.authorId,
-        actorId: actor.id,
-        type: "GENERAL",
-        title: `${actor.name} added your post to a series`,
-        body: series.title,
-        link: `/forum/posts/${post.slug ?? post.id}`,
-        data: { kind: "post_series_add", postId: post.id, seriesId },
-      },
+    await createNotification({
+      recipientId: post.authorId,
+      actorId: actor.id,
+      type: "GENERAL",
+      title: `${actor.name} added your post to a series`,
+      body: series.title,
+      link: `/p/${post.slug ?? post.id}`,
+      data: { kind: "post_series_add", postId: post.id, seriesId },
     });
   }
   return getPostSeries({ seriesId, actor });
@@ -1753,11 +1689,13 @@ export async function listPosts(
           include: postInclude,
         })
       : [];
+    await loadCommentDescendants(pagePosts.flatMap((post) => post.comments));
     const postsById = new Map(pagePosts.map((post) => [post.id, post]));
+    const linkedGames = await loadLinkedGames(pageIds, tenantId);
     const items = pageIds
       .map((id) => postsById.get(id))
       .filter((post): post is NonNullable<typeof post> => Boolean(post))
-      .map((post) => presentPost(post, viewer));
+      .map((post) => ({ ...presentPost(post, viewer), games: linkedGames.get(post.id) ?? [] }));
     const hasMore = pageCandidates.length > limit;
 
     return {
@@ -1793,7 +1731,9 @@ export async function listPosts(
   const publicIds = new Set(await filterPublishedPostIds(posts.map((post) => post.id)));
   const visiblePosts = posts.filter((post) => allowedIds.has(post.id) && publicIds.has(post.id));
   const boostedPosts = visiblePosts;
-  const localItems = boostedPosts.slice(0, limit + 1).map((post) => presentPost(post, viewer));
+  const linkedGames = await loadLinkedGames(boostedPosts.map(post => post.id), tenantId);
+  await loadCommentDescendants(boostedPosts.slice(0, limit + 1).flatMap((post) => post.comments));
+  const localItems = boostedPosts.slice(0, limit + 1).map((post) => ({ ...presentPost(post, viewer), games: linkedGames.get(post.id) ?? [] }));
   const shouldIncludeRemoteFeed =
     (!input.cursor || Boolean(feedCursor)) &&
     input.sort !== "top" &&

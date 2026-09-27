@@ -190,7 +190,7 @@ describe("API docs routes", () => {
       }),
     );
     expect(document.paths?.["/games"]?.post?.security).toEqual([
-      { bearerAuth: [], refreshCookie: [] },
+      { bearerAuth: [] },
     ]);
     expect(document.paths?.["/games"]?.post?.parameters).toContainEqual(
       expect.objectContaining({ name: "Idempotency-Key", in: "header" }),

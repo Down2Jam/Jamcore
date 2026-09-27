@@ -12,6 +12,7 @@ export async function loadEmojiDefinitions(
 
   const reactions = await db.reaction.findMany({
     where: {
+      kind: "EMOTE",
       slug: {
         in: shortcodes,
       },

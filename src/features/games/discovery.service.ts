@@ -116,7 +116,9 @@ export async function getRandomPublishedGame(
   tenantId?: string | null,
   includeExternal = true,
 ) {
-  const game = await db.$queryRaw<{ id: number; name: string }[]>`
+  const game = await db.$queryRaw<
+    { id: number; name: string; jamId: number; activeJamGame: boolean }[]
+  >`
     WITH active_jams AS (
       SELECT j.id
       FROM "Jam" j
@@ -137,7 +139,7 @@ export async function getRandomPublishedGame(
             )
         )
     )
-    SELECT g.*
+    SELECT g.*, EXISTS (SELECT 1 FROM active_jams) AS "activeJamGame"
     FROM "Game" g
     WHERE g."published" = TRUE
       AND (${includeExternal} OR g."category"::text <> ${EXTERNAL_GAME_CATEGORY})

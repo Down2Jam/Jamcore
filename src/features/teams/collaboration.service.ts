@@ -2,6 +2,7 @@ import db from "../../infra/db.js";
 import { NotFoundError } from "../../lib/errors.js";
 import { assertTeamAllowsCollaboration } from "./policies.js";
 import type { TargetTeamContext } from "./targetTeam.service.js";
+import { createNotification } from "../notifications/delivery.js";
 
 type TeamCollaborationActor = {
   id: number;
@@ -30,13 +31,11 @@ export async function createTeamApplication({
     },
   });
 
-  await db.notification.create({
-    data: {
-      teamApplicationId: application.id,
-      recipientId: team.ownerId,
-      actorId: actor.id,
-      type: "TEAM_APPLICATION",
-    },
+  await createNotification({
+    teamApplicationId: application.id,
+    recipientId: team.ownerId,
+    actorId: actor.id,
+    type: "TEAM_APPLICATION",
   });
 
   return application;
@@ -66,13 +65,11 @@ export async function createTeamInvite({
     },
   });
 
-  await db.notification.create({
-    data: {
-      teamInviteId: invite.id,
-      recipientId: targetUser.id,
-      actorId: actor.id,
-      type: "TEAM_INVITE",
-    },
+  await createNotification({
+    teamInviteId: invite.id,
+    recipientId: targetUser.id,
+    actorId: actor.id,
+    type: "TEAM_INVITE",
   });
 
   return invite;

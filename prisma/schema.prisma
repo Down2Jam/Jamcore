@@ -95,6 +95,8 @@ model User {
   usersBlocked                  UserBlock[]              @relation(name: "UserBlockBlocker")
   blockedByUsers                UserBlock[]              @relation(name: "UserBlockBlocked")
   gameAccessTokens              GameAccessToken[]
+  authSessions                  AuthSession[]
+  oauthApps                     OAuthApp[]
 
   @@index([tenantId])
 }
@@ -108,6 +110,28 @@ enum Priority {
 enum PageVersion {
   JAM
   POST_JAM
+}
+
+enum TrackOrigin {
+  ORIGINAL
+  ASSET_PACK
+}
+
+enum TrackLicense {
+  ALL_RIGHTS_RESERVED
+  CC0_1_0
+  CC_BY_3_0
+  CC_BY_4_0
+  CC_BY_SA_3_0
+  CC_BY_SA_4_0
+  CC_BY_ND_3_0
+  CC_BY_ND_4_0
+  CC_BY_NC_3_0
+  CC_BY_NC_4_0
+  CC_BY_NC_SA_3_0
+  CC_BY_NC_SA_4_0
+  CC_BY_NC_ND_3_0
+  CC_BY_NC_ND_4_0
 }
 
 enum QuiltSubmissionStatus {
@@ -236,6 +260,11 @@ enum ReactionScope {
   GAME
 }
 
+enum ReactionKind {
+  EMOTE
+  STICKER
+}
+
 model Reaction {
   id          Int           @id @default(autoincrement())
   slug        String        @unique
@@ -243,6 +272,7 @@ model Reaction {
   artist      String?
   artistId    Int?
   uploaderId  Int?
+  kind        ReactionKind  @default(EMOTE)
   scopeType   ReactionScope @default(GLOBAL)
   scopeUserId Int?
   scopeGameId Int?
@@ -330,6 +360,7 @@ model Jam {
   submissionHours        Int      @default(2)
   postJamRefinementHours Int      @default(336)
   postJamRatingHours     Int      @default(336)
+  musicRankingRuleVersion Int     @default(2) @map("music_ranking_rule_version")
   isActive               Boolean  @default(true)
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt
@@ -349,6 +380,7 @@ model Jam {
   themeVotes       ThemeVote[]       @relation(name: "VoteToJam")
   themeVotes2      ThemeVote2[]      @relation(name: "Vote2ToJam")
   teams            Team[]            @relation(name: "TeamsToJam")
+  ratingReminderDispatch JamRatingReminderDispatch?
 
   @@index([tenantId, startTime])
 }
@@ -434,6 +466,7 @@ model GamePage {
   thumbnail            String?
   soundtrackThumbnail  String?
   banner               String?
+  pageBackground       String?
   screenshots          String[]    @default([])
   trailerUrl           String?
   itchEmbedUrl         String?
@@ -621,7 +654,9 @@ model GamePageTrack {
   slug                          String
   url                           String
   name                          String
-  license                       String?
+  origin                        TrackOrigin  @default(ORIGINAL)
+  externalAuthorName            String?
+  license                       TrackLicense @default(ALL_RIGHTS_RESERVED)
   allowDownload                 Boolean  @default(false)
   allowBackgroundUse            Boolean  @default(false)
   allowBackgroundUseAttribution Boolean  @default(false)
@@ -635,8 +670,8 @@ model GamePageTrack {
   updatedAt                     DateTime @updatedAt
   commentary                    String?
 
-  composer           User                    @relation(fields: [composerId], references: [id], name: "GamePageTrackToComposer")
-  composerId         Int
+  composer           User?                   @relation(fields: [composerId], references: [id], name: "GamePageTrackToComposer")
+  composerId         Int?
   gamePage           GamePage                @relation(fields: [gamePageId], references: [id], name: "TrackToGamePage")
   gamePageId         Int
   tags               TrackTag[]
@@ -699,17 +734,21 @@ model GamePageLeaderboard {
 }
 
 model Score {
-  id        Int      @id @default(autoincrement())
-  data      Int
-  evidence  String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                      Int       @id @default(autoincrement())
+  data                    Int
+  evidence                String
+  placementAlertThreshold Int?
+  placementAlertSentAt    DateTime?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
 
   // Relations
   user          User                @relation(fields: [userId], references: [id], name: "ScoreToUser")
   userId        Int
   leaderboard   GamePageLeaderboard @relation(fields: [leaderboardId], references: [id], name: "ScoreToGamePageLeaderboard")
   leaderboardId Int
+
+  @@index([leaderboardId, placementAlertSentAt])
 }
 
 model GamePageAchievement {
@@ -935,6 +974,7 @@ model UserBlock {
 
 enum NotificationType {
   GENERAL
+  RATING_REMINDER
   GAME_COMMENT
   TRACK_COMMENT
   COMMENT_REPLY
@@ -947,7 +987,6 @@ enum NotificationType {
   LEADERBOARD_TOP_THREE_LOST
   LEADERBOARD_TOP_FIVE_LOST
   STREAM_LIVE
-  RATING_REMINDER
 }
 
 model Notification {
@@ -958,6 +997,7 @@ model Notification {
   body       String?
   link       String?
   data       Json?
+  dedupeKey  String? @unique @map("dedupe_key")
   readAt     DateTime? @map("read_at")
   archivedAt DateTime? @map("archived_at")
   createdAt  DateTime  @default(now())
@@ -993,6 +1033,15 @@ model Notification {
   @@index([gameId])
   @@index([trackId])
   @@index([teamId])
+}
+
+model JamRatingReminderDispatch {
+  jamId       Int      @id @map("jam_id")
+  status      String
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
+  completedAt DateTime? @map("completed_at")
+
+  jam Jam @relation(fields: [jamId], references: [id], onDelete: Cascade)
 }
 
 model ThemeSuggestion {
@@ -1538,6 +1587,7 @@ model ReportNote {
 model NotificationPreference {
   userId       Int      @id @map("user_id")
   mutedTypes   Json     @map("muted_types")
+  enabledTypes Json     @default("[]") @map("enabled_types")
   emailEnabled Boolean  @default(false) @map("email_enabled")
   updatedAt    DateTime @default(now()) @map("updated_at")
 }
@@ -1668,6 +1718,71 @@ model RemoteComment {
   @@unique([tenantId, objectId])
   @@index([tenantId, status, targetKind, targetId], map: "remote_comments_target_id_idx")
   @@index([tenantId, status, targetKind, targetSlug], map: "remote_comments_target_slug_idx")
+}
+
+model OAuthApp {
+  id           String @id
+  ownerId      Int
+  name         String
+  redirectUris String[]
+  disabledAt   DateTime?
+  createdAt    DateTime @default(now())
+  owner        User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  sessions     AuthSession[]
+  codes        OAuthCode[]
+  @@index([ownerId])
+}
+
+model OAuthCode {
+  hash          String @id
+  appId         String
+  userId        Int
+  tenantId      String?
+  redirectUri   String
+  challenge     String
+  sessionId     String?
+  scopes        String[]
+  expiresAt     DateTime
+  consumedAt    DateTime?
+  app           OAuthApp @relation(fields: [appId], references: [id], onDelete: Cascade)
+  @@index([expiresAt])
+}
+
+model AuthSession {
+  id        String    @id
+  userId    Int
+  tenantId  String?
+  appId     String?
+  scopes    String[]
+  createdAt DateTime  @default(now())
+  expiresAt DateTime
+  revokedAt DateTime?
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  app       OAuthApp? @relation(fields: [appId], references: [id], onDelete: Cascade)
+  accessTokens  AccessToken[]
+  refreshTokens RefreshToken[]
+  @@index([userId])
+  @@index([appId])
+  @@index([expiresAt])
+}
+
+model AccessToken {
+  hash      String    @id
+  sessionId String
+  expiresAt DateTime
+  session   AuthSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  @@index([sessionId])
+  @@index([expiresAt])
+}
+
+model RefreshToken {
+  hash       String    @id
+  sessionId  String
+  expiresAt  DateTime
+  consumedAt DateTime?
+  session    AuthSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  @@index([sessionId])
+  @@index([expiresAt])
 }
 
 model GameAccessToken {

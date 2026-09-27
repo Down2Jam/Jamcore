@@ -1,4 +1,4 @@
-import type { GameCategory, LeaderboardType, PageVersion, Prisma } from "@prisma/client";
+import type { GameCategory, LeaderboardType, PageVersion, Prisma, TrackLicense, TrackOrigin } from "@prisma/client";
 
 import type { postJamPageInclude } from "../features/games/page.service.js";
 
@@ -18,6 +18,7 @@ export type GameWithPages<TPage = GamePageRecord> = {
 };
 
 export type GamePageWriteSong = {
+  id?: number;
   name: string;
   slug: string;
   url: string;
@@ -33,8 +34,9 @@ export type GamePageWriteSong = {
   links?: LabeledUrl[];
   credits?: CreditInput[];
   composerId?: number | null;
-  license?: string | null;
-  allowDownload?: boolean;
+  origin?: TrackOrigin;
+  externalAuthorName?: string | null;
+  license?: TrackLicense;
   allowBackgroundUse?: boolean;
   allowBackgroundUseAttribution?: boolean;
 };
@@ -46,6 +48,7 @@ export type GamePageWriteBody = {
   thumbnail?: string | null;
   soundtrackThumbnail?: string | null;
   banner?: string | null;
+  pageBackground?: string | null;
   screenshots?: string[];
   trailerUrl?: string | null;
   itchEmbedUrl?: string | null;
@@ -64,6 +67,7 @@ export type GamePageWriteBody = {
   flags?: number[];
   tags?: number[];
   achievements?: Array<{
+    id?: number;
     name: string;
     description?: string;
     image?: string;

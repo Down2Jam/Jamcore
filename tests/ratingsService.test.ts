@@ -5,6 +5,7 @@ const { dbMock } = vi.hoisted(() => ({
     gamePage: {
       findFirst: vi.fn(),
     },
+    ratingCategory: { findUnique: vi.fn() },
     rating: {
       findUnique: vi.fn(),
       update: vi.fn(async () => ({})),
@@ -44,7 +45,8 @@ describe("ratings service", () => {
   });
 
   it("creates or updates a game rating", async () => {
-    dbMock.gamePage.findFirst.mockResolvedValue({ id: 3 });
+    dbMock.gamePage.findFirst.mockResolvedValue({ id: 3, ratingCategories: [{ id: 5 }] });
+    dbMock.ratingCategory.findUnique.mockResolvedValue({ id: 5, always: false });
     dbMock.rating.findUnique.mockResolvedValue(null);
 
     await saveGameRating({
@@ -88,6 +90,25 @@ describe("ratings service", () => {
         userId: 9,
       }),
     ).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
+  it.each(["composer", "team owner"])("prevents rating as the %s outside the team member list", async (role) => {
+    dbMock.gamePageTrack.findUnique.mockResolvedValue({
+      id: 4,
+      composerId: role === "composer" ? 9 : 3,
+      gamePage: {
+        game: {
+          published: true,
+          team: { ownerId: role === "team owner" ? 9 : 8, users: [{ id: 8 }] },
+        },
+      },
+    });
+    dbMock.trackRatingCategory.findUnique.mockResolvedValue({ id: 2, name: "Overall" });
+
+    await expect(saveTrackRating({ trackId: 4, categoryId: 2, value: 5, userId: 9 }))
+      .rejects.toBeInstanceOf(ForbiddenError);
+    expect(dbMock.trackRating.create).not.toHaveBeenCalled();
+    expect(dbMock.trackRating.update).not.toHaveBeenCalled();
   });
 
   it("creates track timestamp comments for published tracks", async () => {

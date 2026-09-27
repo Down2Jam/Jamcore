@@ -1,3 +1,4 @@
+import { isActiveGameRating } from "../ratings/active.js";
 import { PageVersion } from "@prisma/client";
 
 import type {
@@ -22,7 +23,7 @@ function normalizeRequestUserRating(rating: RequestUserRating) {
 export function presentRequestUser(user: RequestUserRecord): RequestUserContext {
   return {
     ...user,
-    ratings: (user.ratings ?? []).map(normalizeRequestUserRating),
+    ratings: (user.ratings ?? []).filter(isActiveGameRating).map(normalizeRequestUserRating),
   };
 }
 
@@ -31,6 +32,6 @@ export function presentOptionalRequestUser(
 ): OptionalRequestUserContext {
   return {
     ...user,
-    ratings: (user.ratings ?? []).map(normalizeRequestUserRating),
+    ratings: (user.ratings ?? []).filter(isActiveGameRating).map(normalizeRequestUserRating),
   };
 }

@@ -1,4 +1,5 @@
 import db from "../../infra/db.js";
+import { clearGameListingCache } from "../games/listing.service.js";
 import { appConfig } from "../../config/app.js";
 import { filterCoreEntityIdsByTenant } from "../../infra/coreTenantStore.js";
 import { BadRequestError, ConflictError } from "../../lib/errors.js";
@@ -170,6 +171,7 @@ async function assertRecommendationIdsExist(input: {
       ? db.gamePageTrack.findMany({
           where: {
             id: { in: rawTrackIds },
+            origin: "ORIGINAL",
             gamePage: {
               game: {
                 published: true,
@@ -485,6 +487,9 @@ export async function updateUserProfile({
   });
 
   await syncReactionPrefix(targetUser.id, oldPrefix, cleanedPrefix);
+  if (input.recommendedGameIds || input.recommendedHiddenGameIds) {
+    await clearGameListingCache();
+  }
   await syncRoles(
     targetUser.id,
     (targetUser.primaryRoles ?? []).map((role: any) => role.slug),

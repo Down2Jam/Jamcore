@@ -4,7 +4,7 @@ const {
   dbMock,
   envMock,
   hashPasswordMock,
-  signAccessTokenMock,
+  createSessionTokensMock,
   signRefreshTokenMock,
   writeSessionMock,
   loggerInfoMock,
@@ -21,7 +21,7 @@ const {
     tokenSecret: "test-secret" as string | undefined,
   },
   hashPasswordMock: vi.fn(),
-  signAccessTokenMock: vi.fn(),
+  createSessionTokensMock: vi.fn(),
   signRefreshTokenMock: vi.fn(),
   writeSessionMock: vi.fn(),
   loggerInfoMock: vi.fn(),
@@ -43,7 +43,7 @@ vi.mock("../src/infra/password.js", () => ({
 }));
 
 vi.mock("../src/auth/session.js", () => ({
-  signAccessToken: signAccessTokenMock,
+  createSessionTokens: createSessionTokensMock,
   signRefreshToken: signRefreshTokenMock,
   writeSession: writeSessionMock,
 }));
@@ -83,7 +83,7 @@ describe("user account service", () => {
       slug: "test_user",
       name: "Test User",
     });
-    signAccessTokenMock.mockReturnValue("access-token");
+    createSessionTokensMock.mockResolvedValue({ accessToken: "access-token", refreshToken: "refresh-token", expiresAt: undefined });
     signRefreshTokenMock.mockReturnValue("refresh-token");
 
     const result = await createUserAccount({
@@ -106,6 +106,7 @@ describe("user account service", () => {
       {},
       "refresh-token",
       "access-token",
+      undefined,
     );
     expect(result).toEqual({
       user: {

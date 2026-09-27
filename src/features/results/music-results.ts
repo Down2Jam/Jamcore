@@ -1,3 +1,4 @@
+import { activeRatingSelect, activeRatingPageSelect, isActiveGameRating } from "../ratings/active.js";
 import { GameCategory, PageVersion } from "@prisma/client";
 
 import db from "../../infra/db.js";
@@ -73,6 +74,7 @@ export async function loadMusicResults({
       : undefined;
   const tracks = await db.gamePageTrack.findMany({
     where: {
+      origin: "ORIGINAL",
       gamePage: {
         version: {
           in: [PageVersion.JAM, PageVersion.POST_JAM],
@@ -90,6 +92,7 @@ export async function loadMusicResults({
         include: {
           game: {
             include: {
+              jam: { select: { musicRankingRuleVersion: true } },
               team: {
                 select: {
                   users: {
@@ -118,14 +121,17 @@ export async function loadMusicResults({
               },
               ratings: {
                 select: {
+                  ...activeRatingSelect,
                   value: true,
                   category: {
                     select: {
+                      always: true,
                       name: true,
                     },
                   },
                   gamePage: {
                     select: {
+                      ...activeRatingPageSelect,
                       version: true,
                     },
                   },
@@ -197,7 +203,7 @@ export async function loadMusicResults({
       const gameMusicRatings =
         (track.gamePage.game.ratings as any[] | undefined)?.filter(
           (rating: any) =>
-            scoreVersions.includes(rating.gamePage?.version ?? PageVersion.JAM) &&
+            isActiveGameRating(rating) && scoreVersions.includes(rating.gamePage?.version ?? PageVersion.JAM) &&
             rating.category?.name === GAME_AUDIO_CATEGORY_NAME &&
             rating.user.teams.some((team: any) => {
               const candidateGame = team.game;
@@ -322,7 +328,9 @@ export async function loadMusicResults({
       return (
         !isNonCompetitiveGameCategory(track.game.category) &&
         overall &&
-        overall.rankedRatingCount >= 5
+        (track.game.jam?.musicRankingRuleVersion >= 2
+          ? overall.actualRankedRatingCount >= RESULT_RATING_TARGET
+          : overall.rankedRatingCount >= RESULT_RATING_TARGET)
       );
     })
     .filter((track) => track.ratingsCount >= 4.99);

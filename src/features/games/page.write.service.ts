@@ -1,8 +1,9 @@
 import type { Prisma } from "@prisma/client";
-import { PageVersion } from "@prisma/client";
+import { PageVersion, TrackLicense, TrackOrigin } from "@prisma/client";
 
 import db from "../../infra/db.js";
 import { BadRequestError } from "../../lib/errors.js";
+import { assertChildIds, reconcileMetadata } from "../../lib/reconcileChildren.js";
 import type { GamePageWriteBody } from "../../types/game.js";
 import { buildTrackWriteData } from "../tracks/write.js";
 import { buildGamePagePayload } from "./page.helpers.js";
@@ -18,25 +19,25 @@ type AchievementInput = NonNullable<GamePageWriteBody["achievements"]>[number];
 type LeaderboardInput = NonNullable<GamePageWriteBody["leaderboards"]>[number];
 type SongInput = NonNullable<GamePageWriteBody["songs"]>[number];
 type TrackWriteData = ReturnType<typeof buildTrackWriteData>;
-type TrackWriteDataWithComposer = Omit<TrackWriteData, "composerId"> & {
-  composerId: number;
-};
 type GamePageTrackCreateData = Prisma.GamePageTrackCreateWithoutGamePageInput;
 
-function requireComposerId(song: SongInput): TrackWriteDataWithComposer {
+function validateTrackAttribution(song: SongInput): TrackWriteData {
   const trackData = buildTrackWriteData(song);
-  if (trackData.composerId == null) {
+  if (trackData.origin === TrackOrigin.ORIGINAL && trackData.composerId == null) {
     throw new BadRequestError("Track composer is required.");
   }
+  if (
+    trackData.origin === TrackOrigin.ASSET_PACK &&
+    (!trackData.externalAuthorName || trackData.license === TrackLicense.ALL_RIGHTS_RESERVED)
+  ) {
+    throw new BadRequestError("Asset-pack tracks require an author and reusable license.");
+  }
 
-  return {
-    ...trackData,
-    composerId: trackData.composerId,
-  };
+  return trackData;
 }
 
 function buildTrackCreateData(song: SongInput, sortOrder: number): GamePageTrackCreateData {
-  const trackData = requireComposerId(song);
+  const trackData = validateTrackAttribution(song);
 
   return {
     sortOrder,
@@ -50,15 +51,15 @@ function buildTrackCreateData(song: SongInput, sortOrder: number): GamePageTrack
     truePeakDb: trackData.truePeakDb,
     loudnessGainDb: trackData.loudnessGainDb,
     softwareUsed: trackData.softwareUsed,
+    origin: trackData.origin,
+    externalAuthorName: trackData.externalAuthorName,
     license: trackData.license,
     allowDownload: trackData.allowDownload,
     allowBackgroundUse: trackData.allowBackgroundUse,
     allowBackgroundUseAttribution: trackData.allowBackgroundUseAttribution,
-    composer: {
-      connect: {
-        id: trackData.composerId,
-      },
-    },
+    ...(trackData.composerId
+      ? { composer: { connect: { id: trackData.composerId } } }
+      : {}),
     tags: {
       connect: trackData.tagIds.map((id) => ({ id })),
     },
@@ -78,6 +79,7 @@ async function syncGamePageTracks(
   pageId: number,
   songs: GamePageWriteBody["songs"],
 ) {
+  if (songs === undefined) return;
   const existingTracks = await db.gamePageTrack.findMany({
     where: { gamePageId: pageId },
     select: {
@@ -87,40 +89,40 @@ async function syncGamePageTracks(
       integratedLufs: true,
       truePeakDb: true,
       loudnessGainDb: true,
+      links: true,
+      credits: true,
       ratings: { select: { id: true } },
       timestampComments: { select: { id: true } },
     },
   });
 
+  assertChildIds(existingTracks, songs, "track");
+
   const existingTrackBySlug = new Map(
     existingTracks.map((track) => [track.slug, track]),
   );
-  const incomingSlugs = new Set<string>();
+  const retainedTrackIds = new Set<number>();
 
   for (const [sortOrder, song] of (songs ?? []).entries()) {
-    const trackData = requireComposerId(song);
+    const trackData = validateTrackAttribution(song);
     const slug = String(trackData.slug ?? "").trim();
     if (!slug) continue;
-    incomingSlugs.add(slug);
+    const existingTrack = song.id ? existingTracks.find(track => track.id === song.id) : existingTrackBySlug.get(slug);
+    if (existingTrack) retainedTrackIds.add(existingTrack.id);
 
     const relationData = {
-      tags: {
+      tags: song.tagIds === undefined ? undefined : {
         set: trackData.tagIds.map((id) => ({ id })),
       },
-      flags: {
+      flags: song.flagIds === undefined ? undefined : {
         set: trackData.flagIds.map((id) => ({ id })),
       },
-      links: {
-        deleteMany: {},
-        create: trackData.links,
-      },
-      credits: {
-        deleteMany: {},
-        create: trackData.credits,
-      },
+      ...(song.links !== undefined ? { links: reconcileMetadata(existingTrack?.links ?? [], trackData.links, link => link.url) } : {}),
+      ...(song.credits !== undefined || trackData.origin === TrackOrigin.ASSET_PACK
+        ? { credits: reconcileMetadata(existingTrack?.credits ?? [], trackData.credits, credit => String(credit.userId)) }
+        : {}),
     };
 
-    const existingTrack = existingTrackBySlug.get(slug);
     if (existingTrack) {
       const preservesExistingAudio = existingTrack.url === trackData.url;
       await db.gamePageTrack.update({
@@ -143,12 +145,14 @@ async function syncGamePageTracks(
             trackData.loudnessGainDb ??
             (preservesExistingAudio ? existingTrack.loudnessGainDb : null),
           softwareUsed: trackData.softwareUsed,
+          origin: trackData.origin,
+          externalAuthorName: trackData.externalAuthorName,
           license: trackData.license,
           allowDownload: trackData.allowDownload,
           allowBackgroundUse: trackData.allowBackgroundUse,
           allowBackgroundUseAttribution:
             trackData.allowBackgroundUseAttribution,
-          composerId: trackData.composerId ?? undefined,
+          composerId: trackData.composerId,
           ...relationData,
         },
       });
@@ -169,12 +173,14 @@ async function syncGamePageTracks(
         truePeakDb: trackData.truePeakDb,
         loudnessGainDb: trackData.loudnessGainDb,
         softwareUsed: trackData.softwareUsed,
+        origin: trackData.origin,
+        externalAuthorName: trackData.externalAuthorName,
         license: trackData.license,
         allowDownload: trackData.allowDownload,
         allowBackgroundUse: trackData.allowBackgroundUse,
         allowBackgroundUseAttribution:
           trackData.allowBackgroundUseAttribution,
-        composerId: trackData.composerId ?? undefined,
+        composerId: trackData.composerId,
         tags: {
           connect: trackData.tagIds.map((id) => ({ id })),
         },
@@ -192,7 +198,7 @@ async function syncGamePageTracks(
   }
 
   for (const existingTrack of existingTracks) {
-    if (incomingSlugs.has(existingTrack.slug)) continue;
+    if (retainedTrackIds.has(existingTrack.id)) continue;
     if (
       existingTrack.ratings.length > 0 ||
       existingTrack.timestampComments.length > 0
@@ -210,6 +216,7 @@ async function syncGamePageLeaderboards(
   pageId: number,
   leaderboards: LeaderboardInput[] | undefined,
 ) {
+  if (leaderboards === undefined) return;
   const existingLeaderboards = await db.gamePageLeaderboard.findMany({
     where: { gamePageId: pageId },
     include: {
@@ -220,6 +227,7 @@ async function syncGamePageLeaderboards(
       },
     },
   });
+  assertChildIds(existingLeaderboards, leaderboards, "leaderboard");
 
   for (const [sortOrder, leaderboard] of (leaderboards ?? []).entries()) {
     const existingLeaderboard = existingLeaderboards.find(
@@ -288,11 +296,17 @@ export async function upsertGamePage(
     select: {
       id: true,
       playableBuildId: true,
+      pageBackground: true,
       playableBuildShowFullscreenButton: true,
+      achievements: true,
+      downloadLinks: true,
     },
   });
 
   const pagePayload = buildGamePagePayload(body);
+  if (existingPage && body.pageBackground === undefined) {
+    pagePayload.pageBackground = existingPage.pageBackground;
+  }
   if (
     existingPage &&
     body.playableBuildShowFullscreenButton === undefined
@@ -316,53 +330,59 @@ export async function upsertGamePage(
     ...pagePayload,
   };
 
+  const syncRatingCategories = async (tx: Prisma.TransactionClient) => {
+    if (version === PageVersion.JAM && (body.ratingCategories !== undefined || body.majRatingCategories !== undefined)) {
+      await tx.game.update({
+        where: { id: gameId },
+        data: {
+          ratingCategories: body.ratingCategories === undefined ? undefined : { set: relationData.ratingCategories },
+          majRatingCategories: body.majRatingCategories === undefined ? undefined : { set: relationData.majRatingCategories },
+        },
+      });
+    }
+  };
+
   if (existingPage) {
+    if (body.achievements !== undefined) assertChildIds(existingPage.achievements, body.achievements, "achievement");
     const updateData: Prisma.GamePageUpdateInput = {
       ...sharedData,
-      ratingCategories: {
+      ratingCategories: body.ratingCategories === undefined ? undefined : {
         set: [],
         connect: relationData.ratingCategories,
       },
-      majRatingCategories: {
+      majRatingCategories: body.majRatingCategories === undefined ? undefined : {
         set: [],
         connect: relationData.majRatingCategories,
       },
-      flags: {
+      flags: body.flags === undefined ? undefined : {
         set: [],
         connect: relationData.flags,
       },
-      tags: {
+      tags: body.tags === undefined ? undefined : {
         set: [],
         connect: relationData.tags,
       },
-      downloadLinks: {
-        deleteMany: {},
-        create: (body.downloadLinks ?? []).map((link: DownloadLinkInput) => ({
-          url: link.url,
-          platform: link.platform,
-        })),
-      },
-      achievements: {
-        deleteMany: {},
-        create: (body.achievements ?? []).map((achievement: AchievementInput) => ({
-          name: achievement.name,
-          description: achievement.description || "",
-          image: achievement.image || "",
-        })),
-      },
+      ...(body.downloadLinks !== undefined ? { downloadLinks: reconcileMetadata(existingPage.downloadLinks, body.downloadLinks.map(link => ({ url: link.url, platform: link.platform })), link => link.platform) } : {}),
+      ...(body.achievements !== undefined ? { achievements: {
+        deleteMany: { id: { in: existingPage.achievements.filter(item => !body.achievements!.some(incoming => incoming.id === item.id)).map(item => item.id) } },
+        update: body.achievements.filter(item => item.id != null && item.id > 0).map(item => ({ where: { id: item.id! }, data: { name: item.name, description: item.description ?? "", image: item.image ?? "" } })),
+        create: body.achievements.filter(item => item.id == null || item.id <= 0).map(item => ({ name: item.name, description: item.description ?? "", image: item.image ?? "" })),
+      } } : {}),
       ...(!nextPlayableBuildId
         ? { playableBuild: { disconnect: true } }
         : {}),
     };
 
-    await db.gamePage.update({
-      where: { id: existingPage.id },
-      data: updateData,
-      include: postJamPageInclude,
+    await db.$transaction(async (tx) => {
+      await tx.gamePage.update({
+        where: { id: existingPage.id },
+        data: updateData,
+      });
+      await syncRatingCategories(tx);
     });
 
     await syncGamePageLeaderboards(existingPage.id, body.leaderboards);
-    await syncGamePageTracks(existingPage.id, body.songs ?? []);
+    await syncGamePageTracks(existingPage.id, body.songs);
     if (nextPlayableBuildId) {
       await attachWebBuildToPage(existingPage.id, body.playableBuildUrl);
     }
@@ -413,16 +433,20 @@ export async function upsertGamePage(
     },
   };
 
-  const createdPage = await db.gamePage.create({
-    data: createData,
-    include: postJamPageInclude,
+  const createdPage = await db.$transaction(async (tx) => {
+    const page = await tx.gamePage.create({
+      data: createData,
+      include: postJamPageInclude,
+    });
+    await syncRatingCategories(tx);
+    return page;
   });
 
   if (nextPlayableBuildId) {
     await attachWebBuildToPage(createdPage.id, body.playableBuildUrl);
   }
 
-  await syncGamePageLeaderboards(createdPage.id, body.leaderboards);
+  await syncGamePageLeaderboards(createdPage.id, body.leaderboards?.map(({ id: _id, ...leaderboard }) => leaderboard));
 
   return db.gamePage.findUnique({
     where: { id: createdPage.id },

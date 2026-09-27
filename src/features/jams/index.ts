@@ -2,6 +2,7 @@ export {
   clearJamServiceCaches,
   checkJamParticipation,
   getCurrentActiveJam,
+  getCurrentActiveJamMetadata,
   getRandomJam,
   hasUserJoinedJam,
   joinJam,

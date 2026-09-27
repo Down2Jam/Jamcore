@@ -1,6 +1,7 @@
 ﻿import { z } from "zod";
 
 import db from "../../infra/db.js";
+import { reconcileMetadata } from "../../lib/reconcileChildren.js";
 import {
   ForbiddenError,
   NotFoundError,
@@ -8,6 +9,7 @@ import {
 import { publishTrackUpdated } from "../federation/index.js";
 import { parseTrackPageVersion } from "./page.js";
 import { buildTrackWriteData } from "./write.js";
+import { trackLicenseSchema } from "./licenses.js";
 
 export const updateTrackSchema = z.object({
   name: z.string().trim().min(1).optional(),
@@ -37,7 +39,7 @@ export const updateTrackSchema = z.object({
   allowDownload: z.boolean().optional(),
   allowBackgroundUse: z.boolean().optional(),
   allowBackgroundUseAttribution: z.boolean().optional(),
-  license: z.string().optional().nullable(),
+  license: trackLicenseSchema.optional(),
 });
 
 type TrackActor = {
@@ -65,6 +67,8 @@ export async function updateTrackBySlug({
       },
     },
     include: {
+      links: true,
+      credits: true,
       gamePage: {
         include: {
           game: {
@@ -84,6 +88,9 @@ export async function updateTrackBySlug({
   });
 
   if (!track) {
+    throw new NotFoundError("Track not found");
+  }
+  if (track.origin === "ASSET_PACK") {
     throw new NotFoundError("Track not found");
   }
 
@@ -107,10 +114,13 @@ export async function updateTrackBySlug({
     links: input.links,
     credits: input.credits,
     composerId: input.composerId,
-    allowDownload: input.allowDownload,
-    allowBackgroundUse: input.allowBackgroundUse,
-    allowBackgroundUseAttribution: input.allowBackgroundUseAttribution,
-    license: input.license,
+    origin: track.origin,
+    externalAuthorName: track.externalAuthorName,
+    allowDownload: input.allowDownload ?? track.allowDownload,
+    allowBackgroundUse: input.allowBackgroundUse ?? track.allowBackgroundUse,
+    allowBackgroundUseAttribution:
+      input.allowBackgroundUseAttribution ?? track.allowBackgroundUseAttribution,
+    license: input.license ?? track.license,
   });
 
   const updated = await db.gamePageTrack.update({
@@ -133,7 +143,9 @@ export async function updateTrackBySlug({
       ...(Array.isArray(input.softwareUsed)
         ? { softwareUsed: trackData.softwareUsed }
         : {}),
-      ...(typeof input.allowDownload === "boolean"
+      ...(typeof input.allowDownload === "boolean" ||
+        typeof input.allowBackgroundUse === "boolean" ||
+        input.license !== undefined
         ? { allowDownload: trackData.allowDownload }
         : {}),
       ...(typeof input.allowBackgroundUse === "boolean"
@@ -152,7 +164,7 @@ export async function updateTrackBySlug({
                 trackData.allowBackgroundUseAttribution,
             }
           : {}),
-      ...(typeof input.license === "string" ? { license: trackData.license } : {}),
+      ...(input.license !== undefined ? { license: trackData.license } : {}),
       ...(trackData.composerId ? { composerId: trackData.composerId } : {}),
       ...(Array.isArray(input.tagIds)
         ? {
@@ -170,18 +182,12 @@ export async function updateTrackBySlug({
         : {}),
       ...(Array.isArray(input.links)
         ? {
-            links: {
-              deleteMany: {},
-              create: trackData.links,
-            },
+            links: reconcileMetadata(track.links, trackData.links, link => link.url),
           }
         : {}),
       ...(Array.isArray(input.credits)
         ? {
-            credits: {
-              deleteMany: {},
-              create: trackData.credits,
-            },
+            credits: reconcileMetadata(track.credits, trackData.credits, credit => String(credit.userId)),
           }
         : {}),
     },
