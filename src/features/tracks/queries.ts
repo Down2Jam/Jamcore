@@ -102,6 +102,7 @@ export async function loadTrackListingRecords({
                       },
                       trackRatings: {
                         select: {
+                          rankedValue: true,
                           trackId: true,
                           track: {
                             select: {
@@ -443,6 +444,7 @@ export async function loadTrackScoreRecords({
                     select: {
                       trackRatings: {
                         select: {
+                          rankedValue: true,
                           track: {
                             select: {
                               gamePage: {

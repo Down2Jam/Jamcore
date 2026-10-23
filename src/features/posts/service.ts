@@ -1,4 +1,5 @@
 import { commentTreeInclude, loadCommentDescendants } from "../comments/load-tree.js";
+import { calculatePostActiveScore, loadPostCommentActivity } from "./active-ranking.js";
 import { loadLinkedGames, validatePostGames } from "./linked-games.service.js";
 import { randomBytes, randomUUID } from "node:crypto";
 
@@ -187,7 +188,7 @@ export const getPostQuerySchema = z
   });
 
 export const listPostsQuerySchema = z.object({
-  sort: z.enum(["oldest", "newest", "hot", "top"]).optional().default("newest"),
+  sort: z.enum(["oldest", "newest", "hot", "active", "top"]).optional().default("newest"),
   time: z.enum(POST_TIME_VALUES).optional().default("all"),
   user: z.string().trim().min(1).optional(),
   tags: z.string().optional(),
@@ -1629,7 +1630,7 @@ export async function listPosts(
 
   const where = {
     ...buildTimeWhere(input.sort === "hot" ? "day" : input.time),
-    ...(feedCursor && input.sort !== "hot"
+    ...(feedCursor && input.sort !== "hot" && input.sort !== "active"
       ? {
           createdAt:
             input.sort === "oldest"
@@ -1649,16 +1650,21 @@ export async function listPosts(
     ...(viewer.privilegedViewer ? {} : { deletedAt: null, removedAt: null }),
   };
 
-  if (input.sort === "hot") {
-    const cursorMatch = input.cursor?.match(/^hot:(\d+)$/);
-    const offset = cursorMatch ? Number.parseInt(cursorMatch[1], 10) : 0;
-    const now = new Date();
+  if (input.sort === "hot" || input.sort === "active") {
+    const active = input.sort === "active";
+    const cursorMatch = input.cursor?.match(active ? /^active:(\d+):(\d+)$/ : /^hot:(\d+)$/);
+    const offset = cursorMatch ? Number(cursorMatch[active ? 2 : 1]) : 0;
+    const now = active && cursorMatch ? new Date(Number(cursorMatch[1])) : new Date();
+    if (active && ((input.cursor && !cursorMatch) || !Number.isSafeInteger(offset) || !Number.isFinite(now.getTime()) || now.getTime() > Date.now())) {
+      throw new BadRequestError("Invalid active posts cursor.");
+    }
     const candidates = await db.post.findMany({
-      where,
+      where: active ? { ...where, AND: [{ createdAt: { lte: now } }] } : where,
       select: {
         id: true,
+        authorId: true,
         createdAt: true,
-        _count: { select: { likes: true } },
+        _count: { select: { likes: active ? { where: { createdAt: { lte: now } } } : true } },
       },
     });
     const allowedIds = new Set(
@@ -1671,12 +1677,14 @@ export async function listPosts(
     const publicIds = new Set(
       await filterPublishedPostIds(candidates.map((post) => post.id)),
     );
-    const rankedCandidates = candidates
-      .filter((post) => allowedIds.has(post.id) && publicIds.has(post.id))
+    const visibleCandidates = candidates.filter((post) => allowedIds.has(post.id) && publicIds.has(post.id));
+    const commentActivity = active ? await loadPostCommentActivity(visibleCandidates.map(post => post.id), now) : new Map();
+    const ranks = new Map(visibleCandidates.map(post => [post.id, active
+      ? calculatePostActiveScore(post._count.likes, post.createdAt, post.authorId, commentActivity.get(post.id) ?? [], now)
+      : calculatePostHotScore(post._count.likes, post.createdAt, now)]));
+    const rankedCandidates = visibleCandidates
       .sort((first, second) => {
-        const scoreDifference =
-          calculatePostHotScore(second._count.likes, second.createdAt, now) -
-          calculatePostHotScore(first._count.likes, first.createdAt, now);
+        const scoreDifference = ranks.get(second.id)! - ranks.get(first.id)!;
         if (scoreDifference !== 0) return scoreDifference;
         const timeDifference = second.createdAt.getTime() - first.createdAt.getTime();
         return timeDifference !== 0 ? timeDifference : second.id - first.id;
@@ -1702,7 +1710,7 @@ export async function listPosts(
       items,
       pageInfo: {
         hasMore,
-        nextCursor: hasMore ? `hot:${offset + limit}` : null,
+        nextCursor: hasMore ? active ? `active:${now.getTime()}:${offset + limit}` : `hot:${offset + limit}` : null,
         limit,
       },
     };

@@ -1,4 +1,4 @@
-﻿import multer from "multer";
+import multer from "multer";
 import path from "path";
 import { v4 as uuidv4 } from "uuid";
 import { fileURLToPath } from "url";
@@ -9,7 +9,7 @@ import sharp from "sharp";
 import { IsUsingS3, UploadS3File } from "../../infra/s3.js";
 import { appConfig } from "../../config/app.js";
 import logger from "../../infra/logger.js";
-import { analyzeAudioLoudness } from "./audio-loudness.js";
+import { enqueueAudioAnalysis } from "./audio-analysis.runtime.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -238,14 +238,6 @@ export async function UploadFile(req: any, res: any) {
   const processed = cropRect
     ? await applyImageCrop(file.buffer, file.mimetype, cropRect)
     : { buffer: file.buffer, mimeType: file.mimetype };
-  const loudness = musicMimeToExt[file.mimetype]
-    ? await analyzeAudioLoudness(file.buffer).catch((error) => {
-        logger.warn("Audio loudness analysis failed", {
-          error: error instanceof Error ? error.message : String(error),
-        });
-        return null;
-      })
-    : null;
   const uploadTarget = resolveUploadTarget(processed.mimeType);
 
   if (!uploadTarget) {
@@ -270,10 +262,10 @@ export async function UploadFile(req: any, res: any) {
       processed.mimeType
     );
     if (success) {
+      if (musicMimeToExt[file.mimetype]) await enqueueAudioAnalysis(uploadPath);
       return res.json({
         message: "File uploaded",
         data: uploadPath,
-        ...(loudness ? { loudness } : {}),
       });
     } else {
       return res.status(500).json({ message: "S3 upload failed" });
@@ -286,11 +278,11 @@ export async function UploadFile(req: any, res: any) {
     }
     const localPath = path.join(localDir, fileName);
     fs.writeFileSync(localPath, processed.buffer, { mode: 0o600 });
+    if (musicMimeToExt[file.mimetype]) await enqueueAudioAnalysis(uploadPath);
 
     return res.json({
       message: "File uploaded",
       data: uploadPath,
-      ...(loudness ? { loudness } : {}),
     });
   }
 }

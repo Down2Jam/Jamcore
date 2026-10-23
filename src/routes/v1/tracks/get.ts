@@ -11,8 +11,23 @@ import {
   trackParamsSchema,
 } from "@features/tracks";
 import { parseParams, parseQuery } from "../../../lib/request.js";
+import { getTrackDownloadDetails } from "../../../features/tracks/download-details.js";
+import { parseTrackPageVersion } from "../../../features/tracks/page.js";
 
 const router = express.Router();
+router.get("/:trackSlug/download-details", asyncHandler(async (req, res) => {
+  const { trackSlug } = parseParams(req, trackParamsSchema);
+  const query = parseQuery(req, trackDetailQuerySchema);
+  res.setHeader("Cache-Control", "no-store");
+  res.json({ data: await getTrackDownloadDetails(trackSlug, parseTrackPageVersion(query.pageVersion), res.locals.tenantId) });
+}));
+router.get("/audio-analysis", asyncHandler(async (req, res) => {
+  const source = typeof req.query.source === "string" ? req.query.source : "";
+  const { readAudioAnalysis } = await import("../../../features/uploads/audio-analysis.runtime.js");
+  const data = source.length <= 2048 ? await readAudioAnalysis(source, res.locals.tenantId) : null;
+  res.setHeader("Cache-Control", data ? "private, max-age=3600" : "no-store");
+  res.json({ data });
+}));
 router.get(
   "/random",
   asyncHandler(async (_req, res) => {

@@ -13,7 +13,27 @@ datasource db {
   provider = "postgresql"
 }
 
+model TrackAudioAnalysis {
+  sourceKey String @id
+  version Int @default(1)
+  status String @default("pending")
+  attempts Int @default(0)
+  retryAt DateTime @default(now())
+  lockedAt DateTime?
+  duration Float?
+  waveform Json?
+  rhythm Json?
+  integratedLufs Float?
+  truePeakDb Float?
+  loudnessGainDb Float?
+  error String?
+  updatedAt DateTime @updatedAt
+
+  @@index([status, retryAt])
+}
+
 model User {
+  musicListens MusicListen[]
   id                Int      @id @default(autoincrement())
   slug              String   @unique
   name              String
@@ -338,6 +358,7 @@ model Comment {
   gamePageId       Int?
   track            GamePageTrack?    @relation(fields: [trackId], references: [id], name: "CommentToTrack")
   trackId          Int?
+  trackPageVersion PageVersion?
   author           User              @relation(fields: [authorId], references: [id])
   authorId         Int
   likes            Like[]            @relation(name: "LikeToComment")
@@ -345,6 +366,7 @@ model Comment {
   reports          Report[]          @relation(name: "ReportToComment")
   children         Comment[]         @relation(name: "CommentToComments")
   notifications    Notification[]    @relation(name: "NotificationToComment")
+  @@index([createdAt])
 }
 
 model Jam {
@@ -422,6 +444,7 @@ enum GameCategory {
 }
 
 model Game {
+  privateViews ContentView[]
   id                  Int              @id @default(autoincrement())
   slug                String           @unique
   category            GameCategory
@@ -620,6 +643,8 @@ model Rating {
 }
 
 model TrackRating {
+  rankedValue Int?
+  rankedUpdatedAt DateTime?
   id        Int      @id @default(autoincrement())
   value     Int
   createdAt DateTime @default(now())
@@ -649,6 +674,8 @@ model TrackTimestampComment {
 }
 
 model GamePageTrack {
+  privateViews ContentView[]
+  listens MusicListen[]
   sortOrder                     Int      @default(0)
   id                            Int      @id @default(autoincrement())
   slug                          String
@@ -1821,3 +1848,33 @@ model DeviceAuthRequest {
 
   @@index([gameId])
 }
+
+model MusicListen {
+  eventId String
+  userId Int
+  tenantKey String @default("")
+  trackId Int
+  playedAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  track GamePageTrack @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  @@id([userId, tenantKey, eventId])
+  @@index([userId, tenantKey, playedAt])
+}
+
+// Private analytics only. Never include this relation in public serializers.
+model ContentView {
+  tenantKey String @default("")
+  targetKey String
+  day DateTime @db.Date
+  identityHash String
+  gameId Int
+  trackId Int?
+  counted Boolean @default(false)
+  createdAt DateTime @default(now())
+  game Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  track GamePageTrack? @relation(fields: [trackId], references: [id], onDelete: Cascade)
+
+  @@id([tenantKey, targetKey, day, identityHash])
+  @@index([tenantKey, gameId, trackId, day, counted])
+}
+

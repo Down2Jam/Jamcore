@@ -11,6 +11,24 @@ npm run dev
 
 By default the API runs on `http://localhost:3005`.
 
+### Audio analysis
+
+Waveforms and Automix use stored audio analysis. Install FFmpeg on `PATH` and run
+with `RUNTIME_ROLE=all` or a separate `RUNTIME_ROLE=worker` process to process uploads.
+An API-only process (`RUNTIME_ROLE=api`) does not process analysis jobs.
+
+To backfill existing tracks without starting other workers:
+
+```bash
+npm run music:analyze
+```
+
+For an API-only development setup, keep the audio worker running separately:
+
+```bash
+npm run music:analyze -- --watch
+```
+
 Create a `.env` file with database and auth settings:
 
 ```env

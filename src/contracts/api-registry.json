@@ -886,6 +886,47 @@
       }
     },
     {
+      "sdkName": "getTrackDownloadDetails",
+      "method": "GET",
+      "path": "/tracks/{trackSlug}/download-details",
+      "tag": "Music",
+      "summary": "Return track and album download metadata without comments or ranking data",
+      "pathParams": [
+        "trackSlug"
+      ],
+      "parameters": [
+        {
+          "name": "trackSlug",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "pageVersion",
+          "in": "query",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "JAM",
+              "POST_JAM"
+            ]
+          }
+        }
+      ],
+      "auth": {
+        "required": false,
+        "kind": "none",
+        "label": "Public"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
       "sdkName": "getTrack",
       "method": "GET",
       "path": "/tracks/{trackSlug}",
@@ -1151,7 +1192,14 @@
           "name": "sort",
           "in": "query",
           "schema": {
-            "type": "string"
+            "type": "string",
+            "enum": [
+              "newest",
+              "oldest",
+              "hot",
+              "active",
+              "top"
+            ]
           }
         },
         {
@@ -3467,13 +3515,17 @@
           "name": "userSlug",
           "in": "path",
           "required": true,
-          "schema": { "type": "string" }
+          "schema": {
+            "type": "string"
+          }
         },
         {
           "name": "jamId",
           "in": "query",
           "required": true,
-          "schema": { "type": "integer" }
+          "schema": {
+            "type": "integer"
+          }
         }
       ],
       "auth": {
@@ -3483,7 +3535,10 @@
         "label": "Public recap; uses login if present"
       },
       "visibility": "public",
-      "rateLimit": { "documented": true, "headers": true }
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
     },
     {
       "sdkName": "createUser",
@@ -6985,7 +7040,7 @@
       "method": "GET",
       "path": "/self/achievements",
       "tag": "Games",
-      "summary": "List the player’s owned achievements",
+      "summary": "List the player\u2019s owned achievements",
       "requestBody": false,
       "auth": {
         "kind": "user",
@@ -7031,7 +7086,7 @@
       "method": "GET",
       "path": "/self/scores",
       "tag": "Games",
-      "summary": "List the player’s scores on a leaderboard",
+      "summary": "List the player\u2019s scores on a leaderboard",
       "requestBody": false,
       "auth": {
         "kind": "user",
@@ -7080,6 +7135,98 @@
           }
         }
       ]
+    },
+    {
+      "sdkName": "getTrackAudioAnalysis",
+      "method": "GET",
+      "path": "/tracks/audio-analysis",
+      "tag": "Music",
+      "summary": "Read cached audio analysis for a published track",
+      "auth": {
+        "required": false,
+        "optional": true,
+        "kind": "user",
+        "label": "Uses login if present"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "parameters": [
+        {
+          "name": "source",
+          "in": "query",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "maxLength": 2048
+          }
+        }
+      ]
+    },
+    {
+      "sdkName": "getMusicHistory",
+      "method": "GET",
+      "path": "/music-history",
+      "tag": "Music",
+      "summary": "Read the current user listening history",
+      "auth": {
+        "required": true,
+        "kind": "user",
+        "label": "Requires login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      }
+    },
+    {
+      "sdkName": "recordMusicListen",
+      "method": "POST",
+      "path": "/music-history",
+      "tag": "Music",
+      "summary": "Record a track playback in the current user listening history",
+      "requestBody": true,
+      "auth": {
+        "required": true,
+        "optional": false,
+        "kind": "user",
+        "label": "Requires user login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
+    },
+    {
+      "sdkName": "recordContentView",
+      "method": "POST",
+      "path": "/content-views",
+      "tag": "Music",
+      "summary": "Record a private deduplicated game or music view without returning statistics",
+      "requestBody": true,
+      "auth": {
+        "required": false,
+        "optional": true,
+        "kind": "user",
+        "label": "Optional login"
+      },
+      "visibility": "public",
+      "rateLimit": {
+        "documented": true,
+        "headers": true
+      },
+      "idempotency": {
+        "supported": true,
+        "header": "Idempotency-Key"
+      }
     }
   ]
 }

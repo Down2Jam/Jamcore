@@ -1,6 +1,8 @@
 {
   "name": "Obsidian",
-  "authors": ["Ategon"],
+  "authors": [
+    "Ategon"
+  ],
   "description": "",
   "version": "0.1.0",
   "keywords": [],
@@ -9,12 +11,9 @@
   "extends": "Base",
   "colors": {
     "text": "#ffffff",
-    "textFaded": "#9aaab4",
-
     "base": "#2d3337",
     "mantle": "#12161a",
     "crust": "#111519",
-
     "red": "#f05a50",
     "orange": "#f2a044",
     "yellow": "#f1e44f",
@@ -28,6 +27,7 @@
     "purple": "#a957e9",
     "magenta": "#dc3eaa",
     "pink": "#e43d89",
-    "gray": "#91a0aa"
+    "gray": "#91a0aa",
+    "textFaded": "#9aaab4"
   }
 }

@@ -1,3 +1,5 @@
+import { buildJamTimeline } from "../../domain/jamTimeline.js";
+import { clearTrackListingCache } from "../tracks/listing.service.js";
 import { activeRatingPageSelect } from "./active.js";
 import { clearGameListingCache } from "../games/listing.service.js";
 import { clearGameDetailCache } from "../games/detail.service.js";
@@ -24,7 +26,7 @@ export const createGameRatingSchema = z.object({
 export const createTrackRatingSchema = z.object({
   trackId: z.coerce.number().int().positive(),
   categoryId: z.coerce.number().int().positive(),
-  value: z.coerce.number().int(),
+  value: z.coerce.number().int().min(1).max(10),
 });
 
 export const createTrackTimestampCommentSchema = z.object({
@@ -142,6 +144,7 @@ export async function saveTrackRating({
         include: {
           game: {
             include: {
+              jam: true,
               team: {
                 include: {
                   users: {
@@ -184,29 +187,22 @@ export async function saveTrackRating({
     throw new ForbiddenError("You can't rate your own track.");
   }
 
-  const existing = await db.trackRating.findFirst({
-    where: {
-      trackId: track.id,
-      userId,
-      categoryId: category.id,
-    },
-  });
+  const now = new Date();
+  const timeline = buildJamTimeline(track.gamePage.game.jam);
+  const isPostJam = track.gamePage.version === PageVersion.POST_JAM;
+  const startsAt = isPostJam ? timeline.postJamRefinementEnd : timeline.jammingEnd;
+  const endsAt = isPostJam ? timeline.postJamRatingEnd : timeline.ratingEnd;
+  const rankedFields = now >= startsAt && now < endsAt
+    ? { rankedValue: value, rankedUpdatedAt: now }
+    : {};
 
-  if (existing) {
-    await db.trackRating.update({
-      where: { id: existing.id },
-      data: { value },
-    });
-  } else {
-    await db.trackRating.create({
-      data: {
-        trackId: track.id,
-        userId,
-        categoryId: category.id,
-        value,
-      },
-    });
-  }
+  await db.trackRating.upsert({
+    where: { trackId_categoryId_userId: { trackId: track.id, categoryId: category.id, userId } },
+    update: { value, ...rankedFields },
+    create: { trackId: track.id, categoryId: category.id, userId, value, ...rankedFields },
+  });
+  clearTrackListingCache();
+
 }
 
 export async function createTrackTimestampComment({

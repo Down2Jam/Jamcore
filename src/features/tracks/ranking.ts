@@ -1,3 +1,5 @@
+import { buildJamTimeline } from "../../domain/jamTimeline.js";
+import { latestTrackRatings, rankedTrackRatings } from "../ratings/track-values.js";
 import { isActiveGameRating } from "../ratings/active.js";
 import { PageVersion } from "@prisma/client";
 
@@ -32,7 +34,7 @@ export function getTrackRatingsGivenCount(track: any, categoryCount: number) {
       user.trackRatings.reduce(
         (inner: number, rating: any) =>
           inner +
-          (rating.track?.gamePage?.game?.jamId === track.game.jamId
+          (rating.rankedValue != null && rating.track?.gamePage?.game?.jamId === track.game.jamId
             ? 1 / categoryCount
             : 0),
         0,
@@ -43,7 +45,7 @@ export function getTrackRatingsGivenCount(track: any, categoryCount: number) {
 
 export function getTrackRatingsGottenCount(track: any, categoryCount: number) {
   return (
-    track.ratings.filter((rating: any) =>
+    rankedTrackRatings<any>(track.ratings).filter((rating: any) =>
       isAllowedRaterInJam(rating, track.game.jamId),
     ).length / categoryCount
   );
@@ -109,7 +111,7 @@ async function buildRecommendedPointsByTrackId(
   >();
 
   tracks.forEach((candidate) => {
-    candidate.ratings.forEach((rating: any) => {
+    rankedTrackRatings<any>(candidate.ratings).forEach((rating: any) => {
       if (!isAllowedRaterInJam(rating, candidate.game.jamId)) return;
 
       const averagesForUser = ratingAveragesByUserTrack.get(rating.userId) ?? new Map();
@@ -125,7 +127,7 @@ async function buildRecommendedPointsByTrackId(
   });
 
   tracks.forEach((candidate) => {
-    candidate.ratings.forEach((rating: any) => {
+    rankedTrackRatings<any>(candidate.ratings).forEach((rating: any) => {
       if (!isAllowedRaterInJam(rating, candidate.game.jamId)) return;
       if (rating.categoryId !== overallCategoryId) return;
 
@@ -179,9 +181,9 @@ async function buildRecommendedPointsByTrackId(
   return recommendedPointsByTrackId;
 }
 
-export function sortTracksByScore(tracks: any[]) {
+export function getTrackScoreSortValues(track: any) {
   const getOverallRatings = (track: any) =>
-    track.ratings.filter((rating: any) => {
+    rankedTrackRatings<any>(track.ratings).filter((rating: any) => {
       const numericValue = Number(rating.value);
       return (
         rating.category?.name === appConfig.games.ratingCategoryNames.overallTrack &&
@@ -249,14 +251,24 @@ export function sortTracksByScore(tracks: any[]) {
 
   const getScoreSortCount = (track: any) => getOverallRatings(track).length;
 
+  return { adjusted: getScoreSortAdjusted(track), average: getScoreSortAverage(track), count: getScoreSortCount(track) };
+}
+
+export function sortTracksByScore(tracks: any[]) {
+  const values = new Map(tracks.map(track => [track, getTrackScoreSortValues(track)]));
   return [...tracks].sort((a, b) => {
-    return (
-      getScoreSortAdjusted(b) - getScoreSortAdjusted(a) ||
-      getScoreSortAverage(b) - getScoreSortAverage(a) ||
-      getScoreSortCount(b) - getScoreSortCount(a) ||
-      b.id - a.id
-    );
+    const first = values.get(a)!;
+    const second = values.get(b)!;
+    return second.adjusted - first.adjusted || second.average - first.average || second.count - first.count || b.id - a.id;
   });
+}
+
+export function trackRecommendationUsesScore(track: any, now = new Date()) {
+  const jam = track.game?.jam ?? track.gamePage?.game?.jam;
+  if (!jam) return true;
+  const timeline = buildJamTimeline(jam);
+  const end = track.pageVersion === PageVersion.POST_JAM ? timeline.postJamRatingEnd : timeline.ratingEnd;
+  return now >= end;
 }
 
 export function sortTracksByLeastRatings(tracks: any[], categoryCount: number) {
@@ -269,16 +281,16 @@ export function sortDangerTracks(tracks: any[], categoryCount: number) {
   return tracks
     .filter((track) => !isNonCompetitiveGameCategory(track.game.category))
     .filter((track) => {
-      const allowedCount = track.ratings.filter((rating: any) =>
+      const allowedCount = rankedTrackRatings<any>(track.ratings).filter((rating: any) =>
         isAllowedRaterInJam(rating, track.game.jamId),
       ).length;
       return allowedCount < 5;
     })
     .sort((a, b) => {
-      const allowedA = a.ratings.filter((rating: any) =>
+      const allowedA = rankedTrackRatings<any>(a.ratings).filter((rating: any) =>
         isAllowedRaterInJam(rating, a.game.jamId),
       ).length;
-      const allowedB = b.ratings.filter((rating: any) =>
+      const allowedB = rankedTrackRatings<any>(b.ratings).filter((rating: any) =>
         isAllowedRaterInJam(rating, b.game.jamId),
       ).length;
 
@@ -337,14 +349,14 @@ export async function sortTracksByKarmaOrRecommendation({
     return recommendationWeight * points ** exponent;
   };
 
-  return [...tracks].sort((a, b) => {
-    const aScore =
-      karmaScore(a) + (sort === "recommended" ? recommendedBoost(a) : 0);
-    const bScore =
-      karmaScore(b) + (sort === "recommended" ? recommendedBoost(b) : 0);
-
-    return bScore - aScore;
-  });
+  const now = new Date();
+  const scores = new Map(tracks.map(track => {
+    const base = sort === "recommended" && trackRecommendationUsesScore(track, now)
+      ? getTrackScoreSortValues(track).adjusted
+      : karmaScore(track);
+    return [track, base + (sort === "recommended" ? recommendedBoost(track) : 0)];
+  }));
+  return [...tracks].sort((a, b) => scores.get(b)! - scores.get(a)! || b.id - a.id);
 }
 
 export function buildTrackDetailScores({
@@ -371,10 +383,10 @@ export function buildTrackDetailScores({
 
   const trackWithScores = scoreCandidates.map((candidate) => {
     const categoryAverages = trackCategories.map((category) => {
-      const categoryRatings = candidate.ratings.filter(
+      const categoryRatings = latestTrackRatings<any>(candidate.ratings).filter(
         (rating: any) => rating.categoryId === category.id,
       );
-      const rankedRatings = categoryRatings.filter((rating: any) =>
+      const rankedRatings = rankedTrackRatings<any>(candidate.ratings).filter((rating: any) => rating.categoryId === category.id).filter((rating: any) =>
         rating.user.teams.some((team: any) => {
           const candidateGame = team.game;
           return (
@@ -417,7 +429,7 @@ export function buildTrackDetailScores({
           const userRatingCount = user.trackRatings.reduce(
             (count: number, rating: any) =>
               count +
-              (rating.track?.gamePage?.game?.jamId === jamId &&
+              (rating.rankedValue != null && rating.track?.gamePage?.game?.jamId === jamId &&
               scoreVersions.includes(
                 rating.track?.gamePage?.version ?? PageVersion.JAM,
               )
@@ -516,13 +528,13 @@ function buildPostJamScoreCandidates(scoreTracks: any[]) {
     if (!existing) {
       groupedTracks.set(key, {
         representative: track,
-        ratings: [...(track.ratings ?? [])],
+        ratings: (track.ratings ?? []).map((rating: any) => ({ ...rating, trackPageVersion: track.gamePage?.version })),
         hasPostJam: isPostJam,
       });
       return;
     }
 
-    existing.ratings.push(...(track.ratings ?? []));
+    existing.ratings.push(...(track.ratings ?? []).map((rating: any) => ({ ...rating, trackPageVersion: track.gamePage?.version })));
     existing.hasPostJam ||= isPostJam;
     if (isPostJam) {
       existing.representative = track;

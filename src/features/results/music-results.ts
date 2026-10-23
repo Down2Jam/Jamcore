@@ -1,3 +1,4 @@
+import { latestTrackRatings, rankedTrackRatings } from "../ratings/track-values.js";
 import { activeRatingSelect, activeRatingPageSelect, isActiveGameRating } from "../ratings/active.js";
 import { GameCategory, PageVersion } from "@prisma/client";
 
@@ -39,13 +40,13 @@ function buildResultTracks(tracks: any[]) {
     if (!existing) {
       groups.set(key, {
         representative: track,
-        ratings: [...(track.ratings ?? [])],
+        ratings: (track.ratings ?? []).map((rating: any) => ({ ...rating, trackPageVersion: track.gamePage?.version })),
         hasPostJam: isPostJam,
       });
       return;
     }
 
-    existing.ratings.push(...(track.ratings ?? []));
+    existing.ratings.push(...(track.ratings ?? []).map((rating: any) => ({ ...rating, trackPageVersion: track.gamePage?.version })));
     existing.hasPostJam ||= isPostJam;
     if (isPostJam) {
       existing.representative = track;
@@ -99,6 +100,7 @@ export async function loadMusicResults({
                     select: {
                       trackRatings: {
                         select: {
+                          rankedValue: true,
                           track: {
                             select: {
                               gamePage: {
@@ -158,6 +160,11 @@ export async function loadMusicResults({
       },
       ratings: {
         select: {
+          id: true,
+          userId: true,
+          updatedAt: true,
+          rankedValue: true,
+          rankedUpdatedAt: true,
           value: true,
           categoryId: true,
           user: {
@@ -225,10 +232,10 @@ export async function loadMusicResults({
           : RESULT_SCORE_MIDPOINT;
 
       const categoryAverages = trackCategories.map((ratingCategory) => {
-        const categoryRatings = (track.ratings as any[]).filter(
+        const categoryRatings = latestTrackRatings<any>(track.ratings).filter(
           (rating: any) => rating.categoryId === ratingCategory.id,
         );
-        const rankedRatings = categoryRatings.filter((rating: any) =>
+        const rankedRatings = rankedTrackRatings<any>(track.ratings).filter((rating: any) => rating.categoryId === ratingCategory.id).filter((rating: any) =>
           rating.user.teams.some((team: any) => {
             const candidateGame = team.game;
             return (
@@ -304,7 +311,7 @@ export async function loadMusicResults({
           const userRatingCount = user.trackRatings.reduce(
             (count: number, rating: any) =>
               count +
-              (rating.track?.gamePage?.game?.jamId === jamId &&
+              (rating.rankedValue != null && rating.track?.gamePage?.game?.jamId === jamId &&
               scoreVersions.includes(
                   rating.track?.gamePage?.version ?? PageVersion.JAM,
                 )

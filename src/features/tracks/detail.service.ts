@@ -1,4 +1,5 @@
 import { PageVersion } from "@prisma/client";
+import { loadCommentDescendants } from "../comments/load-tree.js";
 
 import { filterCoreEntityIdsByTenant } from "../../infra/coreTenantStore.js";
 import db from "../../infra/db.js";
@@ -87,7 +88,12 @@ export async function getTrackBySlug({
   const track =
     preferredVersions
       .map((version) =>
-        matchingTracks.find((candidate) => candidate.gamePage?.version === version),
+        matchingTracks.find((candidate) => candidate.gamePage?.version === version) ??
+        (version === PageVersion.POST_JAM
+          ? matchingTracks.find((candidate) => candidate.gamePage.game.pages.some(
+              (page) => page.version === PageVersion.POST_JAM,
+            ))
+          : undefined),
       )
       .find(Boolean) ?? null;
 
@@ -104,7 +110,15 @@ export async function getTrackBySlug({
     throw new NotFoundError("Track not found");
   }
 
-  const materializedTrack = materializeTrackPage(track);
+  const postJamPage = track.gamePage.game.pages.find(
+    (page) => page.version === PageVersion.POST_JAM,
+  );
+  const displayedVersion = requestedPageVersion ??
+    (postJamPage ? PageVersion.POST_JAM : track.gamePage.version);
+  const displayedTrack = displayedVersion === PageVersion.POST_JAM && postJamPage
+    ? { ...track, gamePage: { ...postJamPage, game: track.gamePage.game } }
+    : track;
+  const materializedTrack = materializeTrackPage(displayedTrack);
   const materializedGame = materializedTrack.game as
     | {
         jamId: number;
@@ -113,18 +127,37 @@ export async function getTrackBySlug({
   if (!materializedGame) {
     throw new NotFoundError("Track game not found");
   }
-  const scorePageVersion = track.gamePage.version;
+  const scorePageVersion = displayedVersion;
   const availablePageVersions = ([PageVersion.JAM, PageVersion.POST_JAM] as const).filter(
     (version) =>
       (track.gamePage?.game?.pages ?? []).some(
         (page) =>
           page.version === version &&
-          (page.tracks ?? []).some((candidate) => candidate.slug === track.slug),
+          (version === PageVersion.POST_JAM ||
+            (page.tracks ?? []).some((candidate) => candidate.slug === track.slug)),
       ),
   );
 
+  const relatedTracks = matchingTracks.filter(
+    (candidate) => candidate.gamePage.game.id === track.gamePage.game.id,
+  );
+  const commentsForVersion = (version: PageVersion) => relatedTracks.flatMap(
+    (candidate) => candidate.comments.filter(
+      (comment) => (comment.trackPageVersion ?? candidate.gamePage.version) === version,
+    ),
+  );
+  const currentComments = commentsForVersion(displayedVersion);
+  const originalComments = displayedVersion === PageVersion.POST_JAM
+    ? commentsForVersion(PageVersion.JAM)
+    : [];
+  await loadCommentDescendants([...currentComments, ...originalComments]);
+  const jamComments = mapCommentsForViewer(
+    originalComments,
+    viewer?.id ?? null,
+    isPrivilegedViewer(viewer),
+  );
   const visibleComments = mapCommentsForViewer(
-    track.comments,
+    currentComments,
     viewer?.id ?? null,
     isPrivilegedViewer(viewer),
   );
@@ -152,6 +185,7 @@ export async function getTrackBySlug({
     ...materializedTrack,
     availablePageVersions,
     comments: [...visibleComments, ...remoteComments],
+    jamComments,
     viewerRating,
     scores,
   };

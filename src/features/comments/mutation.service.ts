@@ -398,7 +398,7 @@ export async function createComment({
 
   const { content, postId, commentId, gameId, gamePageId, trackId } = input;
 
-  const [post, parentComment, game, gamePage, track] = await Promise.all([
+  const [post, parentComment, game, requestedGamePage, requestedTrack] = await Promise.all([
     loadCommentPost(postId, tenantId),
     loadParentComment(commentId, tenantId),
     loadCommentGame(gameId, tenantId),
@@ -406,15 +406,41 @@ export async function createComment({
     loadCommentTrack(trackId, tenantId),
   ]);
 
+  let gamePage = requestedGamePage;
+  let track = requestedTrack;
+  let trackPageVersion = track?.gamePage.version ?? null;
+  const targetGameId = game?.id ?? gamePage?.gameId ?? track?.gamePage.gameId;
+
+  if (targetGameId) {
+    const postJamPage = await db.gamePage.findFirst({
+      where: { gameId: targetGameId, version: PageVersion.POST_JAM },
+      select: { id: true },
+    });
+
+    if (postJamPage) {
+      if (track) {
+        const postJamTrack = await db.gamePageTrack.findFirst({
+          where: { gamePageId: postJamPage.id, slug: track.slug },
+          select: { id: true },
+        });
+        if (postJamTrack) track = await loadCommentTrack(postJamTrack.id, tenantId);
+        trackPageVersion = PageVersion.POST_JAM;
+      } else {
+        gamePage = await loadCommentGamePage(postJamPage.id, tenantId);
+      }
+    }
+  }
+
   const newComment = await db.comment.create({
     data: {
       content,
       authorId: actor.id,
       postId: postId ?? null,
       commentId: commentId ?? null,
-      gameId: gameId ?? null,
-      gamePageId: gamePageId ?? null,
-      trackId: trackId ?? null,
+      gameId: gamePage ? null : gameId ?? null,
+      gamePageId: gamePage?.id ?? null,
+      trackId: track?.id ?? null,
+      trackPageVersion,
     },
   });
 
@@ -450,7 +476,7 @@ export async function createComment({
   }
 
   await Promise.all([
-    game
+    game && !gamePage
       ? createTeamCommentNotifications({
           recipientIds: game.team.users.map((member) => member.id),
           actorId: actor.id,
