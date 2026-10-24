@@ -1,4 +1,6 @@
 import type { materializeGameListingEntries } from "./presenters.js";
+import { PageVersion } from "@prisma/client";
+import { areRatingValuesPublic } from "../ratings/visibility.js";
 
 type ListedGame = ReturnType<typeof materializeGameListingEntries>[number];
 
@@ -6,7 +8,10 @@ type ListedGame = ReturnType<typeof materializeGameListingEntries>[number];
 // IDs and rating records. Project AFTER sorting; never mutate ranking inputs.
 export function toGameListingResponse(game: ListedGame) {
   const compactRatings = (ratings: ListedGame["ratings"]) =>
-    ratings.map(({ user: _user, ...rating }) => rating);
+    ratings.map(({ user: _user, ...rating }) => ({
+      ...rating,
+      value: areRatingValuesPublic(game.jam, rating.gamePage?.version ?? PageVersion.JAM) ? rating.value : undefined,
+    }));
   const compactPage = (page: ListedGame["jamPage"]) => {
     if (!page) return page;
     const { achievements: _achievements, leaderboards: _leaderboards, ...listingPage } = page;

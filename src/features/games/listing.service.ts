@@ -25,6 +25,7 @@ import {
 } from "../users/recommendations.core.js";
 import { buildPreferenceScorer, type PreferenceReason } from "./recommendation.personalization.js";
 import { loadPreferenceExamples } from "./recommendation.profile.js";
+import { areRatingValuesPublic } from "../ratings/visibility.js";
 import type {
   GameListingRecord,
   GameListingSort,
@@ -242,8 +243,12 @@ function isAllowedRaterInJam(
   });
 }
 
-function sortByScore(games: ListedGame[]) {
+export function getGameScoreSortValues(game: ListedGame) {
+  if (!areRatingValuesPublic(game.jam, game.pageVersion ?? PageVersion.JAM)) {
+    return { adjusted: SCORE_SORT_MIDPOINT, average: SCORE_SORT_MIDPOINT, count: 0 };
+  }
   const getRatings = (game: ListedGame, version?: PageVersion) => {
+    if (!areRatingValuesPublic(game.jam, version ?? game.pageVersion ?? PageVersion.JAM)) return [];
     const allRatings =
       ((game as ListedGame & { allRatings?: ListedGame["ratings"] }).allRatings ??
         game.ratings) as ListedGame["ratings"];
@@ -299,13 +304,16 @@ function sortByScore(games: ListedGame[]) {
     ) / SCORE_SORT_RATING_GOAL;
   };
 
-  return [...games].sort(
-    (a, b) =>
-      getAdjusted(b) - getAdjusted(a) ||
-      getAverage(b) - getAverage(a) ||
-      getOverallRatings(b).length - getOverallRatings(a).length ||
-      compareListingIdentity(a, b),
-  );
+  return { adjusted: getAdjusted(game), average: getAverage(game), count: getOverallRatings(game).length };
+}
+
+function sortByScore(games: ListedGame[]) {
+  const values = new Map(games.map(game => [game, getGameScoreSortValues(game)]));
+  return [...games].sort((a, b) => {
+    const first = values.get(a)!;
+    const second = values.get(b)!;
+    return second.adjusted - first.adjusted || second.average - first.average || second.count - first.count || compareListingIdentity(a, b);
+  });
 }
 
 function sortByLeastRated(games: ListedGame[], ratingCategoryCount: number) {
@@ -558,6 +566,7 @@ type RankedGame = {
     leaderboardScores: number;
     ratingsReceived: number;
     communityRecommendations: number;
+    averageRating: number;
   };
 };
 
@@ -567,6 +576,7 @@ async function rankByKarmaOrRecommended(
   sort: "karma" | "recommended",
   viewerId?: number,
   tenantId?: string | null,
+  allJams = false,
 ) {
   const exponent = 0.73412;
   const recommendationWeight = 2;
@@ -575,7 +585,7 @@ async function rankByKarmaOrRecommended(
       (category) => category.name === OVERALL_RATING_CATEGORY_NAME,
     )?.id ?? null;
   const recommendedPointsByGameId = await getRecommendedPointsByGameKey(
-    games,
+    games.filter(game => areRatingValuesPublic(game.jam, game.pageVersion ?? PageVersion.JAM)),
     overallCategoryId,
   );
   const preferenceScorer =
@@ -708,7 +718,10 @@ async function rankByKarmaOrRecommended(
     const preference = preferenceScorer?.(game) ?? { adjustment: 0, reasons: [] };
 
     const scoreParts = {
-      ...karmaScore(game),
+      ...(sort === "recommended" && allJams
+        ? { ratingsGiven: 0, commentLikes: 0, achievements: 0, leaderboardScores: 0, ratingsReceived: 0 }
+        : karmaScore(game)),
+      averageRating: sort === "recommended" && allJams ? getGameScoreSortValues(game).adjusted : 0,
       communityRecommendations: recommendationBoost,
     };
 
@@ -789,6 +802,7 @@ export async function previewRecommendedGames({
     "recommended",
     viewerId,
     tenantId,
+    !jamId,
   );
   const baseline = [...personalized].sort((a, b) =>
     b.baseScore - a.baseScore || compareListingIdentity(a.game, b.game),
@@ -964,6 +978,7 @@ export async function listGames({
             normalizedSort,
             viewerId,
             tenantId,
+            !resolvedJam,
           )).map((entry) => entry.game);
           break;
         default:

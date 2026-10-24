@@ -5,13 +5,13 @@ import { BadRequestError } from "../../lib/errors.js";
 export async function listLinkableGames(authorId: number, tenantId?: string | null) {
   const games = await db.game.findMany({
     where: { published: true, team: { OR: [{ ownerId: authorId }, { users: { some: { id: authorId } } }] } },
-    select: { id: true, slug: true, pages: { select: { version: true, name: true, thumbnail: true } } },
+    select: { id: true, slug: true, jam: { select: { name: true } }, pages: { select: { version: true, name: true, thumbnail: true } } },
     orderBy: { id: "desc" },
   });
   const allowed = new Set(await filterCoreEntityIdsByTenant({ entityType: "Game", ids: games.map(game => game.id), tenantId }));
   return games.filter(game => allowed.has(game.id)).map(game => {
     const page = game.pages.find(page => page.version === "POST_JAM") ?? game.pages.find(page => page.version === "JAM");
-    return { gameId: game.id, slug: game.slug, name: page?.name ?? game.slug, thumbnail: page?.thumbnail ?? null };
+    return { gameId: game.id, slug: game.slug, name: page?.name ?? game.slug, thumbnail: page?.thumbnail ?? null, jam: game.jam };
   });
 }
 

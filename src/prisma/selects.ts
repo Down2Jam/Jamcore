@@ -501,6 +501,7 @@ export const targetUserBaseSelect = {
         select: {
           gamePage: {
             select: {
+              version: true,
               game: {
                 select: {
                   jamId: true,
@@ -590,22 +591,21 @@ export const targetUserDetailSelect = {
   },
   scores: {
     include: {
-      user: true,
+      user: { select: { id: true, name: true, profilePicture: true } },
       leaderboard: {
         include: {
           gamePage: {
-            include: {
+            select: {
+              version: true,
               game: {
-                include: {
+                select: {
+                  id: true,
+                  slug: true,
                   pages: {
-                    include: {
-                      achievements: {
-                        include: {
-                          users: true,
-                        },
-                      },
-                      leaderboards: true,
-                      downloadLinks: true,
+                    select: {
+                      version: true,
+                      name: true,
+                      thumbnail: true,
                     },
                   },
                 },
@@ -613,8 +613,10 @@ export const targetUserDetailSelect = {
             },
           },
           scores: {
-            include: {
-              user: true,
+            select: {
+              id: true,
+              data: true,
+              user: { select: { id: true } },
             },
           },
         },
@@ -624,18 +626,23 @@ export const targetUserDetailSelect = {
   gamePageAchievements: {
     include: {
       gamePage: {
-        include: {
+        select: {
+          version: true,
           game: {
-            include: {
+            select: {
+              id: true,
+              slug: true,
               pages: {
-                include: {
+                select: {
+                  version: true,
+                  name: true,
+                  thumbnail: true,
                   achievements: {
-                    include: {
-                      users: true,
+                    select: {
+                      id: true,
+                      users: { select: { id: true } },
                     },
                   },
-                  leaderboards: true,
-                  downloadLinks: true,
                 },
               },
               ratings: {
@@ -647,7 +654,7 @@ export const targetUserDetailSelect = {
           },
         },
       },
-      users: true,
+      users: { select: { id: true } },
     },
   },
 } as const;

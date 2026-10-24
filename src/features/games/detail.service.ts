@@ -22,10 +22,7 @@ import {
   getRatingPageVersion,
   postJamPageInclude,
 } from "./page.service.js";
-import {
-  buildJamScoreVisibilityTimeline,
-  canViewGameScores,
-} from "./policies.js";
+import { areRatingValuesPublic } from "../ratings/visibility.js";
 
 type GameDetailResponse = Record<string, unknown> | null;
 
@@ -275,30 +272,23 @@ export async function loadGameDetailResponse({
       privilegedViewer,
     );
 
-    const canShowScores = canViewGameScores({
-      jamId: game.jamId,
-      currentJamId: jam?.id,
-      jamTimeline: buildJamScoreVisibilityTimeline(jam),
-      recap,
-      preview,
-      isAdmin: Boolean(viewer?.admin),
-    });
+    const adminPreview = preview === "1" && Boolean(viewer?.admin);
 
     let jamScores = {};
     let postJamScores = {};
 
-    if (canShowScores) {
+    if (adminPreview || areRatingValuesPublic(game.jam, PageVersion.JAM)) {
       jamScores = await buildVersionScores({
         game,
         version: PageVersion.JAM,
       });
+    }
 
-      if (postJamPage && game.published) {
-        postJamScores = await buildVersionScores({
-          game,
-          version: PageVersion.POST_JAM,
-        });
-      }
+    if (postJamPage && game.published && (adminPreview || areRatingValuesPublic(game.jam, PageVersion.POST_JAM))) {
+      postJamScores = await buildVersionScores({
+        game,
+        version: PageVersion.POST_JAM,
+      });
     }
 
     const normalizedRatings = (game.ratings ?? []).filter(isActiveGameRating).map((rating) => ({

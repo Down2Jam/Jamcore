@@ -27,6 +27,7 @@ import { requireRequestUser, requireTargetUser } from "../../lib/locals.js";
 import { parseBody, parseQuery } from "../../lib/request.js";
 import { blockUser, unblockUser } from "../messages/service.js";
 import { loadRecapUser } from "./recap.service.js";
+import { publicProfileRatings } from "./profile-rating-visibility.js";
 
 export function createUsersRouter() {
   const router = express.Router();
@@ -94,7 +95,7 @@ export function createUsersRouter() {
         jamId,
         tenantId: res.locals.tenantId,
       });
-      res.json({ message: "Recap user fetched", data });
+      res.json({ message: "Recap user fetched", data: await publicProfileRatings(data) });
     }),
   );
 
@@ -133,7 +134,7 @@ export function createUsersRouter() {
       res.send({
         message: "User fetched",
         data: {
-          ...targetUser,
+          ...(viewer?.id === targetUser.id ? targetUser : await publicProfileRatings(targetUser)),
           followerCount,
           viewerFollowing: Boolean(viewerFollow),
         },
