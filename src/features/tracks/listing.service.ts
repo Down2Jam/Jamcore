@@ -92,7 +92,7 @@ export async function listTracks(
     let tracks = await loadTrackListingRecords({
       externalJams: externalJamsOnly,
       jamId: resolvedJam?.id,
-      listingPageVersion,
+      listingPageVersion: listingPageVersion === PageVersion.POST_JAM ? "ALL" : listingPageVersion,
       sort,
     });
 
@@ -111,6 +111,20 @@ export async function listTracks(
     });
 
     tracks = tracks.map((track) => materializeTrackPage(track));
+    const scoreRatingsByTrack = new Map<string, any[]>();
+    for (const track of tracks) {
+      const key = `${track.gamePage.gameId}:${track.slug}`;
+      const ratings = scoreRatingsByTrack.get(key) ?? [];
+      ratings.push(...track.ratings.map((rating) => ({ ...rating, trackPageVersion: track.gamePage.version })));
+      scoreRatingsByTrack.set(key, ratings);
+    }
+    tracks = tracks.map((track) => ({
+      ...track,
+      scoreRatings: scoreRatingsByTrack.get(`${track.gamePage.gameId}:${track.slug}`) ?? [],
+    }));
+    if (listingPageVersion === PageVersion.POST_JAM) {
+      tracks = tracks.filter((track) => track.gamePage.version === PageVersion.POST_JAM);
+    }
     if (listingPageVersion === "ALL") {
       tracks = preferPostJamTracks(tracks);
     }
@@ -147,13 +161,14 @@ export async function listTracks(
       });
     }
 
+    const publicTracks = tracks.map(({ scoreRatings: _scoreRatings, ...track }: any) => track);
     return {
       message:
         jamSlugParam || (jamIdParam && jamIdParam !== "all")
           ? `Fetched tracks for jam ${resolvedJam?.slug ?? jamSlugParam ?? jamIdParam}`
           : "Fetched tracks",
       data:
-        typeof input.limit === "number" ? tracks.slice(0, input.limit) : tracks,
+        typeof input.limit === "number" ? publicTracks.slice(0, input.limit) : publicTracks,
     };
   };
 

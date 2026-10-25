@@ -311,6 +311,7 @@ export const gameListingInclude = {
       ...activeRatingSelect,
       id: true,
       value: true,
+      rankedValue: true,
       userId: true,
       categoryId: true,
       gameId: true,

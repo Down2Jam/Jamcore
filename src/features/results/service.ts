@@ -41,6 +41,8 @@ export async function getResults({
           : Number.parseInt(String(input.jam), 10))
       : undefined;
 
+  const adminPreview = input.preview === "1" && Boolean(viewer?.admin);
+
   if (input.contentType === "MUSIC") {
     if (input.jam === "all") {
       return { data: [] };
@@ -54,6 +56,7 @@ export async function getResults({
       data: await loadMusicResults({
         jamId: resolvedJamId,
         category: input.category,
+        adminPreview,
       }),
     };
   }
@@ -64,6 +67,7 @@ export async function getResults({
       category: input.category,
       contentType: input.contentType,
       sort: input.sort,
+      adminPreview,
     }),
   };
 }

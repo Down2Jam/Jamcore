@@ -82,18 +82,13 @@ export async function getTrackBySlug({
       : parseTrackPageVersion(pageVersionInput);
   const matchingTracks = await loadTrackDetailCandidates(trackSlug);
 
-  const preferredVersions = requestedPageVersion
-    ? [requestedPageVersion]
+  const preferredVersions = requestedPageVersion === PageVersion.JAM
+    ? [PageVersion.JAM]
     : [PageVersion.POST_JAM, PageVersion.JAM];
   const track =
     preferredVersions
       .map((version) =>
-        matchingTracks.find((candidate) => candidate.gamePage?.version === version) ??
-        (version === PageVersion.POST_JAM
-          ? matchingTracks.find((candidate) => candidate.gamePage.game.pages.some(
-              (page) => page.version === PageVersion.POST_JAM,
-            ))
-          : undefined),
+        matchingTracks.find((candidate) => candidate.gamePage?.version === version),
       )
       .find(Boolean) ?? null;
 
@@ -110,15 +105,8 @@ export async function getTrackBySlug({
     throw new NotFoundError("Track not found");
   }
 
-  const postJamPage = track.gamePage.game.pages.find(
-    (page) => page.version === PageVersion.POST_JAM,
-  );
-  const displayedVersion = requestedPageVersion ??
-    (postJamPage ? PageVersion.POST_JAM : track.gamePage.version);
-  const displayedTrack = displayedVersion === PageVersion.POST_JAM && postJamPage
-    ? { ...track, gamePage: { ...postJamPage, game: track.gamePage.game } }
-    : track;
-  const materializedTrack = materializeTrackPage(displayedTrack);
+  const displayedVersion = track.gamePage.version;
+  const materializedTrack = materializeTrackPage(track);
   const materializedGame = materializedTrack.game as
     | {
         jamId: number;
@@ -128,18 +116,11 @@ export async function getTrackBySlug({
     throw new NotFoundError("Track game not found");
   }
   const scorePageVersion = displayedVersion;
-  const availablePageVersions = ([PageVersion.JAM, PageVersion.POST_JAM] as const).filter(
-    (version) =>
-      (track.gamePage?.game?.pages ?? []).some(
-        (page) =>
-          page.version === version &&
-          (version === PageVersion.POST_JAM ||
-            (page.tracks ?? []).some((candidate) => candidate.slug === track.slug)),
-      ),
-  );
-
   const relatedTracks = matchingTracks.filter(
     (candidate) => candidate.gamePage.game.id === track.gamePage.game.id,
+  );
+  const availablePageVersions = ([PageVersion.JAM, PageVersion.POST_JAM] as const).filter(
+    (version) => relatedTracks.some((candidate) => candidate.gamePage.version === version),
   );
   const commentsForVersion = (version: PageVersion) => relatedTracks.flatMap(
     (candidate) => candidate.comments.filter(

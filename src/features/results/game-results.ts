@@ -1,7 +1,9 @@
-import { activeRatingSelect, activeRatingPageSelect, isActiveGameRating } from "../ratings/active.js";
+import { rankedGameRatings } from "../ratings/game-values.js";
+import { activeRatingSelect, activeRatingPageSelect, isActiveGameRating, getGameRatingCategoryCount } from "../ratings/active.js";
 import { GameCategory, PageVersion } from "@prisma/client";
 
 import db from "../../infra/db.js";
+import { areRatingValuesPublic } from "../ratings/visibility.js";
 import { materializeGamePage } from "../games/page.helpers.js";
 import {
   OVERALL_RATING_CATEGORY_NAME,
@@ -30,25 +32,6 @@ type ResultGame = {
   ratingsCount: number;
   pageVersion: PageVersion;
 };
-
-function getResultPageVersion(game: { pages?: Array<{ version: PageVersion }> }) {
-  return game.pages?.some((page) => page.version === PageVersion.POST_JAM)
-    ? PageVersion.POST_JAM
-    : PageVersion.JAM;
-}
-
-function ratingBelongsToResultVersion(
-  rating: { gamePage?: { version?: PageVersion | null } | null },
-  version: PageVersion,
-) {
-  const ratingVersion =
-    rating.gamePage?.version === PageVersion.POST_JAM
-      ? PageVersion.POST_JAM
-      : PageVersion.JAM;
-  return version === PageVersion.POST_JAM
-    ? ratingVersion === PageVersion.JAM || ratingVersion === PageVersion.POST_JAM
-    : ratingVersion === version;
-}
 
 function isAllowedResultRater(
   rating: {
@@ -144,11 +127,13 @@ export async function loadGameResults({
   category,
   contentType,
   sort,
+  adminPreview = false,
 }: {
   jamId?: number;
   category?: string;
   contentType?: string;
   sort?: string;
+  adminPreview?: boolean;
 }) {
   const where: {
     category?: GameCategory;
@@ -163,13 +148,14 @@ export async function loadGameResults({
     where.jamId = jamId;
   }
 
-  const games = await db.game.findMany({
+  const loadedGames = await db.game.findMany({
     where,
     include: {
+      jam: true,
       pages: {
         where: {
           version: {
-            in: [PageVersion.JAM, PageVersion.POST_JAM],
+            in: [PageVersion.JAM],
           },
         },
         include: {
@@ -190,6 +176,7 @@ export async function loadGameResults({
               ratings: {
                 select: {
                   ...activeRatingSelect,
+                  rankedValue: true,
                   gamePage: {
                     select: {
                       version: true,
@@ -202,6 +189,7 @@ export async function loadGameResults({
                   },
                   game: {
                     select: {
+                      jamId: true,
                       ratingCategories: {
                         select: {
                           id: true,
@@ -218,6 +206,7 @@ export async function loadGameResults({
       ratings: {
         select: {
           ...activeRatingSelect,
+                  rankedValue: true,
           value: true,
           categoryId: true,
           gamePage: {
@@ -246,6 +235,15 @@ export async function loadGameResults({
     },
   });
 
+  const now = new Date();
+  const games = loadedGames
+    .filter((game) => adminPreview || areRatingValuesPublic(game.jam, PageVersion.JAM, now))
+    .map((game) => ({
+    ...game,
+    pages: game.pages.filter((page) => page.version === PageVersion.JAM),
+    ratings: game.ratings.filter((rating) => (rating.gamePage?.version ?? PageVersion.JAM) === PageVersion.JAM),
+  }));
+
   const ratingCategories = await db.ratingCategory.findMany({
     where: {
       always: true,
@@ -254,13 +252,12 @@ export async function loadGameResults({
 
   const computedGames = games
     .map((game) => {
-      const resultPageVersion = getResultPageVersion(game);
       const resultPage = game.pages?.find(
-        (page) => page.version === resultPageVersion,
+        (page) => page.version === PageVersion.JAM,
       );
       if (!resultPage) return null;
 
-      const materializedGame = materializeGamePage(game, resultPageVersion) as
+      const materializedGame = materializeGamePage(game, PageVersion.JAM) as
         typeof game & {
           ratingCategories?: ResultCategory[];
           majRatingCategories?: Array<{ id: number }>;
@@ -283,9 +280,9 @@ export async function loadGameResults({
       }
       const categoryIds = categories.map((ratingCategory) => ratingCategory.id);
 
-      const filteredRatings = game.ratings.filter(
+      const filteredRatings = rankedGameRatings(game.ratings).filter(
         (rating) =>
-          isActiveGameRating(rating) && ratingBelongsToResultVersion(rating, resultPageVersion) &&
+          isActiveGameRating(rating) &&
           categoryIds.includes(rating.categoryId),
       );
 
@@ -296,17 +293,18 @@ export async function loadGameResults({
             isAllowedResultRater(rating, game.jamId),
         );
 
-        const averageScore =
-          categoryRatings.length > 0
-            ? categoryRatings.reduce((sum, rating) => sum + rating.value, 0) /
-              categoryRatings.length
-            : 0;
+        const score = {
+          averageScore: categoryRatings.length
+            ? categoryRatings.reduce((sum, rating) => sum + rating.value, 0) / categoryRatings.length
+            : 0,
+          ratingCount: categoryRatings.length,
+        };
 
         return {
           categoryId: ratingCategory.id,
           categoryName: ratingCategory.name,
-          averageScore,
-          ratingCount: categoryRatings.length,
+          averageScore: score.averageScore,
+          ratingCount: score.ratingCount,
           placement: -1,
         };
       });
@@ -315,7 +313,7 @@ export async function loadGameResults({
         ...materializedGame,
         ratingCategories: materializedGame.ratingCategories ?? [],
         majRatingCategories: materializedGame.majRatingCategories ?? [],
-        pageVersion: resultPageVersion,
+        pageVersion: PageVersion.JAM,
         categoryAverages,
         ratingsCount: game.team.users.reduce((totalRatings, user) => {
           const userRatingCount = user.ratings.reduce((count, rating) => {
@@ -325,8 +323,8 @@ export async function loadGameResults({
 
             return (
               count +
-              (isActiveGameRating(rating) && ratingBelongsToResultVersion(rating, resultPageVersion)
-                ? 1 / (ratingCategoryCount + ratingCategories.length)
+              (rating.rankedValue != null && rating.game.jamId === game.jamId && isActiveGameRating(rating) && (rating.gamePage?.version ?? PageVersion.JAM) === PageVersion.JAM
+                ? 1 / getGameRatingCategoryCount(rating.gamePage?.version, ratingCategoryCount, ratingCategories.length)
                 : 0)
             );
           }, 0);

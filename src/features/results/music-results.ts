@@ -3,6 +3,7 @@ import { activeRatingSelect, activeRatingPageSelect, isActiveGameRating } from "
 import { GameCategory, PageVersion } from "@prisma/client";
 
 import db from "../../infra/db.js";
+import { areRatingValuesPublic } from "../ratings/visibility.js";
 import { appConfig } from "../../config/app.js";
 import { materializeTrackPage } from "../tracks/page.js";
 import {
@@ -15,59 +16,14 @@ const RESULT_RATING_TARGET = 5;
 const RESULT_SCORE_MIDPOINT = 6;
 const GAME_AUDIO_CATEGORY_NAME = "RatingCategory.Audio.Title";
 
-function getTrackGroupKey(track: any) {
-  return `${track.gamePage?.game?.id ?? track.gamePage?.gameId ?? "unknown"}:${
-    track.slug
-  }`;
-}
-
-function getScoreVersions(version: PageVersion) {
-  return version === PageVersion.POST_JAM
-    ? [PageVersion.JAM, PageVersion.POST_JAM]
-    : [version];
-}
-
-function buildResultTracks(tracks: any[]) {
-  const groups = new Map<
-    string,
-    { representative: any; ratings: any[]; hasPostJam: boolean }
-  >();
-
-  tracks.forEach((track) => {
-    const key = getTrackGroupKey(track);
-    const existing = groups.get(key);
-    const isPostJam = track.gamePage?.version === PageVersion.POST_JAM;
-    if (!existing) {
-      groups.set(key, {
-        representative: track,
-        ratings: (track.ratings ?? []).map((rating: any) => ({ ...rating, trackPageVersion: track.gamePage?.version })),
-        hasPostJam: isPostJam,
-      });
-      return;
-    }
-
-    existing.ratings.push(...(track.ratings ?? []).map((rating: any) => ({ ...rating, trackPageVersion: track.gamePage?.version })));
-    existing.hasPostJam ||= isPostJam;
-    if (isPostJam) {
-      existing.representative = track;
-    }
-  });
-
-  return [...groups.values()].map((group) => ({
-    ...group.representative,
-    ratings:
-      group.representative.gamePage?.version === PageVersion.POST_JAM
-        ? group.ratings
-        : group.representative.ratings,
-  }));
-}
-
 export async function loadMusicResults({
   jamId,
   category,
+  adminPreview = false,
 }: {
   jamId: number;
   category?: string;
+  adminPreview?: boolean;
 }) {
   const trackCategory =
     category === REGULAR_GAME_CATEGORY || category === ODA_GAME_CATEGORY
@@ -78,7 +34,7 @@ export async function loadMusicResults({
       origin: "ORIGINAL",
       gamePage: {
         version: {
-          in: [PageVersion.JAM, PageVersion.POST_JAM],
+          in: [PageVersion.JAM],
         },
         game: {
           jamId,
@@ -93,7 +49,7 @@ export async function loadMusicResults({
         include: {
           game: {
             include: {
-              jam: { select: { musicRankingRuleVersion: true } },
+              jam: true,
               team: {
                 select: {
                   users: {
@@ -124,6 +80,7 @@ export async function loadMusicResults({
               ratings: {
                 select: {
                   ...activeRatingSelect,
+                  rankedValue: true,
                   value: true,
                   category: {
                     select: {
@@ -193,24 +150,31 @@ export async function loadMusicResults({
     },
   });
 
+  const now = new Date();
   const computedTracks = tracks
-    .map((track) => track)
-    .filter(Boolean);
+    .filter((track) => track.gamePage.version === PageVersion.JAM && (adminPreview || areRatingValuesPublic(track.gamePage.game.jam, PageVersion.JAM, now)))
+    .map((track) => ({
+      ...track,
+      gamePage: {
+        ...track.gamePage,
+        game: {
+          ...track.gamePage.game,
+          ratings: track.gamePage.game.ratings.filter((rating) => (rating.gamePage?.version ?? PageVersion.JAM) === PageVersion.JAM),
+        },
+      },
+    }));
 
-  const resultTracks = buildResultTracks(computedTracks);
-
-  const rankedTracksWithScores = resultTracks
+  const rankedTracksWithScores = computedTracks
     .map((track) => {
       const materializedTrack = materializeTrackPage(track);
-      const materializedGame = materializedTrack.game;
+      const materializedGame = materializedTrack.game as typeof track.gamePage.game | null;
       if (!materializedGame) {
         return null;
       }
-      const scoreVersions = getScoreVersions(track.gamePage.version);
       const gameMusicRatings =
         (track.gamePage.game.ratings as any[] | undefined)?.filter(
           (rating: any) =>
-            isActiveGameRating(rating) && scoreVersions.includes(rating.gamePage?.version ?? PageVersion.JAM) &&
+            rating.rankedValue != null && isActiveGameRating(rating) && (rating.gamePage?.version ?? PageVersion.JAM) === PageVersion.JAM &&
             rating.category?.name === GAME_AUDIO_CATEGORY_NAME &&
             rating.user.teams.some((team: any) => {
               const candidateGame = team.game;
@@ -225,7 +189,7 @@ export async function loadMusicResults({
       const gameMusicAverage =
         gameMusicRatings.length > 0
           ? gameMusicRatings.reduce(
-              (sum: number, rating: any) => sum + rating.value,
+              (sum: number, rating: any) => sum + rating.rankedValue,
               0,
             ) /
             gameMusicRatings.length
@@ -312,9 +276,7 @@ export async function loadMusicResults({
             (count: number, rating: any) =>
               count +
               (rating.rankedValue != null && rating.track?.gamePage?.game?.jamId === jamId &&
-              scoreVersions.includes(
-                  rating.track?.gamePage?.version ?? PageVersion.JAM,
-                )
+              (rating.track?.gamePage?.version ?? PageVersion.JAM) === PageVersion.JAM
                 ? 1 / trackCategories.length
                 : 0),
             0,
@@ -379,5 +341,14 @@ export async function loadMusicResults({
     return bOverall - aOverall;
   });
 
-  return qualifiedTracks;
+  return qualifiedTracks.map((track) => {
+    const game = {
+      ...track.game,
+      team: {
+        ...track.game.team,
+        users: track.game.team.users.map(({ trackRatings: _ratings, ...user }: any) => user),
+      },
+    };
+    return { ...track, game, gamePage: { ...track.gamePage, game } };
+  });
 }

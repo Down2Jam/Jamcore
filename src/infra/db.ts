@@ -21,6 +21,7 @@ const db = new PrismaClient({
     },
     rating: {
       value: true,
+      rankedValue: true,
     },
   },
 });

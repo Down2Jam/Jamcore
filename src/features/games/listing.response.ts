@@ -8,7 +8,7 @@ type ListedGame = ReturnType<typeof materializeGameListingEntries>[number];
 // IDs and rating records. Project AFTER sorting; never mutate ranking inputs.
 export function toGameListingResponse(game: ListedGame) {
   const compactRatings = (ratings: ListedGame["ratings"]) =>
-    ratings.map(({ user: _user, ...rating }) => ({
+    ratings.map(({ user: _user, rankedValue: _rankedValue, ...rating }) => ({
       ...rating,
       value: areRatingValuesPublic(game.jam, rating.gamePage?.version ?? PageVersion.JAM) ? rating.value : undefined,
     }));

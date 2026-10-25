@@ -1,6 +1,6 @@
 import { buildJamTimeline } from "../../domain/jamTimeline.js";
 import { clearTrackListingCache } from "../tracks/listing.service.js";
-import { activeRatingPageSelect } from "./active.js";
+import { activeRatingPageSelect, isActiveGameRating } from "./active.js";
 import { clearGameListingCache } from "../games/listing.service.js";
 import { clearGameDetailCache } from "../games/detail.service.js";
 import { clearJamServiceCaches } from "../jams/service.js";
@@ -18,7 +18,7 @@ import {
 
 export const createGameRatingSchema = z.object({
   categoryId: z.coerce.number().int().positive(),
-  value: z.coerce.number().int(),
+  value: z.coerce.number().int().min(1).max(10),
   gamePageId: z.coerce.number().int().positive().optional(),
   pageVersion: z.enum(["JAM", "POST_JAM"]).optional(),
 });
@@ -75,6 +75,7 @@ export async function saveGameRating({
     select: {
       id: true,
       ...activeRatingPageSelect,
+      game: { include: { jam: true, team: { include: { users: { select: { id: true } } } } } },
     },
   });
 
@@ -82,12 +83,27 @@ export async function saveGameRating({
     throw new NotFoundError("Game page missing.");
   }
 
+  const game = targetGamePage.game;
+  if (!game.published) throw new NotFoundError("Game missing.");
+  if (game.team.ownerId === userId || game.team.users.some((member) => member.id === userId)) {
+    throw new ForbiddenError("You can't rate your own game.");
+  }
+
   const category = await db.ratingCategory.findUnique({ where: { id: categoryId } });
-  if (!category || (!category.always && !targetGamePage.ratingCategories.some((entry) => entry.id === categoryId))) {
+  if (!category || !isActiveGameRating({ categoryId, category, gamePage: targetGamePage })) {
     throw new BadRequestError("This rating category is no longer active. Refresh the game page to see its current categories.");
   }
 
   targetGamePageId = targetGamePage.id;
+
+  const now = new Date();
+  const timeline = buildJamTimeline(game.jam);
+  const isPostJam = targetGamePage.version === PageVersion.POST_JAM;
+  const startsAt = isPostJam ? timeline.postJamRefinementEnd : timeline.jammingEnd;
+  const endsAt = isPostJam ? timeline.postJamRatingEnd : timeline.ratingEnd;
+  const rankedFields = now >= startsAt && now < endsAt
+    ? { rankedValue: value, rankedUpdatedAt: now }
+    : {};
 
   const currentRating = await db.rating.findUnique({
     where: {
@@ -106,12 +122,14 @@ export async function saveGameRating({
       },
       data: {
         value,
+        ...rankedFields,
       },
     });
   } else {
     await db.rating.create({
       data: {
         value,
+        ...rankedFields,
         gameId,
         gamePageId: targetGamePageId,
         userId,

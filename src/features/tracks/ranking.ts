@@ -1,5 +1,5 @@
 import { buildJamTimeline } from "../../domain/jamTimeline.js";
-import { latestTrackRatings, rankedTrackRatings } from "../ratings/track-values.js";
+import { latestTrackRatings, rankedTrackRatings, postJamTrackScore } from "../ratings/track-values.js";
 import { isActiveGameRating } from "../ratings/active.js";
 import { PageVersion } from "@prisma/client";
 
@@ -182,6 +182,14 @@ async function buildRecommendedPointsByTrackId(
 }
 
 export function getTrackScoreSortValues(track: any) {
+  if (track.pageVersion === PageVersion.POST_JAM) {
+    const ratings = track.scoreRatings ?? track.ratings.map((rating: any) => ({ ...rating, trackPageVersion: PageVersion.POST_JAM }));
+    const score = postJamTrackScore<any>(ratings.filter((rating: any) =>
+      rating.category?.name === appConfig.games.ratingCategoryNames.overallTrack &&
+      isAllowedRaterInJam(rating, track.game.jamId),
+    ));
+    return { adjusted: score.averageScore, average: score.averageScore, count: score.ratingCount };
+  }
   const getOverallRatings = (track: any) =>
     rankedTrackRatings<any>(track.ratings).filter((rating: any) => {
       const numericValue = Number(rating.value);
@@ -383,7 +391,13 @@ export function buildTrackDetailScores({
 
   const trackWithScores = scoreCandidates.map((candidate) => {
     const categoryAverages = trackCategories.map((category) => {
-      const categoryRatings = latestTrackRatings<any>(candidate.ratings).filter(
+      const isPostJam = candidate.gamePage.version === PageVersion.POST_JAM;
+      const postJamScore = isPostJam ? postJamTrackScore<any>(candidate.ratings.filter((rating: any) =>
+        rating.categoryId === category.id && isAllowedRaterInJam(rating, jamId),
+      )) : null;
+      const categoryRatings = latestTrackRatings<any>(candidate.ratings.filter((rating: any) =>
+        !isPostJam || rating.trackPageVersion === PageVersion.POST_JAM,
+      )).filter(
         (rating: any) => rating.categoryId === category.id,
       );
       const rankedRatings = rankedTrackRatings<any>(candidate.ratings).filter((rating: any) => rating.categoryId === category.id).filter((rating: any) =>
@@ -413,10 +427,10 @@ export function buildTrackDetailScores({
       return {
         categoryId: category.id,
         categoryName: category.name,
-        averageScore,
+        averageScore: postJamScore?.averageScore ?? averageScore,
         averageUnrankedScore,
         ratingCount: categoryRatings.length,
-        rankedRatingCount: rankedRatings.length,
+        rankedRatingCount: postJamScore?.ratingCount ?? rankedRatings.length,
         placement: -1,
       };
     });
@@ -450,6 +464,7 @@ export function buildTrackDetailScores({
         avg.categoryName === appConfig.games.ratingCategoryNames.overallTrack,
     );
     return (
+      scorePageVersion === PageVersion.JAM &&
       candidate.origin !== "ASSET_PACK" &&
       !isNonCompetitiveGameCategory(candidate.gamePage.game.category) &&
       overallCategory &&
@@ -458,24 +473,15 @@ export function buildTrackDetailScores({
     );
   });
 
-  rankedTracks.forEach((candidate) => {
-    candidate.categoryAverages.forEach((category: any) => {
-      const rankedInCategory = rankedTracks
-        .map((other) => ({
-          trackId: other.id,
-          score:
-            other.categoryAverages.find(
-              (cat: any) => cat.categoryId === category.categoryId,
-            )?.averageScore ?? 0,
-        }))
-        .sort((a, b) => b.score - a.score);
-
-      const placement = rankedInCategory.findIndex(
-        (other) => other.trackId === candidate.id,
-      );
-      category.placement = placement + 1;
+  for (const category of trackCategories) {
+    const sorted = rankedTracks.map((candidate) => ({
+      candidate,
+      score: candidate.categoryAverages.find((entry: any) => entry.categoryId === category.id),
+    })).sort((a, b) => (b.score?.averageScore ?? 0) - (a.score?.averageScore ?? 0));
+    sorted.forEach(({ score }, index) => {
+      if (score) score.placement = index + 1;
     });
-  });
+  }
 
   const target = trackWithScores.find((candidate) => candidate.id === targetTrackId);
   const scores: Record<
@@ -493,6 +499,7 @@ export function buildTrackDetailScores({
   if (target) {
     target.categoryAverages.forEach((category: any) => {
       const canBeRanked =
+        scorePageVersion === PageVersion.JAM &&
         target.origin !== "ASSET_PACK" &&
         !isNonCompetitiveGameCategory(target.gamePage.game.category) &&
         category.rankedRatingCount >= 5 &&

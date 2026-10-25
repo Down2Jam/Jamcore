@@ -624,6 +624,8 @@ model TrackFlag {
 }
 
 model Rating {
+  rankedValue Int?
+  rankedUpdatedAt DateTime?
   id        Int      @id @default(autoincrement())
   value     Int
   createdAt DateTime @default(now())

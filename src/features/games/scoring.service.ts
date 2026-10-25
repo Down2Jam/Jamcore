@@ -1,4 +1,6 @@
-import { activeRatingSelect, activeRatingPageSelect, isActiveGameRating } from "../ratings/active.js";
+import { rankedGameRatings } from "../ratings/game-values.js";
+import { calculatePostJamScore } from "../ratings/post-jam-score.js";
+import { activeRatingSelect, activeRatingPageSelect, isActiveGameRating, getGameRatingCategoryCount } from "../ratings/active.js";
 import { GameCategory, PageVersion } from "@prisma/client";
 import type { CategoryAverage, ScoreSummary } from "../../types/game.js";
 
@@ -9,7 +11,6 @@ import {
   isNonCompetitiveGameCategory,
 } from "./policies.js";
 import { materializeGamePage } from "./page.helpers.js";
-import { getRatingPageVersion } from "./page.service.js";
 
 type RatingCategoryRef = {
   gamePage?: {
@@ -102,6 +103,7 @@ export async function buildVersionScores({
 
   const games = await db.game.findMany({
     where: {
+      ...(version === PageVersion.POST_JAM ? { id: game.id } : {}),
       jamId: game.jamId,
       category: game.category,
       published: true,
@@ -126,10 +128,12 @@ export async function buildVersionScores({
       team: {
         select: {
           users: {
+            where: version === PageVersion.POST_JAM ? { id: { in: [] } } : {},
             select: {
               ratings: {
                 select: {
                   ...activeRatingSelect,
+                  rankedValue: true,
                   gamePage: {
                     select: {
                       version: true,
@@ -141,28 +145,13 @@ export async function buildVersionScores({
                       },
                       game: {
                         select: {
+                          jamId: true,
                           ratingCategories: {
                             select: {
                               id: true,
                             },
                           },
-                          pages: {
-                            where: {
-                              version: {
-                                in:
-                                  version === PageVersion.POST_JAM
-                                    ? [PageVersion.JAM, PageVersion.POST_JAM]
-                                    : [version],
-                              },
-                            },
-                            select: {
-                              ratingCategories: {
-                                select: {
-                                  id: true,
-                                },
-                              },
-                            },
-                          },
+
                         },
                       },
                     },
@@ -176,6 +165,7 @@ export async function buildVersionScores({
       ratings: {
         select: {
           ...activeRatingSelect,
+                  rankedValue: true,
           value: true,
           categoryId: true,
           gamePage: {
@@ -217,7 +207,7 @@ export async function buildVersionScores({
   const alwaysCategories = allCategories.filter((entry) => entry.always);
 
   const filteredGames = games.map((loadedGame) => {
-    const hasSelectedPage = loadedGame.pages.length > 0;
+    const hasSelectedPage = loadedGame.pages.some((page) => page.version === version);
     const materializedGame = materializeGamePage(loadedGame, version);
     const selectedCategoryIds =
       materializedGame.ratingCategories?.map((entry: { id: number }) => entry.id) ??
@@ -239,11 +229,12 @@ export async function buildVersionScores({
 
     const filteredRatings = loadedGame.ratings.filter(
       (rating) =>
-        ratingBelongsToScoreVersion(rating, version) &&
+        isActiveGameRating(rating) &&
+        (version === PageVersion.POST_JAM || ratingBelongsToScoreVersion(rating, version)) &&
         categoryIds.includes(rating.categoryId),
     );
 
-    const publishedRatings = filteredRatings.filter((rating) =>
+    const publishedRatings = rankedGameRatings(filteredRatings).filter((rating) =>
       rating.user.teams.some((team) => {
         const candidateGame = team.game;
         return (
@@ -256,6 +247,7 @@ export async function buildVersionScores({
     );
 
     const categoryAverages: CategoryAverage[] = categories
+      .filter((category) => version !== PageVersion.POST_JAM || category.name === OVERALL_RATING_CATEGORY_NAME)
       .filter(
         (category) =>
           !category.askMajorityContent ||
@@ -265,7 +257,7 @@ export async function buildVersionScores({
       )
       .map((category) => {
         const categoryRatings = filteredRatings.filter(
-          (rating) => rating.categoryId === category.id,
+          (rating) => rating.categoryId === category.id && ratingBelongsToScoreVersion(rating, version),
         );
         const categoryPublishedRatings = publishedRatings.filter(
           (rating) => rating.categoryId === category.id,
@@ -277,20 +269,24 @@ export async function buildVersionScores({
               categoryRatings.length
             : 0;
 
-        const averagePublishedRating =
-          categoryPublishedRatings.length > 0
-            ? categoryPublishedRatings.reduce(
-                (sum, rating) => sum + rating.value,
-                0,
-              ) / categoryPublishedRatings.length
-            : 0;
+        const rankedScore = version === PageVersion.POST_JAM
+          ? calculatePostJamScore(
+              categoryPublishedRatings.filter((rating) => rating.gamePage?.version === PageVersion.POST_JAM),
+              categoryPublishedRatings.filter((rating) => rating.gamePage?.version === PageVersion.JAM),
+            )
+          : {
+              averageScore: categoryPublishedRatings.length
+                ? categoryPublishedRatings.reduce((sum, rating) => sum + rating.value, 0) / categoryPublishedRatings.length
+                : 0,
+              ratingCount: categoryPublishedRatings.length,
+            };
 
         return {
           categoryId: category.id,
           categoryName: category.name,
-          averageScore: averagePublishedRating,
+          averageScore: rankedScore.averageScore,
           averageUnrankedScore: averageRating,
-          ratingCount: categoryRatings.length,
+          ratingCount: rankedScore.ratingCount,
           placement: -1,
         };
       });
@@ -301,10 +297,10 @@ export async function buildVersionScores({
       categoryAverages,
       ratingsCount: loadedGame.team.users.reduce((totalRatings, user) => {
         const userRatingCount = user.ratings.reduce((count, rating) => {
-          if (!isActiveGameRating(rating) || !ratingBelongsToScoreVersion(rating, version)) return count;
+          if (rating.rankedValue == null || rating.gamePage?.game?.jamId !== game.jamId || !isActiveGameRating(rating) || !ratingBelongsToScoreVersion(rating, version)) return count;
           return (
             count +
-            1 / (getRatingCategoryCount(rating) + alwaysCategories.length)
+            1 / getGameRatingCategoryCount(rating.gamePage?.version, getRatingCategoryCount(rating), alwaysCategories.length)
           );
         }, 0);
         return totalRatings + userRatingCount;
@@ -317,6 +313,7 @@ export async function buildVersionScores({
   );
 
   const rankedGames = versionFilteredGames
+    .filter(() => version === PageVersion.JAM)
     .filter((entry) => {
       const overallCategory = entry.categoryAverages.find(
         (avg: CategoryAverage) =>
@@ -327,26 +324,20 @@ export async function buildVersionScores({
     .filter((entry) => Math.round(entry.ratingsCount) >= 5);
 
   if (!isNonCompetitiveGameCategory(game.category)) {
-    rankedGames.forEach((entry) => {
-      entry.categoryAverages.forEach((category: CategoryAverage) => {
-        const rankedGamesInCategory = rankedGames
-          .slice()
-          .sort((a, b) =>
-            compareGamesByRawCategoryScore(
-              a,
-              b,
-              category.categoryId,
-              category.categoryName,
-            ),
+    const placementsByCategory = new Map<number, Map<number, number>>();
+    for (const entry of rankedGames) {
+      for (const category of entry.categoryAverages) {
+        let placements = placementsByCategory.get(category.categoryId);
+        if (!placements) {
+          const sorted = [...rankedGames].sort((a, b) =>
+            compareGamesByRawCategoryScore(a, b, category.categoryId, category.categoryName),
           );
-
-        const gamePlacement = rankedGamesInCategory.findIndex(
-          (rankedGame) => rankedGame.id === entry.id,
-        );
-
-        category.placement = gamePlacement + 1;
-      });
-    });
+          placements = new Map(sorted.map((candidate, index) => [candidate.id, index + 1]));
+          placementsByCategory.set(category.categoryId, placements);
+        }
+        category.placement = placements.get(entry.id) ?? -1;
+      }
+    }
   }
 
   const rankedTarget = rankedGames.find((entry) => entry.id === game.id);

@@ -101,6 +101,7 @@ const gameDetailInclude = {
     },
   },
   ratings: {
+    omit: { value: true },
     include: {
       category: true,
       gamePage: {

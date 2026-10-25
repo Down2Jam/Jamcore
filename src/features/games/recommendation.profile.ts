@@ -47,7 +47,7 @@ async function loadRatingPages(viewerId: number, overallCategoryId: number) {
     select: {
       gameId: true,
       categoryId: true,
-      category: { select: { always: true } },
+      category: { select: { always: true, name: true } },
       value: true,
       updatedAt: true,
       gamePage: {

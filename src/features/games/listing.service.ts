@@ -1,4 +1,6 @@
-import { activeRatingSelect, activeRatingPageSelect, isActiveGameRating } from "../ratings/active.js";
+import { rankedGameRatings } from "../ratings/game-values.js";
+import { calculatePostJamScore } from "../ratings/post-jam-score.js";
+import { activeRatingSelect, activeRatingPageSelect, isActiveGameRating, getGameRatingCategoryCount } from "../ratings/active.js";
 import { PageVersion, type Prisma } from "@prisma/client";
 import { randomBytes } from "node:crypto";
 import { z } from "zod";
@@ -253,7 +255,7 @@ export function getGameScoreSortValues(game: ListedGame) {
       ((game as ListedGame & { allRatings?: ListedGame["ratings"] }).allRatings ??
         game.ratings) as ListedGame["ratings"];
 
-    return allRatings.filter((rating) => {
+    return rankedGameRatings(allRatings).filter((rating) => {
       const numericValue = Number(rating.value);
       return (
         (version
@@ -277,6 +279,11 @@ export function getGameScoreSortValues(game: ListedGame) {
       overallRatings.length
     );
   };
+
+  if (game.pageVersion === PageVersion.POST_JAM) {
+    const score = calculatePostJamScore(getOverallRatings(game), getRatings(game, PageVersion.JAM));
+    return { adjusted: score.averageScore, average: score.averageScore, count: score.ratingCount };
+  }
 
   const getAdjusted = (game: ListedGame) => {
     const overallRatings = getOverallRatings(game);
@@ -319,9 +326,9 @@ function sortByScore(games: ListedGame[]) {
 function sortByLeastRated(games: ListedGame[], ratingCategoryCount: number) {
   return [...games].sort((a, b) => {
     const aRatingRatio =
-      a.ratings.length / (a.ratingCategories.length + ratingCategoryCount);
+      a.ratings.length / getGameRatingCategoryCount(a.pageVersion, a.ratingCategories.length, ratingCategoryCount);
     const bRatingRatio =
-      b.ratings.length / (b.ratingCategories.length + ratingCategoryCount);
+      b.ratings.length / getGameRatingCategoryCount(b.pageVersion, b.ratingCategories.length, ratingCategoryCount);
 
     return aRatingRatio - bRatingRatio || compareListingIdentity(a, b);
   });
@@ -330,8 +337,9 @@ function sortByLeastRated(games: ListedGame[], ratingCategoryCount: number) {
 function sortByDanger(games: ListedGame[], ratingCategoryCount: number) {
   return [...games]
     .filter((game) => !isNonCompetitiveGameCategory(game.category))
-    .filter((game) =>
-      game.ratingCategories.some((category) => {
+    .filter((game) => game.pageVersion === PageVersion.POST_JAM
+      ? game.ratings.filter((rating) => rating.category.name === OVERALL_RATING_CATEGORY_NAME && isAllowedRaterInJam(rating, game.jamId)).length < 5
+      : game.ratingCategories.some((category) => {
         const allowedCount = game.ratings.filter(
           (rating) =>
             rating.categoryId === category.id &&
@@ -347,8 +355,8 @@ function sortByDanger(games: ListedGame[], ratingCategoryCount: number) {
       const allowedB = b.ratings.filter((rating) =>
         isAllowedRaterInJam(rating, b.jamId),
       ).length;
-      const normA = allowedA / (a.ratingCategories.length + ratingCategoryCount);
-      const normB = allowedB / (b.ratingCategories.length + ratingCategoryCount);
+      const normA = allowedA / getGameRatingCategoryCount(a.pageVersion, a.ratingCategories.length, ratingCategoryCount);
+      const normB = allowedB / getGameRatingCategoryCount(b.pageVersion, b.ratingCategories.length, ratingCategoryCount);
       return normB - normA || compareListingIdentity(a, b);
     });
 }
@@ -362,7 +370,7 @@ function sortByRatingBalance(games: ListedGame[], ratingCategoryCount: number) {
           (ratingSum, rating) =>
             ratingSum +
             (rating.game.jamId === game.jamId
-              ? 1 / ((rating.gamePage?.ratingCategories ?? rating.game.ratingCategories).length + ratingCategoryCount)
+              ? 1 / getGameRatingCategoryCount(rating.gamePage?.version, (rating.gamePage?.ratingCategories ?? rating.game.ratingCategories).length, ratingCategoryCount)
               : 0),
           0,
         ),
@@ -380,7 +388,7 @@ function sortByRatingBalance(games: ListedGame[], ratingCategoryCount: number) {
               !isNonCompetitiveGameCategory(team.game.category),
           ).length > 0,
       ).length /
-      (game.ratingCategories.length + ratingCategoryCount);
+      getGameRatingCategoryCount(game.pageVersion, game.ratingCategories.length, ratingCategoryCount);
 
     return given - gotten;
   };
@@ -614,7 +622,7 @@ async function rankByKarmaOrRecommended(
           (ratingSum, rating) =>
             ratingSum +
             (rating.game.jamId === game.jamId
-              ? 1 / ((rating.gamePage?.ratingCategories ?? rating.game.ratingCategories).length + ratingCategories.length)
+              ? 1 / getGameRatingCategoryCount(rating.gamePage?.version, (rating.gamePage?.ratingCategories ?? rating.game.ratingCategories).length, ratingCategories.length)
               : 0),
           0,
         ),
@@ -632,7 +640,7 @@ async function rankByKarmaOrRecommended(
               !isNonCompetitiveGameCategory(team.game.category),
           ).length > 0,
       ).length /
-      (game.ratingCategories.length + ratingCategories.length);
+      getGameRatingCategoryCount(game.pageVersion, game.ratingCategories.length, ratingCategories.length);
 
     const likes = game.team.users.reduce(
       (sum, user) =>
@@ -717,11 +725,13 @@ async function rankByKarmaOrRecommended(
       : 0;
     const preference = preferenceScorer?.(game) ?? { adjustment: 0, reasons: [] };
 
+    const usesScore = sort === "recommended" &&
+      (allJams || areRatingValuesPublic(game.jam, game.pageVersion ?? PageVersion.JAM));
     const scoreParts = {
-      ...(sort === "recommended" && allJams
+      ...(usesScore
         ? { ratingsGiven: 0, commentLikes: 0, achievements: 0, leaderboardScores: 0, ratingsReceived: 0 }
         : karmaScore(game)),
-      averageRating: sort === "recommended" && allJams ? getGameScoreSortValues(game).adjusted : 0,
+      averageRating: usesScore ? getGameScoreSortValues(game).adjusted : 0,
       communityRecommendations: recommendationBoost,
     };
 

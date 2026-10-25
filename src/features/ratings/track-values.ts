@@ -1,3 +1,5 @@
+import { calculatePostJamScore } from "./post-jam-score.js";
+
 // A merged score gives each person one vote per category, preferring the displayed post-jam version.
 export function latestTrackRatings<T extends { userId: number; categoryId: number; updatedAt: Date; id?: number; trackPageVersion?: string }>(ratings: T[]): T[] {
   const latest = new Map<string, T>();
@@ -21,4 +23,20 @@ export function rankedTrackRatings<T extends { userId: number; categoryId: numbe
     value: rating.rankedValue!,
     updatedAt: rating.rankedUpdatedAt ?? rating.updatedAt,
   })));
+}
+
+
+export function postJamTrackScore<T extends {
+  userId: number;
+  categoryId: number;
+  value: number;
+  updatedAt: Date;
+  rankedValue?: number | null;
+  rankedUpdatedAt?: Date | null;
+  trackPageVersion?: string;
+}>(ratings: T[]) {
+  return calculatePostJamScore(
+    rankedTrackRatings(ratings.filter((rating) => rating.trackPageVersion === "POST_JAM")),
+    rankedTrackRatings(ratings.filter((rating) => rating.trackPageVersion === "JAM")),
+  );
 }
