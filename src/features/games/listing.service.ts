@@ -247,7 +247,7 @@ function isAllowedRaterInJam(
 
 export function getGameScoreSortValues(game: ListedGame) {
   if (!areRatingValuesPublic(game.jam, game.pageVersion ?? PageVersion.JAM)) {
-    return { adjusted: SCORE_SORT_MIDPOINT, average: SCORE_SORT_MIDPOINT, count: 0 };
+    return { adjusted: SCORE_SORT_MIDPOINT, average: SCORE_SORT_MIDPOINT, count: SCORE_SORT_RATING_GOAL };
   }
   const getRatings = (game: ListedGame, version?: PageVersion) => {
     if (!areRatingValuesPublic(game.jam, version ?? game.pageVersion ?? PageVersion.JAM)) return [];
@@ -268,50 +268,23 @@ export function getGameScoreSortValues(game: ListedGame) {
     });
   };
 
-  const getOverallRatings = (game: ListedGame) =>
-    getRatings(game, game.pageVersion ?? PageVersion.JAM);
+  const overallRatings = getRatings(game, game.pageVersion ?? PageVersion.JAM);
+  const score = game.pageVersion === PageVersion.POST_JAM
+    ? calculatePostJamScore(overallRatings, getRatings(game, PageVersion.JAM))
+    : {
+        averageScore: overallRatings.length
+          ? overallRatings.reduce((sum, rating) => sum + rating.value, 0) / overallRatings.length
+          : SCORE_SORT_MIDPOINT,
+        ratingCount: overallRatings.length,
+      };
+  // Sorting pads any slots left after the jam-average fallback. Displayed scores
+  // keep their actual effective vote count and do not use these placeholders.
+  const missingRatings = Math.max(0, SCORE_SORT_RATING_GOAL - score.ratingCount);
+  const adjusted = (score.averageScore * score.ratingCount + missingRatings * SCORE_SORT_MIDPOINT) /
+    Math.max(score.ratingCount, SCORE_SORT_RATING_GOAL);
 
-  const getAverage = (game: ListedGame) => {
-    const overallRatings = getOverallRatings(game);
-    if (overallRatings.length === 0) return SCORE_SORT_MIDPOINT;
-    return (
-      overallRatings.reduce((sum, rating) => sum + Number(rating.value), 0) /
-      overallRatings.length
-    );
-  };
+  return { adjusted, average: score.ratingCount ? score.averageScore : SCORE_SORT_MIDPOINT, count: score.ratingCount };
 
-  if (game.pageVersion === PageVersion.POST_JAM) {
-    const score = calculatePostJamScore(getOverallRatings(game), getRatings(game, PageVersion.JAM));
-    return { adjusted: score.averageScore, average: score.averageScore, count: score.ratingCount };
-  }
-
-  const getAdjusted = (game: ListedGame) => {
-    const overallRatings = getOverallRatings(game);
-    if (overallRatings.length >= SCORE_SORT_RATING_GOAL) {
-      return getAverage(game);
-    }
-
-    const missingOverallRatings = SCORE_SORT_RATING_GOAL - overallRatings.length;
-    const jamOverallRatings =
-      (game.pageVersion ?? PageVersion.JAM) === PageVersion.POST_JAM
-        ? getRatings(game, PageVersion.JAM)
-        : [];
-    const jamAverage =
-      jamOverallRatings.length > 0
-        ? jamOverallRatings.reduce((sum, rating) => sum + Number(rating.value), 0) /
-          jamOverallRatings.length
-        : SCORE_SORT_MIDPOINT;
-    const jamFillCount = Math.min(jamOverallRatings.length, missingOverallRatings);
-    const midpointFillCount = missingOverallRatings - jamFillCount;
-
-    return (
-      overallRatings.reduce((sum, rating) => sum + Number(rating.value), 0) +
-      jamFillCount * jamAverage +
-      midpointFillCount * SCORE_SORT_MIDPOINT
-    ) / SCORE_SORT_RATING_GOAL;
-  };
-
-  return { adjusted: getAdjusted(game), average: getAverage(game), count: getOverallRatings(game).length };
 }
 
 function sortByScore(games: ListedGame[]) {
