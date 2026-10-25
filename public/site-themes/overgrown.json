@@ -1,0 +1,33 @@
+{
+  "name": "Overgrown",
+  "authors": ["TechnicalityCreations"],
+  "description": "",
+  "version": "0.1.0",
+  "keywords": [],
+  "repository": "",
+  "type": "Dark",
+  "extends": "Base",
+  "colors": {
+    "text": "#E2FFE7",
+    "textFaded": "#B1FFBC",
+
+    "base": "#082815",
+    "mantle": "#14340F",
+    "crust": "#19480E",
+
+    "red": "#0BDA51",
+    "orange": "#66FF00",
+    "yellow": "#00FF40",
+    "lime": "#91EF3A",
+    "green": "#04F939",
+    "teal": "#43DF80",
+    "cyan": "#2DEB84",
+    "blue": "#04F939",
+    "indigo": "#046F32",
+    "violet": "#024A0A",
+    "purple": "#60E957",
+    "magenta": "#127F4C",
+    "pink": "#91EF3A",
+    "gray": "#91a0aa"
+  }
+}
