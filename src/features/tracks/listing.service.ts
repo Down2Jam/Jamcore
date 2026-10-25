@@ -158,6 +158,7 @@ export async function listTracks(
         categoryCount,
         sort,
         trackCategories,
+        allJams: !resolvedJam,
       });
     }
 

@@ -1,4 +1,5 @@
 import { buildJamTimeline } from "../../domain/jamTimeline.js";
+import { areRatingValuesPublic } from "../ratings/visibility.js";
 import { latestTrackRatings, rankedTrackRatings, postJamTrackScore } from "../ratings/track-values.js";
 import { isActiveGameRating } from "../ratings/active.js";
 import { PageVersion } from "@prisma/client";
@@ -182,13 +183,19 @@ async function buildRecommendedPointsByTrackId(
 }
 
 export function getTrackScoreSortValues(track: any) {
+  if (!areRatingValuesPublic(track.game?.jam ?? track.gamePage?.game?.jam, track.pageVersion ?? PageVersion.JAM)) {
+    return { adjusted: SCORE_SORT_MIDPOINT, average: SCORE_SORT_MIDPOINT, count: SCORE_SORT_RATING_GOAL };
+  }
   if (track.pageVersion === PageVersion.POST_JAM) {
     const ratings = track.scoreRatings ?? track.ratings.map((rating: any) => ({ ...rating, trackPageVersion: PageVersion.POST_JAM }));
     const score = postJamTrackScore<any>(ratings.filter((rating: any) =>
       rating.category?.name === appConfig.games.ratingCategoryNames.overallTrack &&
       isAllowedRaterInJam(rating, track.game.jamId),
     ));
-    return { adjusted: score.averageScore, average: score.averageScore, count: score.ratingCount };
+    const missingRatings = Math.max(0, SCORE_SORT_RATING_GOAL - score.ratingCount);
+    const adjusted = (score.averageScore * score.ratingCount + missingRatings * SCORE_SORT_MIDPOINT) /
+      Math.max(score.ratingCount, SCORE_SORT_RATING_GOAL);
+    return { adjusted, average: score.ratingCount ? score.averageScore : SCORE_SORT_MIDPOINT, count: score.ratingCount };
   }
   const getOverallRatings = (track: any) =>
     rankedTrackRatings<any>(track.ratings).filter((rating: any) => {
@@ -322,11 +329,13 @@ export async function sortTracksByKarmaOrRecommendation({
   categoryCount,
   sort,
   trackCategories,
+  allJams = false,
 }: {
   tracks: any[];
   categoryCount: number;
   sort: "karma" | "recommended";
   trackCategories: Array<{ id: number; name: string }>;
+  allJams?: boolean;
 }) {
   const exponent = 0.73412;
   const recommendationWeight = 2;
@@ -339,7 +348,7 @@ export async function sortTracksByKarmaOrRecommendation({
         category.name === appConfig.games.ratingCategoryNames.overallTrack,
     )?.id ?? null;
   const recommendedPointsByTrackId = await buildRecommendedPointsByTrackId(
-    tracks,
+    tracks.filter((track) => areRatingValuesPublic(track.game?.jam ?? track.gamePage?.game?.jam, track.pageVersion ?? PageVersion.JAM)),
     overallCategoryId,
   );
 
@@ -359,7 +368,7 @@ export async function sortTracksByKarmaOrRecommendation({
 
   const now = new Date();
   const scores = new Map(tracks.map(track => {
-    const base = sort === "recommended" && trackRecommendationUsesScore(track, now)
+    const base = sort === "recommended" && (allJams || trackRecommendationUsesScore(track, now))
       ? getTrackScoreSortValues(track).adjusted
       : karmaScore(track);
     return [track, base + (sort === "recommended" ? recommendedBoost(track) : 0)];
